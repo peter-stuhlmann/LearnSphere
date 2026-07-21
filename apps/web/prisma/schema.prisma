@@ -1,5 +1,11 @@
 generator client {
   provider = "prisma-client-js"
+  /// "native" = lokale Entwicklung (Windows/macOS), zusätzlich die Engine
+  /// für das Produktions-Image (Debian Bookworm bringt OpenSSL 3.0 mit).
+  /// Ohne diesen expliziten Eintrag hängt die Auswahl daran, ob Prisma die
+  /// libssl-Version im Build-Container erkennt – schlägt das fehl, findet
+  /// der Client zur Laufzeit seine Engine nicht.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {

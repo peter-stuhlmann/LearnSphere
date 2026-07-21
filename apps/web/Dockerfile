@@ -6,6 +6,14 @@
 FROM node:22-bookworm-slim AS builder
 WORKDIR /repo
 
+# OpenSSL muss schon HIER liegen: "prisma generate" wählt die Query-Engine
+# anhand der erkannten libssl-Version. Ohne OpenSSL rät Prisma auf
+# openssl-1.1.x, während das Runtime-Image 3.0 nutzt – der Client findet
+# dann zur Laufzeit seine Engine nicht.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 # Workspace-Manifeste zuerst (Docker-Layer-Cache für npm ci)
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/web/package.json apps/web/package.json
@@ -56,6 +64,12 @@ COPY --from=builder /repo/apps/web/.next/standalone ./
 # Statische Assets + public gehören neben server.js (apps/web/…)
 COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /repo/apps/web/public ./apps/web/public
+
+# Prisma-Query-Engine explizit übernehmen. Das File-Tracing von Next.js
+# nimmt die .so-Binärdatei nicht zuverlässig mit; fehlt sie, startet der
+# Server zwar, aber jede Datenbankabfrage scheitert mit
+# "could not locate the Query Engine".
+COPY --from=builder /repo/node_modules/.prisma/client ./node_modules/.prisma/client
 
 # Wartungsskripte (z. B. Superadmin anlegen) – laufen per docker compose exec
 COPY --from=builder /repo/apps/web/scripts ./scripts
