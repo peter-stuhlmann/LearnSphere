@@ -10,12 +10,13 @@
     "dev": "npm run dev -w @elearning/web",
     "dev:web": "npm run dev -w @elearning/web",
     "build": "npm run build -w @elearning/web",
-    "lint": "npm run lint --workspaces --if-present",
+    "lint": "npm run lint -w @elearning/web",
     "test": "npm run test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "db:push": "npm run db:push -w @elearning/web",
     "db:migrate": "npm run db:migrate -w @elearning/web",
-    "db:studio": "npm run db:studio -w @elearning/web"
+    "db:studio": "npm run db:studio -w @elearning/web",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
     "react": "19.1.0",

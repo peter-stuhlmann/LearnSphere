@@ -22,9 +22,9 @@ jobs:
       # Prisma braucht eine DATABASE_URL zum Generieren (kein DB-Zugriff)
       DATABASE_URL: "mysql://ci:ci@localhost:3306/ci"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -32,12 +32,17 @@ jobs:
       - name: Abhängigkeiten installieren
         run: npm ci
 
+      # Schema liegt im Workspace, nicht im Repo-Root – ohne --schema
+      # findet Prisma nichts und der Lauf bricht ab.
       - name: Prisma-Client generieren
-        run: npx prisma generate
+        run: npx prisma generate --schema apps/web/prisma/schema.prisma
 
+      # Läuft im Workspace (apps/web). Ein blankes "tsc --noEmit" im Root
+      # prüft mangels tsconfig.json gar nichts und ist still grün.
       - name: TypeScript
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
+      # Bewusst nur die Web-App: apps/mobile hat (noch) keine ESLint-Config
       - name: ESLint
         run: npm run lint
 
@@ -54,7 +59,7 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: SSH-Zugang einrichten
         env:
