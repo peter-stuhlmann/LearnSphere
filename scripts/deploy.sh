@@ -15,6 +15,18 @@ HEALTH_RETRIES="${HEALTH_RETRIES:-30}"
 
 cd "$APP_DIR"
 
+# Die Konfiguration liegt NUR auf dem Server (beide Dateien sind gitignored
+# und kommen deshalb nie über GitHub). Fehlen sie, würde der Container mit
+# unbrauchbarer Konfiguration starten – lieber vorher klar abbrechen.
+for f in apps/web/.env.production .env; do
+  if [ ! -f "$f" ]; then
+    echo "✗ $APP_DIR/$f fehlt." >&2
+    echo "  Diese Datei wird bewusst nicht über Git verteilt (enthält Secrets)." >&2
+    echo "  Einmalig auf dem Server anlegen – siehe docs/DEPLOY-ANLEITUNG-SCHRITT-FUER-SCHRITT.md" >&2
+    exit 1
+  fi
+done
+
 echo "▸ Stand vor dem Deploy: $(git rev-parse --short HEAD)"
 
 # Exakt auf den Remote-Stand ziehen. Lokale Änderungen am eingecheckten Code
