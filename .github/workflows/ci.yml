@@ -37,6 +37,12 @@ jobs:
       - name: Prisma-Client generieren
         run: npx prisma generate --schema apps/web/prisma/schema.prisma
 
+      # Lokal wird mit "db push" gearbeitet – dabei entstehen leicht
+      # Schema-Änderungen ohne zugehörige Migration. Das fällt erst auf
+      # einer frischen Produktions-DB auf, dort dann zur Laufzeit.
+      - name: Migrationen decken das Schema ab
+        run: npm run check:migrations
+
       # Läuft im Workspace (apps/web). Ein blankes "tsc --noEmit" im Root
       # prüft mangels tsconfig.json gar nichts und ist still grün.
       - name: TypeScript
