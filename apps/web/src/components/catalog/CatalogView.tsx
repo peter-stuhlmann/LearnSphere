@@ -8,6 +8,8 @@ import { useThrottledValue } from "@/lib/useThrottledValue";
 import { COURSE_CATEGORIES } from "@elearning/core/categories";
 import { Container, Kicker, Muted, SectionTitle } from "@/components/ui/primitives";
 import { Pagination } from "@/components/ui/Pagination";
+import { Select } from "@/components/ui/Select";
+import { COURSE_SORTS, type CourseSort } from "@/lib/course-sort";
 import {
   CourseCard,
   CourseGrid,
@@ -46,6 +48,57 @@ const SearchInput = styled.input`
     outline: 2px solid ${({ theme }) => theme.colors.accent};
     outline-offset: 0;
     border-color: transparent;
+  }
+`;
+
+/* Kostenlos-Umschalter: gleiche Pillenform wie die Kategorie-Chips,
+   aber mit Häkchen und kräftigerem Akzent im aktiven Zustand */
+const FreeToggle = styled.button<{ $active: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+  padding: 0.6rem 1.1rem;
+  border-radius: ${({ theme }) => theme.radii.pill};
+  font-size: 0.85rem;
+  font-weight: ${({ $active }) => ($active ? 600 : 400)};
+  border: 1px solid
+    ${({ theme, $active }) =>
+      $active ? theme.colors.accent : theme.colors.border};
+  background: ${({ theme, $active }) =>
+    $active ? theme.colors.accentSoft : theme.colors.bgElevated};
+  color: ${({ theme, $active }) =>
+    $active ? theme.colors.accent : theme.colors.textMuted};
+  transition:
+    border-color 140ms ease,
+    color 140ms ease,
+    background 140ms ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.accent};
+    color: ${({ theme }) => theme.colors.text};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+  }
+
+  /* Markierung nur als Zustandsanzeige – der Text trägt die Information */
+  span[aria-hidden] {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    border: 1px solid
+      ${({ theme, $active }) =>
+        $active ? theme.colors.accent : theme.colors.borderStrong};
+    background: ${({ theme, $active }) =>
+      $active ? theme.colors.accent : "transparent"};
+    color: ${({ theme }) => theme.colors.onAccent};
   }
 `;
 
@@ -88,7 +141,15 @@ interface CatalogCourse extends CourseCardCourse {
 }
 
 interface CatalogViewProps {
-  filters: { q: string; page: number; per: number; categories: string[] };
+  filters: {
+    q: string;
+    page: number;
+    per: number;
+    categories: string[];
+    /** nur kostenlose Kurse zeigen */
+    freeOnly: boolean;
+    sort: CourseSort;
+  };
   /** Kategorien mit mindestens einem sichtbaren Kurs – nur die werden angeboten */
   availableCategories: string[];
   pagination: { total: number; pages: number; pageSizes: number[] };
@@ -113,6 +174,8 @@ export function CatalogView({
     const query: Record<string, string> = {};
     if (merged.q) query.q = merged.q;
     if (merged.categories.length > 0) query.cat = merged.categories.join(",");
+    if (merged.freeOnly) query.free = "1";
+    if (merged.sort !== "newest") query.sort = merged.sort;
     if (merged.page > 1) query.page = String(merged.page);
     if (merged.per !== 12) query.per = String(merged.per);
     router.replace({ pathname: "/courses", query });
@@ -140,7 +203,17 @@ export function CatalogView({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- bewusst nur auf die gedrosselte Eingabe reagieren
   }, [throttledSearch]);
 
-  const hasFilter = filters.q.length > 0;
+  const hasFilter =
+    filters.q.length > 0 || filters.freeOnly || filters.categories.length > 0;
+
+  const sortLabels: Record<CourseSort, string> = {
+    newest: t("sortNewest"),
+    oldest: t("sortOldest"),
+    popular: t("sortPopular"),
+    "price-asc": t("sortPriceAsc"),
+    "price-desc": t("sortPriceDesc"),
+    title: t("sortTitle"),
+  };
 
   return (
     <Wrap id="main">
@@ -161,6 +234,28 @@ export function CatalogView({
             placeholder={t("searchPlaceholder")}
             aria-label={t("searchLabel")}
             onChange={(e) => setSearch(e.target.value)}
+          />
+          <FreeToggle
+            type="button"
+            $active={filters.freeOnly}
+            aria-pressed={filters.freeOnly}
+            onClick={() => apply({ freeOnly: !filters.freeOnly, page: 1 })}
+          >
+            <span aria-hidden>{filters.freeOnly ? "✓" : ""}</span>
+            {t("freeOnly")}
+          </FreeToggle>
+          <Select
+            inline
+            pill
+            value={filters.sort}
+            ariaLabel={t("sortLabel")}
+            options={COURSE_SORTS.map((sort) => ({
+              value: sort,
+              label: sortLabels[sort],
+            }))}
+            onChange={(sort) =>
+              apply({ sort: sort as CourseSort, page: 1 })
+            }
           />
         </FilterBar>
 

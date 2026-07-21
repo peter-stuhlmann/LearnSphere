@@ -1024,7 +1024,15 @@
     "noResults": "No courses found – try a different search term.",
     "empty": "No published courses yet – check back soon!",
     "by": "by {name}",
-    "viewCourse": "View course"
+    "viewCourse": "View course",
+    "freeOnly": "Free only",
+    "sortLabel": "Sort order",
+    "sortNewest": "Newest first",
+    "sortOldest": "Oldest first",
+    "sortPopular": "Most popular",
+    "sortPriceAsc": "Price: low to high",
+    "sortPriceDesc": "Price: high to low",
+    "sortTitle": "Title A–Z"
   },
   "course": {
     "paymentsUnavailable": "Payments are currently unavailable. Please try again later.",

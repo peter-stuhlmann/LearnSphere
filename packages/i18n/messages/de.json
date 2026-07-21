@@ -1024,7 +1024,15 @@
     "noResults": "Keine Kurse gefunden – versuch einen anderen Suchbegriff.",
     "empty": "Noch keine veröffentlichten Kurse – schau bald wieder vorbei!",
     "by": "von {name}",
-    "viewCourse": "Zum Kurs"
+    "viewCourse": "Zum Kurs",
+    "freeOnly": "Nur kostenlose",
+    "sortLabel": "Sortierung",
+    "sortNewest": "Neueste zuerst",
+    "sortOldest": "Älteste zuerst",
+    "sortPopular": "Beliebteste",
+    "sortPriceAsc": "Preis aufsteigend",
+    "sortPriceDesc": "Preis absteigend",
+    "sortTitle": "Titel A–Z"
   },
   "course": {
     "paymentsUnavailable": "Zahlungen sind gerade nicht möglich. Bitte versuch es später erneut.",

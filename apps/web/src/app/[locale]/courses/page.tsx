@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { isCourseCategory } from "@elearning/core/categories";
 import { parseTags } from "@elearning/core/tags";
 import { courseSearchWhere } from "@/lib/course-search";
+import { courseOrderBy, parseCourseSort } from "@/lib/course-sort";
 import {
   courseLanguages,
   pickCourseLanguage,
@@ -34,15 +35,26 @@ export default async function CoursesPage({
     page?: string;
     per?: string;
     cat?: string;
+    free?: string;
+    sort?: string;
   }>;
 }) {
   const { locale } = await params;
-  const { q, page: pageParam, per: perParam, cat } = await searchParams;
+  const {
+    q,
+    page: pageParam,
+    per: perParam,
+    cat,
+    free,
+    sort: sortParam,
+  } = await searchParams;
 
   const query = (q ?? "").trim();
   const perPage = PAGE_SIZES.includes(Number(perParam))
     ? Number(perParam)
     : 12;
+  const freeOnly = free === "1";
+  const sort = parseCourseSort(sortParam);
 
   // Mehrfach-Filter nach Kategorie: ?cat=design,marketing (nur bekannte IDs)
   const categories = (cat ?? "")
@@ -53,6 +65,7 @@ export default async function CoursesPage({
     published: true,
     listedInShop: true,
     ...(categories.length > 0 ? { category: { in: categories } } : {}),
+    ...(freeOnly ? { priceCents: 0 } : {}),
     // inkl. Beschreibung (Substring, case-insensitiv) – gleiche Logik wie
     // die Header-Suche
     ...(query ? courseSearchWhere(query) : {}),
@@ -76,7 +89,7 @@ export default async function CoursesPage({
   // schlankes select: description (Text) wird auf Karten nie gebraucht
   const courses = await db.course.findMany({
     where,
-    orderBy: { createdAt: "desc" },
+    orderBy: courseOrderBy(sort),
     skip: (page - 1) * perPage,
     take: perPage,
     select: {
@@ -98,7 +111,7 @@ export default async function CoursesPage({
 
   return (
     <CatalogView
-      filters={{ q: query, page, per: perPage, categories }}
+      filters={{ q: query, page, per: perPage, categories, freeOnly, sort }}
       availableCategories={availableCategories}
       pagination={{ total, pages, pageSizes: PAGE_SIZES }}
       courses={courses.map((c) => {
