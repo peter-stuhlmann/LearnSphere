@@ -62,7 +62,14 @@ echo "▸ Neuer Stand: $(git rev-parse --short HEAD) – $(git log -1 --pretty=%
 # währenddessen weiter; Datenbank und Uploads liegen auf Volumes.
 # Schema-Migrationen laufen beim Containerstart (docker-entrypoint.sh).
 echo "▸ Container bauen und starten …"
-docker compose up -d --build
+if ! docker compose up -d --build; then
+  # Bekannter Docker-Fall: Ein früherer Container-Wechsel hinterlässt einen
+  # umbenannten Rest ("<hash>_learnsphere-web-1"), der den Namen blockiert.
+  # Dann sauber stoppen und neu starten – die Volumes bleiben unangetastet.
+  echo "▸ Start fehlgeschlagen, räume verwaiste Container auf und versuche erneut …"
+  docker compose down --remove-orphans
+  docker compose up -d --build
+fi
 
 # Warten, bis die App wirklich antwortet – sonst meldet der Workflow
 # fälschlich Erfolg, obwohl der neue Container beim Start abstürzt.
