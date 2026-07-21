@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `user` MODIFY `image` MEDIUMTEXT NULL;
+ALTER TABLE `User` MODIFY `image` MEDIUMTEXT NULL;
 
 -- CreateTable
 CREATE TABLE `BillingAddress` (

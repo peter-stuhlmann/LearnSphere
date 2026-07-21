@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE `user` ADD COLUMN `creatorBio` MEDIUMTEXT NULL;
+ALTER TABLE `User` ADD COLUMN `creatorBio` MEDIUMTEXT NULL;

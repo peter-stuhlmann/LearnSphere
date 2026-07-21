@@ -44,6 +44,13 @@ ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
+# Prisma braucht OpenSSL, um die passende Query-Engine zu wählen; im
+# slim-Image fehlt es und Prisma warnt beim Start ("failed to detect the
+# libssl/openssl version") und rät auf openssl-1.1.x.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 # Standalone-Server inkl. gehoisteter node_modules (outputFileTracingRoot=Repo-Root)
 COPY --from=builder /repo/apps/web/.next/standalone ./
 # Statische Assets + public gehören neben server.js (apps/web/…)

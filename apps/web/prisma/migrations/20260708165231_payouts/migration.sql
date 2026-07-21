@@ -1,8 +1,8 @@
 -- AlterTable
-ALTER TABLE `enrollment` ADD COLUMN `paidViaConnect` BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE `Enrollment` ADD COLUMN `paidViaConnect` BOOLEAN NOT NULL DEFAULT false;
 
 -- AlterTable
-ALTER TABLE `user` ADD COLUMN `payoutHolder` VARCHAR(191) NULL,
+ALTER TABLE `User` ADD COLUMN `payoutHolder` VARCHAR(191) NULL,
     ADD COLUMN `payoutIban` VARCHAR(191) NULL;
 
 -- CreateTable

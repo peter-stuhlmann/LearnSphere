@@ -1,11 +1,11 @@
 -- AlterTable
-ALTER TABLE `enrollment` ADD COLUMN `couponCode` VARCHAR(191) NULL;
+ALTER TABLE `Enrollment` ADD COLUMN `couponCode` VARCHAR(191) NULL;
 
 -- AlterTable
-ALTER TABLE `lesson` ADD COLUMN `isPreview` BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE `Lesson` ADD COLUMN `isPreview` BOOLEAN NOT NULL DEFAULT false;
 
 -- AlterTable
-ALTER TABLE `quiz` ADD COLUMN `attemptWindowHours` INTEGER NULL,
+ALTER TABLE `Quiz` ADD COLUMN `attemptWindowHours` INTEGER NULL,
     ADD COLUMN `maxAttempts` INTEGER NULL,
     ADD COLUMN `retakeAfterPass` BOOLEAN NOT NULL DEFAULT true;
 
