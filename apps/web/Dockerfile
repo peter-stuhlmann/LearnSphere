@@ -25,6 +25,18 @@ ENV DATABASE_URL="mysql://build:build@localhost:3306/build"
 RUN npx prisma generate --schema apps/web/prisma/schema.prisma
 RUN npm run build -w @elearning/web
 
+# Prisma-CLI (für "migrate deploy" beim Containerstart) samt ALLER
+# transitiven Abhängigkeiten isoliert installieren. Einzelne Pakete aus
+# dem Workspace ins Runtime-Image zu kopieren reicht nicht: @prisma/config
+# zieht effect, c12, deepmerge-ts und empathic nach – fehlen sie, stirbt
+# der Container beim Start mit "Cannot find module 'effect'".
+# Version wird aus dem Workspace übernommen, damit CLI und Client nie
+# auseinanderlaufen.
+RUN mkdir -p /cli && cd /cli \
+ && npm init -y >/dev/null \
+ && npm install --omit=dev --no-audit --no-fund \
+      "prisma@$(node -p "require('/repo/node_modules/prisma/package.json').version")"
+
 # ---------- Runtime ----------
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
@@ -41,11 +53,9 @@ COPY --from=builder /repo/apps/web/public ./apps/web/public
 # Wartungsskripte (z. B. Superadmin anlegen) – laufen per docker compose exec
 COPY --from=builder /repo/apps/web/scripts ./scripts
 
-# Migrationen + Prisma-CLI für "migrate deploy" beim Start
+# Migrationen + vollständige Prisma-CLI für "migrate deploy" beim Start
 COPY --from=builder /repo/apps/web/prisma ./prisma
-COPY --from=builder /repo/node_modules/prisma ./prisma-cli/node_modules/prisma
-COPY --from=builder /repo/node_modules/@prisma ./prisma-cli/node_modules/@prisma
-COPY --from=builder /repo/node_modules/.bin/prisma ./prisma-cli/node_modules/.bin/prisma
+COPY --from=builder /cli/node_modules ./prisma-cli/node_modules
 
 COPY apps/web/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh \
