@@ -1,0 +1,136 @@
+- generic [active] [ref=f8e1]:
+  - banner [ref=f8e2]:
+    - link "Zum Inhalt springen" [ref=f8e3] [cursor=pointer]:
+      - /url: "#main"
+    - generic [ref=f8e4]:
+      - link [ref=f8e5] [cursor=pointer]:
+        - /url: /de
+        - generic [ref=f8e6]:
+          - text: Learn
+          - emphasis [ref=f8e7]: Sphere
+      - generic [ref=f8e8]:
+        - navigation "Hauptnavigation" [ref=f8e9]:
+          - link "Kurse entdecken" [ref=f8e10] [cursor=pointer]:
+            - /url: /de/kurse
+          - link "Preise" [ref=f8e11] [cursor=pointer]:
+            - /url: /de/preise
+          - link "Anmelden" [ref=f8e12] [cursor=pointer]:
+            - /url: /de/anmelden
+          - link "Kostenlos starten" [ref=f8e13] [cursor=pointer]:
+            - /url: /de/registrieren
+        - button "Kurse durchsuchen" [ref=f8e15] [cursor=pointer]
+        - link "Warenkorb" [ref=f8e19] [cursor=pointer]:
+          - /url: /de/warenkorb
+        - button "Sprache wählen" [ref=f8e24] [cursor=pointer]
+  - main [ref=f8e28]:
+    - generic [ref=f8e30]:
+      - generic [ref=f8e31]:
+        - paragraph [ref=f8e32]: von Test Creator
+        - heading "Sternenkunde für Einsteiger" [level=1] [ref=f8e33]
+        - paragraph [ref=f8e34]: Testkurs für den Zertifikat-Designer
+        - paragraph [ref=f8e35]: 2 Abschnitte · 5 Lektionen
+        - generic "Kurssprachen" [ref=f8e36]:
+          - generic [ref=f8e37]:
+            - text: Deutsch
+            - emphasis [ref=f8e42]: Original
+          - generic [ref=f8e43]: Englisch
+        - region "Kursinhalt" [ref=f8e49]:
+          - heading "Kursinhalt" [level=2] [ref=f8e50]
+          - group [ref=f8e51]:
+            - generic "Grundlagen der Astronomie ✦ –" [ref=f8e52] [cursor=pointer]
+            - list [ref=f8e53]:
+              - listitem [ref=f8e54]:
+                - generic [ref=f8e55]: Unser Sonnensystem
+              - listitem [ref=f8e57]:
+                - generic [ref=f8e58]:
+                  - generic [ref=f8e59]: Sterne und Galaxien
+                  - generic [ref=f8e60]: 9:00
+          - group [ref=f8e61]:
+            - generic "Beobachtung in der Praxis ✦ +" [ref=f8e62] [cursor=pointer]
+      - complementary [ref=f8e63]:
+        - paragraph [ref=f8e64]: Kostenlos
+        - list [ref=f8e65]:
+          - listitem [ref=f8e66]: ✓ Zertifikat bei Abschluss
+          - listitem [ref=f8e67]: ✓ Abschlussprüfung ab 80 % Sehanteil
+        - button "Kostenlos einschreiben" [ref=f8e68] [cursor=pointer]
+  - contentinfo [ref=f8e69]:
+    - region "Newsletter" [ref=f8e70]:
+      - generic [ref=f8e73]:
+        - generic: ✦
+        - generic: ✧
+        - generic: ✦
+        - generic: ✧
+        - generic [ref=f8e74]:
+          - heading [level=2] [ref=f8e75]:
+            - text: Bleib neugierig.
+            - emphasis [ref=f8e76]: Wir liefern den Funken.
+          - paragraph [ref=f8e77]: "Einmal im Monat: die besten neuen Kurse, Lern-Hacks und exklusive Rabatte. Kein Spam – versprochen, sonst wärst du ja nicht mehr neugierig."
+        - generic [ref=f8e78]:
+          - generic [ref=f8e79]:
+            - textbox "E-Mail-Adresse für den Newsletter" [ref=f8e80]:
+              - /placeholder: deine@email.de
+            - button "Anmelden ✨" [ref=f8e81] [cursor=pointer]
+          - paragraph [ref=f8e82]:
+            - text: "Double-Opt-in: Du bekommst erst eine Bestätigungsmail. Abmelden geht jederzeit mit einem Klick. Es gilt unsere"
+            - link "Datenschutzerklärung" [ref=f8e83] [cursor=pointer]:
+              - /url: /de/datenschutz
+            - text: .
+    - generic [ref=f8e84]:
+      - generic [ref=f8e85]:
+        - paragraph [ref=f8e86]:
+          - text: Learn
+          - emphasis [ref=f8e87]: Sphere
+        - paragraph [ref=f8e88]: Die Plattform für Kurse, die hängen bleiben.
+      - navigation "Produkt" [ref=f8e89]:
+        - paragraph [ref=f8e90]: Produkt
+        - list [ref=f8e91]:
+          - listitem [ref=f8e92]:
+            - link "Kurse" [ref=f8e93] [cursor=pointer]:
+              - /url: /de/kurse
+          - listitem [ref=f8e94]:
+            - link "Preise" [ref=f8e95] [cursor=pointer]:
+              - /url: /de/preise
+          - listitem [ref=f8e96]:
+            - link "API-Dokumentation" [ref=f8e97] [cursor=pointer]:
+              - /url: /de/api-doku
+          - listitem [ref=f8e98]:
+            - link "Zertifikat prüfen" [ref=f8e99] [cursor=pointer]:
+              - /url: /de/verifizieren
+          - listitem [ref=f8e100]:
+            - link "Partnerprogramm" [ref=f8e101] [cursor=pointer]:
+              - /url: /de/partnerprogramm
+          - listitem [ref=f8e102]:
+            - link "Roadmap" [ref=f8e103] [cursor=pointer]:
+              - /url: /de/roadmap
+          - listitem [ref=f8e104]:
+            - link "Kostenlos starten" [ref=f8e105] [cursor=pointer]:
+              - /url: /de/registrieren
+      - navigation "Rechtliches" [ref=f8e106]:
+        - paragraph [ref=f8e107]: Rechtliches
+        - list [ref=f8e108]:
+          - listitem [ref=f8e109]:
+            - link "Impressum" [ref=f8e110] [cursor=pointer]:
+              - /url: /de/impressum
+          - listitem [ref=f8e111]:
+            - link "Datenschutz" [ref=f8e112] [cursor=pointer]:
+              - /url: /de/datenschutz
+          - listitem [ref=f8e113]:
+            - link "AGB" [ref=f8e114] [cursor=pointer]:
+              - /url: /de/agb
+          - listitem [ref=f8e115]:
+            - link "Barrierefreiheit" [ref=f8e116] [cursor=pointer]:
+              - /url: /de/barrierefreiheit
+          - listitem [ref=f8e117]:
+            - button "Cookie-Einstellungen" [ref=f8e118] [cursor=pointer]
+    - paragraph [ref=f8e119]: © 2026 LearnSphere. Alle Rechte vorbehalten.
+  - button "Open Next.js Dev Tools" [ref=f8e125] [cursor=pointer]
+  - alert [ref=f8e129]
+  - region "Cookies bei LearnSphere" [ref=f8e130]:
+    - paragraph [ref=f8e131]: ✦Cookies bei LearnSphere
+    - paragraph [ref=f8e132]:
+      - text: Wir nutzen notwendige Cookies für den Betrieb der Plattform – und mit deiner Einwilligung anonymisierte Statistiken, um LearnSphere besser zu machen. Details findest du in der
+      - link "Datenschutzerklärung." [ref=f8e133] [cursor=pointer]:
+        - /url: /de/datenschutz
+    - generic [ref=f8e134]:
+      - button "Alle akzeptieren" [ref=f8e135] [cursor=pointer]
+      - button "Einstellungen" [ref=f8e136] [cursor=pointer]

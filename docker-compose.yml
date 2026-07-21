@@ -1,0 +1,51 @@
+# LearnSphere Self-Hosting (Hostinger-VPS): Web-App + MySQL in Docker.
+# Start:  docker compose up -d --build
+# Danach einen Reverse-Proxy (Caddy/nginx/Traefik) mit HTTPS auf Port 3000 zeigen lassen.
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      # Nur lokal gebunden: Von außen ist die App ausschließlich über den
+      # HTTPS-Reverse-Proxy erreichbar – niemand kann sie unverschlüsselt
+      # über http://<server-ip>:3000 aufrufen (Cookies/Passwörter im Klartext).
+      - "127.0.0.1:3000:3000"
+    env_file:
+      # Prod-Secrets NICHT einchecken – Kopie von apps/web/.env.example pflegen
+      - apps/web/.env.production
+    environment:
+      # überschreibt eine evtl. lokale URL aus der env_file – im Compose-Netz
+      # heißt der DB-Host "db"
+      DATABASE_URL: "mysql://learnsphere:${MYSQL_PASSWORD:?MYSQL_PASSWORD setzen}@db:3306/elearning?connection_limit=10&pool_timeout=20"
+      UPLOADS_DIR: /data/uploads
+      PROTECTED_UPLOADS_DIR: /data/uploads-protected
+    volumes:
+      - uploads:/data/uploads
+      - uploads_protected:/data/uploads-protected
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: elearning
+      MYSQL_USER: learnsphere
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD setzen}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD setzen}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Kein ports-Mapping: die DB ist nur im Compose-Netz erreichbar
+
+volumes:
+  db_data:
+  uploads:
+  uploads_protected:

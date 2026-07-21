@@ -1,0 +1,37 @@
+# LearnSphere
+
+> E-learning platform (SaaS): creators build and sell courses; learners buy
+> per course (no subscription). Public catalog API is free; the creator API
+> (API plan) lets creators build their own shop on top of their courses.
+
+All APIs are versioned in the path (/api/public/v1/…, /api/v1/…). Within a
+version only additive changes; breaking changes ship as a new version.
+
+## Docs
+
+- [API documentation (English)](/en/api-docs)
+- [API-Dokumentation (Deutsch)](/de/api-doku)
+- [Agent skill for the API (SKILL.md)](/skills/learnsphere-api/SKILL.md): drop into your coding agent's skills to integrate the API correctly
+
+## APIs
+
+- [Public catalog API](/api/public/v1/courses): free, no key; courses listed in the LearnSphere shop
+- Creator API (/api/v1/courses): Bearer key `ls_…`, requires the API plan; all own published courses
+- Affiliate API (/api/v1/affiliate/courses?affiliate=true): Bearer key + affiliate program membership; full catalog with 15% commission links
+
+Courses can be multilingual: responses include `language` (base) and
+`languages` (all available). Public and affiliate endpoints accept `?lang=`
+to get texts in that language; missing translations fall back to the base
+language per field.
+
+## AI-generated content marking (EU AI Act Art. 50)
+
+AI-generated content is machine-readably marked: HTML containers carry
+`data-ai-generated="true"` (transcripts, self-tests, assistant replies,
+read-aloud), generated TTS audio files embed an ID3v2 `TXXX:DigitalSourceType`
+frame with the IPTC value `trainedAlgorithmicMedia`, and endpoints delivering
+AI output send an `X-AI-Generated: true` header.
+
+## Affiliate program
+
+- [Landing page (German)](/de/partnerprogramm) / [English](/en/affiliate): 15% commission on referred sales, 7-day cookie window, credit withdrawable or usable for course purchases

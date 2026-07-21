@@ -1,0 +1,24 @@
+{
+  "name": "e-learning-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @elearning/web",
+    "dev:web": "npm run dev -w @elearning/web",
+    "build": "npm run build -w @elearning/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "db:push": "npm run db:push -w @elearning/web",
+    "db:migrate": "npm run db:migrate -w @elearning/web",
+    "db:studio": "npm run db:studio -w @elearning/web"
+  },
+  "devDependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}

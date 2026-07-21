@@ -1,0 +1,1030 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  CREATOR
+  ADMIN
+}
+
+enum ModerationStatus {
+  /// automatische Prüfung läuft noch
+  PENDING
+  /// automatisch oder manuell freigegeben
+  APPROVED
+  /// automatisch auffällig → manuelle Prüfung nötig, blockiert Veröffentlichung
+  FLAGGED
+  /// vom Admin endgültig gesperrt
+  REJECTED
+}
+
+/// Automatische + manuelle Inhaltsprüfung je Upload (Video/Audio/Bild).
+/// Schlüssel ist die Upload-URL; das Publish-Gate prüft dagegen.
+model MediaModeration {
+  id         String           @id @default(cuid())
+  url        String           @unique @db.VarChar(400)
+  userId     String
+  kind       String
+  status     ModerationStatus @default(PENDING)
+  /// kurze menschenlesbare Begründung (Kategorien) bei FLAGGED/REJECTED
+  reason     String?          @db.Text
+  /// Roh-Kategorien der automatischen Prüfung (Audit)
+  categories Json?
+  /// manuell geprüft von (Admin-User-ID) am reviewedAt
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([status])
+  @@index([userId])
+}
+
+enum SalesChannel {
+  /// Verkauf über LearnSphere (Shop, Storefront, Kursseite) – Creator: 50 %
+  PLATFORM
+  /// Verkauf über Drittseiten (API, Embed-Widget) – Creator: 75 %
+  EXTERNAL
+}
+
+enum BlockType {
+  VIDEO
+  AUDIO
+  IMAGE
+  FILE
+  TEXT
+  HTML
+}
+
+enum QuizKind {
+  SECTION
+  FINAL
+}
+
+enum QuestionKind {
+  SINGLE
+  MULTIPLE
+  /// Freitext: exakte Übereinstimmung oder KI-Bewertung (aiGraded)
+  FREE_TEXT
+}
+
+enum CouponKind {
+  /// Rabatt in Prozent (value = 0–100)
+  PERCENT
+  /// Rabatt in Cent (value = Cent-Betrag, der abgezogen wird)
+  AMOUNT_OFF
+  /// Fester Endpreis in Cent
+  FIXED_PRICE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  /// Avatar als Data-URL (portabel, kein Datei-Storage nötig)
+  image         String?   @db.MediumText
+  passwordHash  String?
+  role          Role      @default(CLIENT)
+  locale        String    @default("de")
+  totpSecret    String?
+  totpEnabled   Boolean   @default(false)
+  /// Replay-Schutz: letzter verbrauchter TOTP-Zeitschritt (floor(unix/30))
+  totpLastUsedStep Int?
+  /// 2FA-Wiederherstellungscodes (nur SHA-256-Hashes, einmal verwendbar)
+  totpRecoveryCodes Json?
+  /// Storefront: öffentliche Creator-Seite unter /c/[handle]
+  handle         String? @unique
+  storefrontName String?
+  /// Akzentfarbe der Storefront (Hex)
+  brandColor     String?
+  /// Whitelabel: eigene Domain, die auf die Storefront zeigt
+  customDomain   String? @unique
+  /// Stripe Connect: eigenes Konto des Creators für Direktauszahlungen
+  stripeAccountId      String?
+  stripeChargesEnabled Boolean @default(false)
+  /// Bankverbindung für manuelle Auszahlungen (Plattform-Verkäufe)
+  payoutHolder String?
+  payoutIban   String?
+  /// Öffentliche Creator-Beschreibung (Rich-Text, sanitisiert)
+  creatorBio   String? @db.MediumText
+  /// Affiliate-Programm: eindeutiger Code für Links (?aff=CODE)
+  affiliateCode     String?   @unique
+  /// Zeitpunkt des Beitritts (= Bedingungen akzeptiert); null = kein Affiliate
+  affiliateJoinedAt DateTime?
+  /// termine.lol-Verbindung des Creator-Kontos (Connect-Flow; Key bleibt
+  /// serverseitig). Kurse schalten Buchung per Course.bookingEnabled frei.
+  bookingCalendarId String?
+  bookingApiKey     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts            Account[]
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerifyTokens   EmailVerifyToken[]
+  courses             Course[]
+  enrollments         Enrollment[]
+  lessonComments      LessonComment[]
+  lessonNotes         LessonNote[]
+  billingAddress      BillingAddress?
+  reviews             Review[]
+  apiKeys             ApiKey[]
+  payouts             Payout[]
+  apiSubscription     ApiSubscription?
+  coupons             Coupon[]
+  affiliateSales      Enrollment[]     @relation("AffiliateSales")
+  assistantMessages   AssistantMessage[]
+  aiUsage             AiUsage[]
+  mobileSessions      MobileSession[]
+  refundsReceived     Refund[]         @relation("CreatorRefunds")
+  flashcardReviews    FlashcardReview[]
+  learnActivities     LearnActivity[]
+}
+
+/// Geräte-Session der nativen App: Refresh-Token (nur Hash) mit Rotation.
+/// familyId bleibt über Rotationen stabil – taucht ein bereits rotierter
+/// Token erneut auf (Diebstahl), wird die ganze Familie widerrufen.
+model MobileSession {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  familyId         String
+  devicePlatform   String?
+  deviceName       String?
+  /// App-Installations-UUID vom Client (Geräteliste/Support)
+  deviceId         String?
+  appVersion       String?
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime  @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+/// Protokoll je KI-Aufruf – Datenbasis fürs Admin-Dashboard "KI-Verbrauch".
+/// Kosten werden NICHT gespeichert, sondern zur Anzeige aus der Preistabelle
+/// (lib/ai-usage.ts, mit Stand-Datum) berechnet.
+model AiUsage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  /// Aktivität (AI_ACTIVITIES in lib/ai-usage.ts)
+  activity  String
+  model     String
+  /// vom Anbieter gemeldete Tokens; System/User-Aufteilung ist geschätzt
+  /// (anteilig nach Prompt-Zeichen – die APIs melden nur die Gesamtsumme)
+  inputTokens  Int @default(0)
+  systemTokens Int @default(0)
+  userTokens   Int @default(0)
+  outputTokens Int @default(0)
+  /// Audio-Sekunden für minutenbasierte Preise (Whisper, TTS-Ausgabe)
+  audioSeconds Float @default(0)
+  /// auslösender Nutzer (null = System)
+  userId   String?
+  courseId String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([activity])
+  @@index([model])
+  @@index([userId])
+}
+
+enum PayoutStatus {
+  REQUESTED
+  PAID
+}
+
+enum ApiPlanStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+/// Kostenpflichtiger API-Zugriff für Creator (25 €/Monat bzw. 20 €/Monat jährlich)
+model ApiSubscription {
+  id                   String          @id @default(cuid())
+  userId               String          @unique
+  status               ApiPlanStatus   @default(ACTIVE)
+  interval             BillingInterval @default(MONTH)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?         @unique
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum KnowledgeSource {
+  TEXT
+  TRANSCRIPT
+  IMAGE_CAPTION
+  COURSE_META
+}
+
+/// Kurs-Memory des Lernassistenten: courseId erzwingt die Kurs-Isolation,
+/// contentHash macht Updates inkrementell (nur Geändertes neu einbetten).
+/// Quiz-Inhalte werden strukturell nie indexiert.
+model KnowledgeChunk {
+  id           String          @id @default(cuid())
+  courseId     String
+  lessonId     String?
+  sectionId    String?
+  blockId      String?
+  sourceType   KnowledgeSource
+  lang         String
+  /// Anzeige-Fundstelle, denormalisiert für Zitate
+  sectionTitle String
+  lessonTitle  String
+  text         String          @db.Text
+  contentHash  String
+  /// float[] des Embedding-Modells (text-embedding-3-small)
+  embedding    Json
+  updatedAt    DateTime        @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, contentHash])
+  @@index([courseId])
+}
+
+/// Staleness-Marker: Content-Actions setzen staleAt, der Assistent
+/// re-indexiert lazy, wenn staleAt neuer als indexedAt ist
+model KnowledgeIndexState {
+  courseId  String    @id
+  staleAt   DateTime?
+  indexedAt DateTime?
+}
+
+enum AssistantRole {
+  USER
+  ASSISTANT
+}
+
+/// Chatverlauf des Lernassistenten je Nutzer und Kurs. "Neues Gespräch"
+/// archiviert (archivedAt) statt zu löschen – die Daten bleiben vorerst.
+model AssistantMessage {
+  id         String        @id @default(cuid())
+  userId     String
+  courseId   String
+  role       AssistantRole
+  content    String        @db.Text
+  /// Fundstellen-Chips: [{ lessonId, sectionTitle, lessonTitle }]
+  sources    Json?
+  archivedAt DateTime?
+  createdAt  DateTime      @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, courseId, archivedAt, createdAt])
+}
+
+/// Video-Heatmap: aggregierte Seh-Zähler je Medienblock und Zeit-Bucket
+/// (40 relative Abschnitte). Anonym – es wird nur gezählt, nie wer.
+model BlockWatchBucket {
+  id      String @id @default(cuid())
+  blockId String
+  bucket  Int
+  views   Int    @default(0)
+
+  block LessonBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  @@unique([blockId, bucket])
+}
+
+/// Persönliche Notizen der Lernenden je Lektion – optional mit Zeitstempel
+/// in einem Medienblock ("Notiz bei 4:32", Klick springt dorthin).
+model LessonNote {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonId    String
+  /// Medienblock, auf den sich der Zeitstempel bezieht (null = allgemein)
+  blockId     String?
+  /// Sekunde im Medium (null = allgemeine Notiz ohne Zeitbezug)
+  timeSeconds Int?
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lessonId, createdAt])
+}
+
+/// KI-Selbsttest ("Teste dich"): generierte Übungsfragen je Lektion und
+/// Sprache. contentHash bindet die Fragen an den Lektionsstand – ändert
+/// der Creator Inhalte, wird beim nächsten Abruf frisch generiert.
+/// Zählt nirgendwo rein; reines Lernwerkzeug.
+model SelfTestQuestion {
+  id          String   @id @default(cuid())
+  lessonId    String
+  lang        String
+  contentHash String
+  prompt      String   @db.Text
+  /// Antwortoptionen: [{ text, correct }] – genau eine korrekt
+  options     Json
+  /// kurze Erklärung, warum die richtige Antwort stimmt
+  explanation String   @db.Text
+  createdAt   DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, lang, contentHash])
+}
+
+/// Vorlesen-Cache: ein generiertes Audio je Text-Segment (lib/tts.ts).
+/// Der Hash bindet Modell + Stimme + Text – Textänderungen erzeugen nur
+/// für geänderte Segmente neue Einträge, alles andere bleibt Cache-Treffer.
+model TtsSegment {
+  id        String   @id @default(cuid())
+  hash      String   @unique
+  url       String
+  createdAt DateTime @default(now())
+}
+
+model Payout {
+  id          String       @id @default(cuid())
+  userId      String
+  amountCents Int
+  status      PayoutStatus @default(REQUESTED)
+  /// Snapshot der Bankdaten zum Zeitpunkt des Antrags
+  holder      String
+  iban        String
+  createdAt   DateTime     @default(now())
+  paidAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Rückgabe innerhalb der 30-Tage-Garantie: Die Einschreibung wird gelöscht
+/// (Zugriff + Anteile erlöschen sofort), dieser Beleg bleibt für die
+/// Creator-Finanzen und Statistik. reason ist die optionale, freiwillige
+/// Angabe des Lernenden.
+model Refund {
+  id                String   @id @default(cuid())
+  courseId          String?
+  creatorId         String?
+  /// Titel-Snapshot – übersteht spätere Kurslöschung
+  courseTitle       String
+  amountCents       Int
+  currency          String   @default("EUR")
+  creatorShareCents Int
+  reason            String?  @db.Text
+  createdAt         DateTime @default(now())
+
+  course  Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  creator User?   @relation("CreatorRefunds", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId, createdAt])
+  @@index([courseId])
+}
+
+/// Zweckgebundenes Belegarchiv (§ 147 AO / § 257 HGB) für gelöschte Konten:
+/// Bei Kontolöschung werden bezahlte Käufe und Auszahlungen hierher kopiert
+/// (Art. 17 Abs. 3 lit. b DSGVO). Kein operativer Zugriff im Produkt –
+/// nur Buchhaltung/Admin. Nach purgeAfter darf der Eintrag gelöscht werden.
+model SalesArchive {
+  id          String   @id @default(cuid())
+  /// BUYER_ENROLLMENT (Kauf) | CREATOR_PAYOUT (Auszahlung)
+  kind        String
+  /// Zeitpunkt des ursprünglichen Geschäftsvorfalls
+  occurredAt  DateTime
+  archivedAt  DateTime @default(now())
+  /// Ende der Aufbewahrungsfrist (10 Jahre ab Jahresende des Vorfalls)
+  purgeAfter  DateTime
+  amountCents Int
+  currency    String   @default("EUR")
+  /// Belegtext, z. B. Kurstitel bzw. "Auszahlung"
+  description String
+  /// Rechnungs- bzw. Auszahlungsempfänger (Name laut Beleg)
+  partyName   String
+  partyEmail  String
+  /// weitere Belegdetails (Anteile, Gutschein, Kanal …)
+  details     Json?
+
+  @@index([purgeAfter])
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  /// nur der Hash wird gespeichert; Anzeige über prefix
+  keyHash    String    @unique
+  prefix     String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model BillingAddress {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  firstName    String
+  lastName     String
+  street       String
+  addressExtra String?
+  zip          String
+  city         String
+  country      String
+  email        String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Newsletter mit Double-Opt-in: confirmedAt erst nach Klick auf den
+/// Bestätigungslink; tokenHash dient auch dem Abmeldelink.
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  locale         String    @default("de")
+  tokenHash      String?
+  confirmedAt    DateTime?
+  unsubscribedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expires   DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Double-Opt-In der Registrierung: bestätigt die E-Mail-Adresse
+/// (User.emailVerified); ohne Bestätigung ist kein Credentials-Login möglich
+model EmailVerifyToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expires   DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Course {
+  id                   String   @id @default(cuid())
+  creatorId            String
+  slug                 String   @unique
+  title                String
+  subtitle             String?
+  description          String?  @db.Text
+  language             String   @default("de")
+  /// Zusätzliche Kurssprachen (CSV, z. B. "en") – Basissprache ist `language`
+  extraLanguages       String   @default("")
+  /// Übersetzungen je Sprache: { en: { title, subtitle, description } }
+  translations         Json?
+  coverImage           String?
+  priceCents           Int      @default(0)
+  currency             String   @default("EUR")
+  published            Boolean  @default(false)
+  /// Sichtbar im öffentlichen LearnSphere-Katalog (Shop)
+  listedInShop         Boolean  @default(true)
+  requiredWatchPercent Int      @default(80)
+  finalExamRequired    Boolean  @default(true)
+  /// KI-Selbsttests ("Teste dich") in Lektionen – Creator kann abschalten
+  selfTestsEnabled     Boolean  @default(true)
+  /// Live-Termine via termine.lol: Checkbox "Termine anbieten". Die
+  /// Verbindung selbst hängt am Creator-Konto (User.bookingCalendarId/-ApiKey)
+  bookingEnabled       Boolean  @default(false)
+  /// Genau eine Kategorie aus der festen LearnSphere-Liste (lib/categories.ts)
+  category             String?
+  /// Zertifikat-Design des Creators (lib/certificate/theme.ts); null = Default
+  certificateTheme     Json?
+  /// Freie Tags des Creators, normalisiert kommagetrennt ("react,frontend")
+  tags                 String   @default("")
+  /// Warteliste: "Demnächst"-Seite mit E-Mail-Eintragung für unveröffentlichte
+  /// Kurse; bei Veröffentlichung werden Eingetragene benachrichtigt
+  waitlistEnabled      Boolean  @default(false)
+  /// Vom Admin gesperrt (Moderations-Flag): blockiert die Veröffentlichung
+  flaggedAt            DateTime?
+  flagReason           String?  @db.Text
+  /// Creator hat den Editor zuletzt geöffnet – Standard-Sortierung in
+  /// "Meine Kurse" (per Raw-SQL gesetzt, damit updatedAt unberührt bleibt)
+  lastOpenedAt         DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  creator     User         @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  sections    Section[]
+  quizzes     Quiz[]
+  enrollments Enrollment[]
+  couponCourses CouponCourse[]
+  reviews     Review[]
+  knowledgeChunks   KnowledgeChunk[]
+  assistantMessages AssistantMessage[]
+  refunds           Refund[]
+  waitlistEntries   WaitlistEntry[]
+
+  @@index([creatorId])
+  @@index([published])
+  @@index([category])
+}
+
+model Section {
+  id       String @id @default(cuid())
+  courseId String
+  title    String
+  order    Int
+  /// Übersetzungen je Sprache: { en: { title } }
+  translations Json?
+  /// Drip Content: frühestens X Tage nach Einschreibung freigeschaltet
+  /// (null/0 = sofort verfügbar)
+  dripAfterDays Int?
+  /// Drip Content: erst freigeschaltet, wenn die Zwischenprüfung des
+  /// vorherigen Abschnitts bestanden ist
+  dripAfterQuiz Boolean @default(false)
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+  quiz    Quiz?
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id        String  @id @default(cuid())
+  sectionId String
+  title     String
+  order     Int
+  /// Gesamtdauer aller Video-/Audio-Blöcke (denormalisiert für Fortschritt)
+  durationSeconds Int     @default(0)
+  /// kostenlose Vorschau: ohne Einschreibung ansehbar
+  isPreview       Boolean @default(false)
+  /// Übersetzungen je Sprache: { en: { title } }
+  translations    Json?
+
+  section  Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  progress LessonProgress[]
+  blocks   LessonBlock[]
+  comments LessonComment[]
+  selfTestQuestions SelfTestQuestion[]
+  notes             LessonNote[]
+  /// Einschreibungen, deren letzte Position diese Lektion ist
+  resumedBy Enrollment[] @relation("EnrollmentLastLesson")
+
+  @@index([sectionId])
+}
+
+/// Kurs-Community & Q&A: Diskussionen direkt an der Lektion,
+/// verschachtelt bis zu 3 Ebenen (depth 0–2). Gelöschte Kommentare
+/// bleiben als Platzhalter erhalten (deletedAt), damit Threads intakt bleiben.
+model LessonComment {
+  id        String    @id @default(cuid())
+  lessonId  String
+  userId    String
+  parentId  String?
+  depth     Int       @default(0)
+  /// sanitisiertes Rich-Text-HTML (inkl. @Mentions)
+  content   String    @db.MediumText
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  lesson  Lesson          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  LessonComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies LessonComment[] @relation("CommentReplies")
+
+  @@index([lessonId, createdAt])
+  @@index([parentId])
+  @@index([userId])
+}
+
+model LessonBlock {
+  id       String    @id @default(cuid())
+  lessonId String
+  type     BlockType
+  order    Int
+  /// optionale Beschriftung des Blocks
+  title    String?
+  /// Video-/Audio-/Bild-/Datei-URL (extern oder /uploads/…)
+  url      String?   @db.Text
+  fileName String?
+  /// Text- oder HTML-Inhalt
+  content  String?   @db.MediumText
+  /// eigenes CSS für HTML-Blöcke
+  css      String?   @db.MediumText
+  /// Abspieldauer für Video/Audio (Fortschrittsgewichtung)
+  durationSeconds Int @default(0)
+  /// Transkript für Video/Audio, je Sprache (auto-transkribiert oder manuell)
+  transcriptDe String? @db.MediumText
+  transcriptEn String? @db.MediumText
+  /// Kapitelmarker für Video/Audio: [{ t: sekunden, title }]
+  chapters     Json?
+  /// Zeitgestempelte Transkript-Segmente [{start, end, de, en}] für die
+  /// Karaoke-Anzeige im Player (aus Whisper verbose_json)
+  transcriptCues Json?
+  /// Vorschaubild (Poster) für Video-Blöcke – beim Upload automatisch aus
+  /// dem 1. Frame erzeugt, vom Creator ersetzbar
+  poster String? @db.Text
+  /// Herkunft des Inhalts (TEXT/HTML): HUMAN | HUMAN_AI_ASSISTED | AI |
+  /// AI_EDITED | AI_REVIEWED – Lernende sehen sie als Fußnote
+  provenance String @default("HUMAN")
+  /// Übersetzungen je Sprache: { en: { title, url, fileName, poster,
+  /// content, durationSeconds } } – fehlende Felder fallen auf die Basis zurück
+  translations Json?
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  watchBuckets BlockWatchBucket[]
+
+  @@index([lessonId])
+}
+
+model Quiz {
+  id          String   @id @default(cuid())
+  courseId    String
+  sectionId   String?  @unique
+  kind        QuizKind @default(FINAL)
+  title       String
+  passPercent Int      @default(70)
+  /// null = unbegrenzt viele Versuche
+  maxAttempts        Int?
+  /// null = maxAttempts zählt alle Versuche; sonst rollierendes Zeitfenster in Stunden
+  attemptWindowHours Int?
+  /// darf eine bereits bestandene Prüfung wiederholt werden?
+  retakeAfterPass    Boolean @default(true)
+  /// Fragen in zufälliger Reihenfolge zeigen
+  shuffleQuestions   Boolean @default(false)
+  /// Antwortoptionen in zufälliger Reihenfolge zeigen
+  shuffleAnswers     Boolean @default(false)
+  /// Zeitlimit in Minuten; null = ohne Zeitbegrenzung (Standard)
+  timeLimitMinutes   Int?
+
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section   Section?      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  questions Question[]
+  attempts  QuizAttempt[]
+  timers    QuizTimer[]
+
+  @@index([courseId])
+}
+
+model Question {
+  id     String       @id @default(cuid())
+  quizId String
+  text   String       @db.Text
+  kind   QuestionKind @default(SINGLE)
+  order  Int
+  /// Gewichtung der Frage in der Bewertung (Quote = Punkte-Anteil)
+  points Int          @default(1)
+  /// Freitext: Musterlösung bzw. exakt erwartete Antwort
+  expectedAnswer String? @db.Text
+  /// Freitext: true = KI bewertet sinngemäß, false = exakte Übereinstimmung
+  aiGraded       Boolean @default(false)
+
+  quiz             Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options          AnswerOption[]
+  flashcardReviews FlashcardReview[]
+
+  @@index([quizId])
+}
+
+model AnswerOption {
+  id         String  @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+  order      Int
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model Coupon {
+  id             String     @id @default(cuid())
+  creatorId      String
+  code           String
+  kind           CouponKind
+  value          Int
+  maxRedemptions Int?
+  redeemedCount  Int        @default(0)
+  validFrom      DateTime?
+  validUntil     DateTime?
+  active         Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+
+  creator User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  courses CouponCourse[]
+
+  @@unique([creatorId, code])
+  @@index([creatorId])
+}
+
+/// Zuordnung Gutschein ↔ Kurse: ein Code kann für mehrere Kurse gelten.
+model CouponCourse {
+  couponId String
+  courseId String
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([couponId, courseId])
+  @@index([courseId])
+}
+
+model Enrollment {
+  id              String    @id @default(cuid())
+  userId          String
+  courseId        String
+  pricePaidCents  Int       @default(0)
+  couponCode      String?
+  /// Verkaufskanal bestimmt die Umsatzbeteiligung (50 % / 75 %)
+  salesChannel      SalesChannel @default(PLATFORM)
+  /// Anteil des Creators in Cent (Rest = LearnSphere)
+  creatorShareCents Int          @default(0)
+  /// true = via Stripe Connect direkt ausgezahlt (zählt nicht ins Guthaben)
+  paidViaConnect    Boolean      @default(false)
+  /// Affiliate, der den Kauf vermittelt hat (15 % Provision)
+  affiliateUserId     String?
+  affiliateShareCents Int     @default(0)
+  /// beim Kauf eingesetztes Guthaben des Käufers (Cent)
+  creditUsedCents     Int     @default(0)
+  /// zuletzt geöffnete Lektion – dort geht es beim nächsten Besuch weiter
+  lastLessonId    String?
+  /// letzter Besuch im Lernbereich – Standard-Sortierung in "Mein Lernen"
+  lastVisitedAt   DateTime?
+  /// 30-Tage-Rückgabegarantie: bis dahin Rückgabe möglich und
+  /// Abschlussprüfung gesperrt; null = kein Rückgaberecht (gratis)
+  refundableUntil  DateTime?
+  /// Garantie freiwillig vorzeitig beendet (schaltet die Prüfung frei)
+  guaranteeWaivedAt DateTime?
+  /// Stripe-Checkout-Session des Kaufs – für Geld-zurück bei Rückgabe
+  stripeSessionId  String?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  affiliate      User?            @relation("AffiliateSales", fields: [affiliateUserId], references: [id], onDelete: SetNull)
+  lastLesson     Lesson?          @relation("EnrollmentLastLesson", fields: [lastLessonId], references: [id], onDelete: SetNull)
+  lessonProgress LessonProgress[]
+  quizAttempts   QuizAttempt[]
+  quizTimers     QuizTimer[]
+  certificate    Certificate?
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@index([affiliateUserId])
+  @@index([lastLessonId])
+}
+
+model LessonProgress {
+  id             String   @id @default(cuid())
+  enrollmentId   String
+  lessonId       String
+  watchedSeconds Int      @default(0)
+  completed      Boolean  @default(false)
+  /// letzte Abspielposition je Medienblock: { [blockId]: sekunden }
+  positions      Json?
+  updatedAt      DateTime @updatedAt
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson     Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, lessonId])
+  @@index([lessonId])
+}
+
+model QuizAttempt {
+  id           String   @id @default(cuid())
+  quizId       String
+  enrollmentId String
+  scorePercent Float
+  passed       Boolean
+  answers      Json
+  createdAt    DateTime @default(now())
+
+  quiz       Quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
+  @@index([enrollmentId])
+}
+
+/// Laufende Prüfungs-Uhr: startet beim Öffnen einer Prüfung mit Zeitlimit,
+/// wird beim Abgeben (oder nach Ablauf) entfernt – serverseitige Durchsetzung.
+model QuizTimer {
+  id           String   @id @default(cuid())
+  quizId       String
+  enrollmentId String
+  startedAt    DateTime @default(now())
+
+  quiz       Quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, quizId])
+  @@index([quizId])
+}
+
+/// Spaced Repetition (SM-2 light): Wiederholungszustand je Nutzer und
+/// Prüfungsfrage. Karten entstehen automatisch aus den Fragen der Prüfungen,
+/// die der Nutzer bereits versucht hat – reines Lernwerkzeug, zählt nirgendwo.
+model FlashcardReview {
+  id           String   @id @default(cuid())
+  userId       String
+  questionId   String
+  /// SM-2-Ease-Faktor (min. 1.3)
+  ease         Float    @default(2.5)
+  /// aktuelles Wiederholungsintervall in Tagen (0 = noch nie korrekt)
+  intervalDays Int      @default(0)
+  /// korrekte Wiederholungen in Folge
+  reps         Int      @default(0)
+  /// Aussetzer (falsch beantwortet nach mindestens einem Erfolg)
+  lapses       Int      @default(0)
+  dueAt        DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId, dueAt])
+}
+
+/// Lern-Streak: genau ein Eintrag je Nutzer und Kalendertag (UTC, "YYYY-MM-DD")
+/// – geschrieben bei Lernaktivität (Lektion besucht, Fortschritt, Prüfung,
+/// Karteikarten). Datenbasis für Streak + Wochenaktivität im Dashboard.
+model LearnActivity {
+  id     String @id @default(cuid())
+  userId String
+  day    String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+}
+
+/// Warteliste: E-Mail-Eintragung auf der "Demnächst"-Seite eines noch nicht
+/// veröffentlichten Kurses. Bei Veröffentlichung wird benachrichtigt
+/// (notifiedAt verhindert Doppel-Mails, auch bei erneutem Veröffentlichen).
+model WaitlistEntry {
+  id         String    @id @default(cuid())
+  courseId   String
+  email      String
+  locale     String    @default("de")
+  /// eingeloggter Nutzer zum Zeitpunkt der Eintragung (optional)
+  userId     String?
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, email])
+  @@index([courseId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  /// 1–5 Sterne
+  rating    Int
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+}
+
+model Certificate {
+  id           String   @id @default(cuid())
+  enrollmentId String   @unique
+  serial       String   @unique
+  scorePercent Float
+  issuedAt     DateTime @default(now())
+  /// Kursinhalt zum Ausstellungszeitpunkt (lib/certificate/curriculum.ts);
+  /// null nur bei Alt-Zertifikaten von vor diesem Feature
+  curriculum   Json?
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+}
+
+enum IapStore {
+  APPLE
+  GOOGLE
+}
+
+enum IapStatus {
+  VERIFIED
+  REVOKED
+}
+
+/// Kaufabsicht der App: bindet den Store-Kauf an Kurs + Käufer, bevor der
+/// Kauf startet (appAccountToken → Apple, obfuscatedExternalAccountId →
+/// Google). Verhindert "billiges Tier kaufen, teuren Kurs claimen".
+model IapPurchaseIntent {
+  id              String    @id @default(cuid())
+  /// UUID für Apples appAccountToken / Googles obfuscatedExternalAccountId
+  appAccountToken String    @unique @default(uuid())
+  userId          String
+  courseId        String
+  productId       String
+  tierCents       Int
+  createdAt       DateTime  @default(now())
+  consumedAt      DateTime?
+
+  @@index([userId])
+}
+
+/// Verifizierter Store-Kauf (idempotent über storeTransactionId).
+/// Bei Refund: status REVOKED + Enrollment wird entfernt.
+model IapTransaction {
+  id                 String    @id @default(cuid())
+  store              IapStore
+  /// Apple originalTransactionId / Google orderId – Replay-Schutz
+  storeTransactionId String    @unique
+  productId          String
+  userId             String
+  courseId           String
+  enrollmentId       String?   @unique
+  grossCents         Int
+  currency           String    @default("EUR")
+  storeFeeCents      Int
+  creatorShareCents  Int
+  status             IapStatus @default(VERIFIED)
+  createdAt          DateTime  @default(now())
+  refundedAt         DateTime?
+
+  @@index([userId])
+  @@index([courseId])
+}

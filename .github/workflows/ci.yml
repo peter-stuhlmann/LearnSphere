@@ -1,0 +1,94 @@
+# CI/CD: Typen, Lint und Tests (inkl. 100%-Coverage-Schwelle auf src/lib)
+# müssen grün sein – erst danach wird auf den Server ausgerollt.
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Erlaubt manuelles Ausrollen über den "Run workflow"-Knopf in GitHub
+  workflow_dispatch:
+
+# Nie zwei Deploys gleichzeitig auf denselben Server. Laufende Prüfungen
+# eines überholten Commits werden abgebrochen, ein laufendes Deploy nicht.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # Prisma braucht eine DATABASE_URL zum Generieren (kein DB-Zugriff)
+      DATABASE_URL: "mysql://ci:ci@localhost:3306/ci"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Prisma-Client generieren
+        run: npx prisma generate
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Tests + Coverage (100 % auf src/lib)
+        run: npm run test:coverage
+
+  deploy:
+    # Nur nach grüner Prüfung, nur von main, nie aus Pull Requests
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Deploys laufen strikt nacheinander, auch über Commits hinweg
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH-Zugang einrichten
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # Fallback: Host-Key beim ersten Kontakt übernehmen. Sicherer ist
+            # das Secret DEPLOY_KNOWN_HOSTS (siehe docs/DEPLOY-CI-CD.md).
+            ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Auf dem Server ausrollen
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          APP_DIR: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$USER@$HOST" \
+            "APP_DIR='${APP_DIR:-/opt/learnsphere}' DEPLOY_BRANCH=main bash -s" \
+            < scripts/deploy.sh
+
+      - name: Öffentliche Seite prüfen
+        # Nur ein Hinweis – der eigentliche Health-Check lief schon auf dem
+        # Server. Schlägt das hier fehl, liegt es meist am Reverse-Proxy.
+        continue-on-error: true
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://learnsphere.one || echo 000)
+          echo "https://learnsphere.one → HTTP $code"
+          [ "$code" = "200" ] || echo "::warning::Seite antwortet mit $code – Caddy/DNS prüfen"

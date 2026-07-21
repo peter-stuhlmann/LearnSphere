@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm run build 2>&1)",
+      "PowerShell(node .\\\\leak-check.tmp.mjs)",
+      "PowerShell(node .\\\\audio-check.tmp.mjs)",
+      "PowerShell($code = $LASTEXITCODE)",
+      "PowerShell(exit $code)",
+      "PowerShell(npm run dev --prefix \"c:\\\\Users\\\\info\\\\Documents\\\\dev\\\\CLAUDE\\\\newsletter-saas\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\info\\Documents\\dev\\CLAUDE\\newsletter-saas\\src"
+    ]
+  }
+}

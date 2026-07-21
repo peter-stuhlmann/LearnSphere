@@ -1,0 +1,30 @@
+# Zeilenenden vereinheitlichen.
+#
+# Ohne diese Datei landen auf Windows erstellte Shell-Skripte mit CRLF im
+# Repository. Im Linux-Container scheitert dann der Start mit
+# "bad interpreter: /bin/sh^M" – deshalb erzwingen wir für alles, was
+# ausgeführt oder von Linux-Tools gelesen wird, ausdrücklich LF.
+
+# Standard: Git normalisiert Textdateien im Repo auf LF
+* text=auto
+
+# Muss auch im Arbeitsverzeichnis LF bleiben (wird in Linux ausgeführt)
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binärdateien nie anfassen
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.mp4 binary
+*.mp3 binary
+*.woff binary
+*.woff2 binary
