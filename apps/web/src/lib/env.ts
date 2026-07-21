@@ -68,7 +68,15 @@ export type Env = z.infer<typeof envSchema>;
  * Fehler an anderer Stelle.
  */
 export function parseEnv(source: Record<string, string | undefined>): Env {
-  const parsed = envSchema.safeParse(source);
+  // Leere Werte wie "nicht gesetzt" behandeln. In den .env-Vorlagen steht
+  // FOO="" ausdrücklich für "Feature aus" – ohne diese Normalisierung
+  // würde etwa UPSTASH_REDIS_REST_URL="" als ungültige URL gelten und den
+  // Serverstart verhindern. Docker Compose reicht leere Werte aus einer
+  // env_file als leere Strings durch, deshalb greift das genau dort.
+  const source_ = Object.fromEntries(
+    Object.entries(source).filter(([, value]) => value !== "")
+  );
+  const parsed = envSchema.safeParse(source_);
   if (!parsed.success) {
     const problems = parsed.error.issues
       .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)

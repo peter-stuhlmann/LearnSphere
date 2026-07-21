@@ -56,6 +56,39 @@ describe("parseEnv", () => {
       "development"
     );
   });
+
+  /* In den .env-Vorlagen bedeutet FOO="" ausdrücklich "Feature aus".
+     Docker Compose reicht solche Werte als leere Strings durch – sie
+     dürfen den Start nicht verhindern. */
+  it("behandelt leere Werte wie nicht gesetzte", () => {
+    const env = parseEnv({
+      ...BASE,
+      UPSTASH_REDIS_REST_URL: "",
+      MOBILE_JWT_SECRET: "",
+      MEDIA_SIGN_SECRET: "",
+      SENTRY_DSN: "",
+      APPLE_IAP_ENVIRONMENT: "",
+    });
+    expect(env.UPSTASH_REDIS_REST_URL).toBeUndefined();
+    expect(env.MOBILE_JWT_SECRET).toBeUndefined();
+    expect(env.SENTRY_DSN).toBeUndefined();
+  });
+
+  it("greift bei leerem Wert auf den Default zurück", () => {
+    expect(
+      parseEnv({ ...BASE, NEXT_PUBLIC_APP_URL: "" }).NEXT_PUBLIC_APP_URL
+    ).toBe("http://localhost:3000");
+    expect(
+      parseEnv({ ...BASE, IAP_STORE_COMMISSION_PERCENT: "" })
+        .IAP_STORE_COMMISSION_PERCENT
+    ).toBe(15);
+  });
+
+  it("erzwingt AUTH_SECRET in Produktion auch bei leerem Wert", () => {
+    expect(() =>
+      parseEnv({ ...BASE, NODE_ENV: "production", AUTH_SECRET: "" })
+    ).toThrow(/AUTH_SECRET/);
+  });
 });
 
 describe("getEnv", () => {
