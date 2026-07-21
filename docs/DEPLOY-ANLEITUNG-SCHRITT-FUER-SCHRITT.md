@@ -211,29 +211,27 @@ automatisch mit der internen Datenbank.
 
 ## Schritt 7 – Datenbank-Passwörter festlegen
 
-Zwei Passwörter erzeugen:
+Diese Datei liegt im Projekt-Hauptordner (**nicht** in `apps/web`) und wird
+von Docker Compose gelesen. Der folgende Block erzeugt beide Passwörter und
+schreibt die Datei in einem Rutsch:
 
 ```bash
-openssl rand -base64 24
-openssl rand -base64 24
+cd /opt/learnsphere
+cat > .env <<EOF
+MYSQL_PASSWORD=$(openssl rand -hex 24)
+MYSQL_ROOT_PASSWORD=$(openssl rand -hex 24)
+EOF
+cat .env
 ```
 
-Und in eine zweite Datei schreiben (die liegt im Projekt-Hauptordner, nicht
-in `apps/web`):
+> **Warum `-hex` und nicht `-base64`?** Das Passwort wird in die
+> Verbindungs-URL eingesetzt (`mysql://learnsphere:PASSWORT@db:3306/…`).
+> Base64 erzeugt `/`, `+` und `=` – ein `/` zerlegt die URL und die
+> Datenbankverbindung schlägt fehl. Hex liefert nur `0-9a-f` und ist damit
+> in URLs immer unproblematisch.
 
-```bash
-nano .env
-```
-
-Inhalt:
-
-```ini
-MYSQL_PASSWORD=<erste Ausgabe>
-MYSQL_ROOT_PASSWORD=<zweite Ausgabe>
-```
-
-Speichern und schließen. **Diese Passwörter brauchst du für Backups** –
-notiere sie dir an einem sicheren Ort.
+Die letzte Zeile zeigt dir die Datei – **beide Passwörter notieren**, du
+brauchst sie für Backups und den Datenbankzugriff.
 
 ---
 
