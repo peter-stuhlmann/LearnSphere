@@ -74,6 +74,12 @@ COPY --from=builder /repo/node_modules/.prisma/client ./node_modules/.prisma/cli
 # Wartungsskripte (z. B. Superadmin anlegen) – laufen per docker compose exec
 COPY --from=builder /repo/apps/web/scripts ./scripts
 
+# bcryptjs für die Wartungsskripte. Next.js kompiliert das Paket in seine
+# Server-Bundles, sodass es im standalone-Output nicht als eigenes Modul
+# liegt – ein eigenständig gestartetes Skript kann es dann nicht laden
+# ("Cannot find module 'bcryptjs'"). @prisma/client ist bereits vorhanden.
+COPY --from=builder /repo/node_modules/bcryptjs ./node_modules/bcryptjs
+
 # Migrationen + vollständige Prisma-CLI für "migrate deploy" beim Start
 COPY --from=builder /repo/apps/web/prisma ./prisma
 COPY --from=builder /cli/node_modules ./prisma-cli/node_modules
