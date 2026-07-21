@@ -13,16 +13,37 @@ BRANCH="${DEPLOY_BRANCH:-main}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000}"
 HEALTH_RETRIES="${HEALTH_RETRIES:-30}"
 
+# Dieses Skript AKTUALISIERT eine bestehende Installation – es legt keine
+# an. Der Pfad steht im Secret DEPLOY_PATH und wird im Actions-Log als ***
+# maskiert; eine nackte "cd"-Fehlermeldung wäre daher nicht lesbar.
+if [ ! -d "$APP_DIR" ]; then
+  echo "✗ Das Zielverzeichnis auf dem Server existiert nicht." >&2
+  echo "  Erwartet wurde der Pfad aus dem Secret DEPLOY_PATH." >&2
+  echo "" >&2
+  echo "  Das automatische Deployment aktualisiert nur eine bereits" >&2
+  echo "  eingerichtete Installation. Das erste Aufsetzen läuft einmalig" >&2
+  echo "  von Hand auf dem Server (Repo klonen, .env-Dateien anlegen," >&2
+  echo "  'docker compose up -d --build') – siehe" >&2
+  echo "  docs/DEPLOY-ANLEITUNG-SCHRITT-FUER-SCHRITT.md, Schritte 5 bis 9." >&2
+  exit 1
+fi
+
 cd "$APP_DIR"
+
+if [ ! -d .git ]; then
+  echo "✗ Im Zielverzeichnis liegt kein Git-Repository." >&2
+  echo "  Zeigt DEPLOY_PATH wirklich auf den Ordner mit dem geklonten Projekt?" >&2
+  exit 1
+fi
 
 # Die Konfiguration liegt NUR auf dem Server (beide Dateien sind gitignored
 # und kommen deshalb nie über GitHub). Fehlen sie, würde der Container mit
 # unbrauchbarer Konfiguration starten – lieber vorher klar abbrechen.
 for f in apps/web/.env.production .env; do
   if [ ! -f "$f" ]; then
-    echo "✗ $APP_DIR/$f fehlt." >&2
-    echo "  Diese Datei wird bewusst nicht über Git verteilt (enthält Secrets)." >&2
-    echo "  Einmalig auf dem Server anlegen – siehe docs/DEPLOY-ANLEITUNG-SCHRITT-FUER-SCHRITT.md" >&2
+    echo "✗ Die Datei $f fehlt im Projektverzeichnis auf dem Server." >&2
+    echo "  Sie wird bewusst nicht über Git verteilt (enthält Secrets)." >&2
+    echo "  Einmalig anlegen – siehe docs/DEPLOY-ANLEITUNG-SCHRITT-FUER-SCHRITT.md" >&2
     exit 1
   fi
 done
