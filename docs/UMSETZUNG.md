@@ -483,6 +483,23 @@ Chronologische Liste aller Umbauten – je Eintrag kurz: **was** gemacht wurde u
 
 - **Mobile-App Phase 3 – Community, Reviews, Profil, OAuth:** Notizen (privat, optional mit Zeitstempel der Wiedergabeposition), Lektions-Kommentare (Threads bis Ebene 2, Soft-Delete, Sanitizing + Moderation + Spam-Bremse wie im Web) und Kurs-Bewertungen (1–5 Sterne + Text) sind jetzt auch in der App: Endpoints unter `/api/mobile/v1/…/notes|comments|review`, UI im Player (NotesSection/CommentsSection) und im Kurs-Screen (RatingSection). Die Logik wanderte aus note-/comment-/review-actions in geteilte Services – dabei einen latenten Bug gefixt: `checkRateLimit` wurde in comment-actions (und registerUser) ohne `await` aufgerufen, die Spam-/Registrier-Bremse griff dadurch nie. Profil: `PATCH /api/mobile/v1/me` (Name/Locale) + Name-Bearbeitung im Profil-Screen. OAuth nativ: `POST /api/mobile/v1/auth/oauth` verifiziert Google-/LinkedIn-id_tokens gegen die Provider-JWKS (Audience = `GOOGLE_MOBILE_CLIENT_IDS`/`LINKEDIN_MOBILE_CLIENT_IDS`), verknüpft Konten über die verifizierte E-Mail (gleiche Vertrauensbasis wie allowDangerousEmailAccountLinking) und stellt das Mobile-Token-Paar aus; die App zeigt den Google-Button, sobald `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` gesetzt ist (expo-auth-session). Benötigt noch externe Einrichtung: Offline-Downloads (Produktentscheidung: geschützte Videos lokal speichern = Kopierschutz-Abwägung) und Push-Notifications (EAS-Projekt + Entscheidung, welche Events pushen) – beides bewusst nicht spekulativ vorgebaut.
 
+## 2026-07-21 · Livegang auf Hostinger (https://learnsphere.one)
+
+**Die Plattform läuft self-hosted auf einem Hostinger-VPS (KVM 2, Frankfurt)**
+- Ubuntu 24.04 mit Docker-Template, zwei Container (Next.js standalone + MySQL 8.4), Uploads und Datenbank auf persistenten Volumes, Caddy davor für automatisches HTTPS.
+- Port-Konflikt beim Reverse-Proxy: Das Hostinger-Template startet einen eigenen Traefik, der 80/443 belegt. Er wurde gestoppt und auf `restart=no` gesetzt; wer ihn braucht, konfiguriert stattdessen Traefik-Labels und lässt Caddy weg.
+
+**Sechs Probleme, die erst in der echten Produktionsumgebung auftraten**
+- **Prisma-CLI unvollständig im Image:** Das Dockerfile kopierte nur `prisma` und `@prisma`; `@prisma/config` braucht zusätzlich effect, c12, deepmerge-ts und empathic. Der Container starb in einer Restart-Schleife („Cannot find module 'effect'"). Die CLI wird jetzt im Builder isoliert installiert und komplett übernommen.
+- **Query-Engine für die falsche Plattform:** `prisma generate` lief ohne OpenSSL im Builder und riet auf openssl-1.1.x, während das Runtime-Image OpenSSL 3.0 nutzt. Behoben durch OpenSSL im Builder, explizite `binaryTargets` und ausdrückliches Kopieren von `.prisma/client`.
+- **Migrationen case-sensitiv kaputt:** Acht `ALTER TABLE`-Anweisungen sprachen Tabellen kleingeschrieben an (`enrollment` statt `Enrollment`). Unter MariaDB/Windows egal, unter MySQL/Linux ein Fehler – die Migration scheiterte und blockierte als „failed migration" alle weiteren (P3009).
+- **Vier fehlende Schema-Objekte:** MobileSession, IapPurchaseIntent, IapTransaction und User.totpLastUsedStep existierten nur in der per `db push` gewachsenen Entwicklungs-DB. Migrationen nachgetragen.
+- **Leere Env-Werte verhinderten den Start:** Eine frisch aus der Vorlage kopierte `.env.production` enthält rund 30 leere Variablen; die Validierung wertete `FOO=""` als ungültigen Wert statt als „Feature aus".
+- **bcryptjs fehlte den Wartungsskripten:** Next.js kompiliert das Paket in seine Server-Bundles, im standalone-Output existiert es dann nicht mehr als eigenes Modul – für die App genügt das, ein eigenständig gestartetes Skript kann es aber nicht laden.
+
+**Konsequenz: CI-Schutz gegen Migrationslücken**
+- `scripts/check-migrations.mjs` vergleicht textuell, ob die Migrationen alle Modelle und Spalten des Schemas erzeugen, und prüft die Schreibweise der Tabellennamen. Läuft ohne Datenbank als erster CI-Schritt. Damit fällt die häufigste Klasse dieser Fehler künftig in GitHub auf statt auf dem Server.
+
 ## 2026-07-21 · Deployment-Vorbereitung
 
 **Schritt-für-Schritt-Anleitung fürs erste Hostinger-Deploy**
