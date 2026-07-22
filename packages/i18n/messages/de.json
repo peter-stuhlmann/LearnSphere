@@ -857,7 +857,11 @@
       "video_needs_ffmpeg": "Videos über 25 MB brauchen ffmpeg auf dem Server (extrahiert das Audio automatisch) – oder lade die Tonspur als Audiodatei hoch.",
       "transcribe_failed": "Transkription fehlgeschlagen. Bitte erneut versuchen.",
       "translation_unavailable": "Kein Übersetzungs-Dienst konfiguriert (ANTHROPIC_API_KEY fehlt).",
-      "translate_failed": "Übersetzung fehlgeschlagen. Bitte erneut versuchen."
+      "translate_failed": "Übersetzung fehlgeschlagen. Bitte erneut versuchen.",
+      "transcribe_unauthorized": "Der Transkriptions-Dienst hat den Zugang abgelehnt. Bitte den Betreiber informieren (OpenAI-Schlüssel ungültig oder gesperrt).",
+      "transcribe_rate_limited": "Der Transkriptions-Dienst ist ausgelastet oder das Guthaben ist aufgebraucht. Bitte später erneut versuchen.",
+      "transcribe_rejected": "Die Datei wurde abgelehnt. Möglicherweise enthält sie keine verständliche Sprache oder ein nicht unterstütztes Format.",
+      "transcribe_timeout": "Die Transkription hat zu lange gedauert und wurde abgebrochen. Bei sehr langen Dateien hilft es, sie aufzuteilen."
     },
     "options": "Antwortoptionen",
     "addOption": "Option hinzufügen",

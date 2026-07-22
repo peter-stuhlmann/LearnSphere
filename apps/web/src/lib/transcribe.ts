@@ -5,6 +5,11 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { ownedMediaFsPath } from "./protected-media";
 import { recordAiUsage } from "./ai-usage-server";
+import {
+  classifyTranscribeError,
+  classifyTranscribeStatus,
+  type TranscribeError,
+} from "./transcribe-errors";
 
 const execFileAsync = promisify(execFile);
 
@@ -55,15 +60,7 @@ export interface TimedSegment {
 
 export type TranscribeResult =
   | { ok: true; text: string; language: "de" | "en"; segments: TimedSegment[] }
-  | {
-      ok: false;
-      error:
-        | "transcription_unavailable"
-        | "url_not_upload"
-        | "file_too_large"
-        | "video_needs_ffmpeg"
-        | "transcribe_failed";
-    };
+  | { ok: false; error: TranscribeError };
 
 /**
  * ffmpeg auflösen: bevorzugt das mitgelieferte Binary aus `ffmpeg-static`
@@ -351,12 +348,16 @@ async function whisperChunk(
   apiKey: string,
   buffer: Buffer,
   fileName: string
-): Promise<{
-  text: string;
-  language: string;
-  duration: number;
-  segments: TimedSegment[];
-} | null> {
+): Promise<
+  | {
+      ok: true;
+      text: string;
+      language: string;
+      duration: number;
+      segments: TimedSegment[];
+    }
+  | { ok: false; error: TranscribeError }
+> {
   const formData = new FormData();
   formData.set("file", new File([new Uint8Array(buffer)], fileName));
   formData.set("model", "whisper-1");
@@ -372,12 +373,9 @@ async function whisperChunk(
     }
   );
   if (!response.ok) {
-    console.error(
-      "[transcribe] Whisper-Fehler:",
-      response.status,
-      (await response.text()).slice(0, 300)
-    );
-    return null;
+    const body = (await response.text()).slice(0, 300);
+    console.error("[transcribe] Whisper-Fehler:", response.status, body);
+    return { ok: false, error: classifyTranscribeStatus(response.status) };
   }
   const body = (await response.json()) as {
     text?: string;
@@ -385,8 +383,10 @@ async function whisperChunk(
     duration?: number;
     segments?: { start?: number; end?: number; text?: string }[];
   };
-  if (!body.text) return null;
+  // Leere Antwort: Tonspur ohne erkennbare Sprache (Musik, Stille, Rauschen)
+  if (!body.text) return { ok: false, error: "transcribe_rejected" };
   return {
+    ok: true,
     text: body.text.trim(),
     language: body.language ?? "",
     duration: body.duration ?? 0,
@@ -546,7 +546,7 @@ export async function transcribeUpload(
         const chunk =
           typeof source === "string" ? await readFile(source) : source;
         const result = await whisperChunk(apiKey, chunk, chunkName);
-        if (!result) return { ok: false, error: "transcribe_failed" };
+        if (!result.ok) return result;
         texts.push(result.text);
         if (!language) language = result.language;
         for (const segment of result.segments) {
@@ -577,6 +577,6 @@ export async function transcribeUpload(
   } catch (err) {
     // Serverseitig protokollieren – der Client bekommt nur den Fehlercode
     console.error("[transcribe] fehlgeschlagen:", err);
-    return { ok: false, error: "transcribe_failed" };
+    return { ok: false, error: classifyTranscribeError(err) };
   }
 }

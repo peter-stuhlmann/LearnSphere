@@ -857,7 +857,11 @@
       "video_needs_ffmpeg": "Videos over 25 MB need ffmpeg on the server (extracts the audio automatically) – or upload the audio track as an audio file.",
       "transcribe_failed": "Transcription failed. Please try again.",
       "translation_unavailable": "No translation service configured (ANTHROPIC_API_KEY missing).",
-      "translate_failed": "Translation failed. Please try again."
+      "translate_failed": "Translation failed. Please try again.",
+      "transcribe_unauthorized": "The transcription service refused access. Please tell the operator (OpenAI key invalid or revoked).",
+      "transcribe_rate_limited": "The transcription service is busy or out of credit. Please try again later.",
+      "transcribe_rejected": "The file was rejected. It may contain no intelligible speech, or an unsupported format.",
+      "transcribe_timeout": "Transcription took too long and was cancelled. For very long files, splitting them helps."
     },
     "options": "Answer options",
     "addOption": "Add option",
