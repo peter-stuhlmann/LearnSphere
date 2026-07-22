@@ -94,6 +94,8 @@
     "aiIntro": "Tokens, audio minutes and estimated cost of all AI features – by activity, model and user. The system/user share of input tokens is estimated proportionally.",
     "aiRangeLabel": "Time range",
     "aiRanges": {
+      "today": "Today",
+      "yesterday": "Yesterday",
       "7d": "7 days",
       "30d": "30 days",
       "90d": "90 days",
@@ -184,7 +186,14 @@
     "userRole": "Role",
     "userCourses": "Courses",
     "userEnrollments": "Enrollments",
-    "userSince": "Member since"
+    "userSince": "Member since",
+    "aiRangeCustom": "Pick a range",
+    "aiRangeApply": "Apply",
+    "aiRangePickStart": "Pick a start date",
+    "aiRangePickEnd": "Pick an end date",
+    "aiRangeDays": "{count} days",
+    "aiRangePrevMonth": "Previous month",
+    "aiRangeNextMonth": "Next month"
   },
   "common": {
     "brand": "LearnSphere",

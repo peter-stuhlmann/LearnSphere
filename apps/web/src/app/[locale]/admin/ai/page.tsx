@@ -10,21 +10,13 @@ import {
   type AiUsageRow,
 } from "@elearning/core/ai-usage";
 import { AdminAiUsageView } from "@/components/admin/AdminAiUsageView";
+import { resolveUsageRange, toIsoDay } from "@/lib/usage-range";
 
 /**
  * /admin/ai – KI-Verbrauch: Tokens (Input System/User, Output), Kosten und
  * Aktivitäten je Zeitraum, Modell und Nutzer. Rollenschutz übernimmt das
  * Admin-Layout.
  */
-
-const RANGES = ["7d", "30d", "90d", "365d"] as const;
-type UsageRange = (typeof RANGES)[number];
-const RANGE_DAYS: Record<UsageRange, number> = {
-  "7d": 7,
-  "30d": 30,
-  "90d": 90,
-  "365d": 365,
-};
 
 export async function generateMetadata({
   params,
@@ -43,14 +35,17 @@ export default async function AdminAiUsagePage({
 }) {
   const params = await searchParams;
 
-  const range: UsageRange = (RANGES as readonly string[]).includes(
-    params.range ?? ""
-  )
-    ? (params.range as UsageRange)
-    : "30d";
-  const days = RANGE_DAYS[range];
   const now = new Date();
-  const from = new Date(now.getTime() - (days - 1) * 86_400_000);
+  const range = resolveUsageRange({
+    range: params.range,
+    from: params.from,
+    to: params.to,
+    now,
+  });
+  const { from, toExclusive, days } = range;
+  // Zeitfenster fuer jede Abfrage: seit dem Umstieg auf freie Zeitraeume
+  // braucht es auch eine obere Grenze (gestern endet nicht heute)
+  const timeWindow = { gte: from, lt: toExclusive };
 
   const activity =
     params.activity && isAiActivity(params.activity) ? params.activity : null;
@@ -60,7 +55,7 @@ export default async function AdminAiUsagePage({
   const rows: (AiUsageRow & { userId: string | null })[] =
     await db.aiUsage.findMany({
       where: {
-        createdAt: { gte: from },
+        createdAt: timeWindow,
         ...(activity ? { activity } : {}),
         ...(model ? { model } : {}),
         ...(userId ? { userId } : {}),
@@ -84,10 +79,10 @@ export default async function AdminAiUsagePage({
   const [activityGroups, modelGroups, userGroups] = await Promise.all([
     db.aiUsage.groupBy({
       by: ["activity"],
-      where: { createdAt: { gte: from } },
+      where: { createdAt: timeWindow },
     }),
-    db.aiUsage.groupBy({ by: ["model"], where: { createdAt: { gte: from } } }),
-    db.aiUsage.groupBy({ by: ["userId"], where: { createdAt: { gte: from } } }),
+    db.aiUsage.groupBy({ by: ["model"], where: { createdAt: timeWindow } }),
+    db.aiUsage.groupBy({ by: ["userId"], where: { createdAt: timeWindow } }),
   ]);
   const optionUserIds = userGroups.flatMap((g) => g.userId ?? []);
   const users = optionUserIds.length
@@ -123,7 +118,9 @@ export default async function AdminAiUsagePage({
 
   return (
     <AdminAiUsageView
-      range={range}
+      range={range.preset}
+      customRange={{ from: toIsoDay(range.from), to: toIsoDay(range.to) }}
+      today={toIsoDay(now)}
       filters={{ activity, model, user: userId }}
       options={{
         activities: activityGroups.map((g) => g.activity).sort(),

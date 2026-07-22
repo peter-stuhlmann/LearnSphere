@@ -18,6 +18,8 @@ import { HBarList } from "@/components/charts/HBarList";
 import { StatTile, TileGrid } from "@/components/charts/StatTile";
 import { Kicker, Muted, SectionTitle } from "@/components/ui/primitives";
 import { Select } from "@/components/ui/Select";
+import { DateRangePicker } from "./DateRangePicker";
+import { USAGE_PRESETS, type UsagePreset } from "@/lib/usage-range";
 
 /* Farbpalette für Aktivitäts-Stapel (Reihenfolge = Volumen-Rang) */
 const PALETTE = [
@@ -33,7 +35,7 @@ const PALETTE = [
   "#38BDF8",
 ];
 
-const RANGES = ["7d", "30d", "90d", "365d"] as const;
+
 
 const FilterBar = styled.div`
   display: flex;
@@ -166,7 +168,11 @@ interface LabeledGroup extends UsageGroup {
 }
 
 interface AdminAiUsageViewProps {
-  range: (typeof RANGES)[number];
+  range: UsagePreset | "custom";
+  /** aktuell wirksamer Zeitraum als ISO-Tage – auch bei Voreinstellungen */
+  customRange: { from: string; to: string };
+  /** spätester wählbarer Tag */
+  today: string;
   filters: { activity: string | null; model: string | null; user: string | null };
   options: {
     activities: string[];
@@ -288,6 +294,8 @@ function StackedBars({
 
 export function AdminAiUsageView({
   range,
+  customRange,
+  today,
   filters,
   options,
   totals,
@@ -309,7 +317,16 @@ export function AdminAiUsageView({
     t(`aiActivities.${key}` as never) as unknown as string;
 
   /** Filter/Zeitraum leben in der URL – teilbar und Back-Button-tauglich. */
-  function apply(next: Partial<{ range: string; activity: string; model: string; user: string }>) {
+  function apply(
+    next: Partial<{
+      range: string;
+      from: string;
+      to: string;
+      activity: string;
+      model: string;
+      user: string;
+    }>
+  ) {
     const merged = {
       range,
       activity: filters.activity ?? "",
@@ -318,7 +335,14 @@ export function AdminAiUsageView({
       ...next,
     };
     const query: Record<string, string> = {};
-    if (merged.range !== "30d") query.range = merged.range;
+    /* Voreinstellung und freier Zeitraum schließen einander aus – sonst
+       stünden zwei widersprüchliche Angaben in der URL. */
+    if (next.from && next.to) {
+      query.from = next.from;
+      query.to = next.to;
+    } else if (merged.range !== "30d") {
+      query.range = merged.range;
+    }
     if (merged.activity) query.activity = merged.activity;
     if (merged.model) query.model = merged.model;
     if (merged.user) query.user = merged.user;
@@ -371,7 +395,7 @@ export function AdminAiUsageView({
 
       <FilterBar>
         <PillRow role="group" aria-label={t("aiRangeLabel")}>
-          {RANGES.map((value) => (
+          {USAGE_PRESETS.map((value) => (
             <Pill
               key={value}
               type="button"
@@ -383,6 +407,13 @@ export function AdminAiUsageView({
             </Pill>
           ))}
         </PillRow>
+        <DateRangePicker
+          from={customRange.from}
+          to={customRange.to}
+          active={range === "custom"}
+          maxDay={today}
+          onApply={({ from, to }) => apply({ from, to })}
+        />
         <Select
           inline
           pill

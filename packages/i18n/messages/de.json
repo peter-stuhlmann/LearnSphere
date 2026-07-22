@@ -94,6 +94,8 @@
     "aiIntro": "Tokens, Audio-Minuten und geschätzte Kosten aller KI-Funktionen – nach Aktivität, Modell und Nutzer. Der System/User-Anteil der Input-Tokens ist anteilig geschätzt.",
     "aiRangeLabel": "Zeitraum",
     "aiRanges": {
+      "today": "Heute",
+      "yesterday": "Gestern",
       "7d": "7 Tage",
       "30d": "30 Tage",
       "90d": "90 Tage",
@@ -184,7 +186,14 @@
     "userRole": "Rolle",
     "userCourses": "Kurse",
     "userEnrollments": "Teilnahmen",
-    "userSince": "Dabei seit"
+    "userSince": "Dabei seit",
+    "aiRangeCustom": "Zeitraum wählen",
+    "aiRangeApply": "Übernehmen",
+    "aiRangePickStart": "Beginn wählen",
+    "aiRangePickEnd": "Ende wählen",
+    "aiRangeDays": "{count} Tage",
+    "aiRangePrevMonth": "Vorheriger Monat",
+    "aiRangeNextMonth": "Nächster Monat"
   },
   "common": {
     "brand": "LearnSphere",
