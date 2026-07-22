@@ -3,7 +3,6 @@ import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { isApiPlanUsable } from "@/lib/api-auth";
 import {
   ttsChunksFromHtml,
   ttsSegmentHash,
@@ -47,13 +46,7 @@ export async function POST(request: NextRequest) {
       section: {
         select: {
           course: {
-            select: {
-              id: true,
-              creatorId: true,
-              creator: {
-                select: { apiSubscription: { select: { status: true } } },
-              },
-            },
+            select: { id: true, creatorId: true },
           },
         },
       },
@@ -95,14 +88,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "no_text" }, { status: 422 });
   }
 
-  // Automatischer Switch: OpenAI nur mit nutzbarem Bezahl-Abo des Creators;
-  // absurd lange Lektionen liest die kostenlose Browser-Stimme
-  const paidPlan = isApiPlanUsable(course.creator.apiSubscription?.status);
-  if (
-    !paidPlan ||
-    !process.env.OPENAI_API_KEY ||
-    chunks.length > MAX_SEGMENTS
-  ) {
+  // Vorlesen ist ein Werkzeug der Lernenden, nicht des Creators – deshalb
+  // steht die Sprachausgabe allen Eingeschriebenen offen, sobald ein
+  // OpenAI-Schlüssel konfiguriert ist. Ohne Schlüssel und bei absurd langen
+  // Lektionen übernimmt die kostenlose Browser-Stimme.
+  if (!process.env.OPENAI_API_KEY || chunks.length > MAX_SEGMENTS) {
     return NextResponse.json({ mode: "browser", segments: chunks });
   }
 
