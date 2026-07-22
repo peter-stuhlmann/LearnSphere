@@ -235,6 +235,48 @@ export function ReadAloud({
     }
   }, []);
 
+  /**
+   * Chrome beendet lange Äußerungen der Browser-Stimme nach etwa
+   * 15 Sekunden stumm – ohne "end"-Ereignis. Zwei Vorkehrungen dagegen:
+   * die Segmente sind serverseitig kurz gehalten, und dieser Wächter hält
+   * die Sprachausgabe am Leben (pause/resume setzt die interne Uhr
+   * zurück). Verstummt sie trotzdem, springt er zum nächsten Segment,
+   * damit die Wiedergabe nicht endlos hängen bleibt.
+   */
+  const keepAliveRef = useRef<number | null>(null);
+  const silentTicksRef = useRef(0);
+
+  function clearKeepAlive() {
+    if (keepAliveRef.current !== null) {
+      window.clearInterval(keepAliveRef.current);
+      keepAliveRef.current = null;
+    }
+    silentTicksRef.current = 0;
+  }
+
+  function startKeepAlive(list: Segment[], i: number) {
+    clearKeepAlive();
+    keepAliveRef.current = window.setInterval(() => {
+      const speech = window.speechSynthesis;
+      if (stoppedRef.current) return;
+      if (speech.speaking && !speech.paused) {
+        speech.pause();
+        speech.resume();
+        silentTicksRef.current = 0;
+        return;
+      }
+      // Weder sprechend noch pausiert: Der Browser hat die Äußerung
+      // verworfen. Nach zwei Durchläufen ohne Lebenszeichen weitergehen.
+      if (!speech.speaking && !speech.paused && !speech.pending) {
+        silentTicksRef.current += 1;
+        if (silentTicksRef.current >= 2) {
+          clearKeepAlive();
+          scheduleNext(list, i);
+        }
+      }
+    }, 5000);
+  }
+
   function clearGapTimer() {
     if (gapTimerRef.current !== null) {
       window.clearTimeout(gapTimerRef.current);
@@ -244,6 +286,7 @@ export function ReadAloud({
 
   function stop() {
     stoppedRef.current = true;
+    clearKeepAlive();
     clearGapTimer();
     pendingNextRef.current = null;
     audioRef.current?.pause();
@@ -302,10 +345,15 @@ export function ReadAloud({
     utterance.lang = lang === "de" ? "de-DE" : "en-GB";
     utterance.rate = rateRef.current;
     utterance.onend = () => {
+      clearKeepAlive();
       if (!stoppedRef.current) scheduleNext(list, i);
     };
-    utterance.onerror = () => stop();
+    utterance.onerror = () => {
+      clearKeepAlive();
+      stop();
+    };
     window.speechSynthesis.speak(utterance);
+    startKeepAlive(list, i);
   }
 
   function startFrom(list: Segment[], i: number) {

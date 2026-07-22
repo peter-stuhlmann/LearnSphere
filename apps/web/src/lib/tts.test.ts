@@ -6,6 +6,8 @@ import {
   ttsSegmentHash,
   TTS_MODEL,
   TTS_VOICE,
+  splitChunksForBrowserSpeech,
+  BROWSER_MAX_SEGMENT_CHARS,
 } from "./tts";
 
 describe("splitIntoTtsSegments", () => {
@@ -130,5 +132,65 @@ describe("ttsSegmentHash", () => {
   it("Modell/Stimme sind Konstanten mit sinnvollen Werten", () => {
     expect(TTS_MODEL.length).toBeGreaterThan(0);
     expect(TTS_VOICE.length).toBeGreaterThan(0);
+  });
+});
+
+describe("splitChunksForBrowserSpeech", () => {
+  /* Chrome bricht eine einzelne Äußerung nach rund 15 Sekunden ab, ohne
+     das Ende-Ereignis zu feuern – der Player wartet dann ewig. Deshalb
+     werden Segmente für die Browser-Stimme deutlich kürzer gehalten. */
+  it("teilt lange Segmente in mehrere kurze", () => {
+    const long = Array.from({ length: 12 }, (_, i) => `Satz Nummer ${i}.`).join(
+      " "
+    );
+    const result = splitChunksForBrowserSpeech(
+      [{ text: long, kind: "paragraph" }],
+      60
+    );
+    expect(result.length).toBeGreaterThan(1);
+    for (const chunk of result) {
+      expect(chunk.text.length).toBeLessThanOrEqual(60);
+    }
+  });
+
+  it("behält kurze Segmente unverändert", () => {
+    const chunks = [
+      { text: "Kurz und knapp.", kind: "heading" as const },
+      { text: "Auch das passt.", kind: "paragraph" as const },
+    ];
+    expect(splitChunksForBrowserSpeech(chunks, 60)).toEqual(chunks);
+  });
+
+  it("überträgt die Art des Segments auf alle Teile", () => {
+    const long = Array.from({ length: 8 }, (_, i) => `Teil ${i}.`).join(" ");
+    const result = splitChunksForBrowserSpeech(
+      [{ text: long, kind: "heading" }],
+      30
+    );
+    expect(result.length).toBeGreaterThan(1);
+    expect(result.every((c) => c.kind === "heading")).toBe(true);
+  });
+
+  it("verwirft nichts und behält die Reihenfolge", () => {
+    const result = splitChunksForBrowserSpeech(
+      [
+        { text: "Erstens.", kind: "paragraph" },
+        { text: "Zweitens.", kind: "paragraph" },
+      ],
+      60
+    );
+    expect(result.map((c) => c.text)).toEqual(["Erstens.", "Zweitens."]);
+  });
+
+  it("nutzt ohne Angabe die Browser-Standardlänge", () => {
+    const long = "Ein Satz mit Inhalt. ".repeat(40).trim();
+    const result = splitChunksForBrowserSpeech([
+      { text: long, kind: "paragraph" },
+    ]);
+    for (const chunk of result) {
+      expect(chunk.text.length).toBeLessThanOrEqual(
+        BROWSER_MAX_SEGMENT_CHARS
+      );
+    }
   });
 });

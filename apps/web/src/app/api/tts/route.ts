@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import {
+  splitChunksForBrowserSpeech,
   ttsChunksFromHtml,
   ttsSegmentHash,
   TTS_MODEL,
@@ -93,7 +94,12 @@ export async function POST(request: NextRequest) {
   // OpenAI-Schlüssel konfiguriert ist. Ohne Schlüssel und bei absurd langen
   // Lektionen übernimmt die kostenlose Browser-Stimme.
   if (!process.env.OPENAI_API_KEY || chunks.length > MAX_SEGMENTS) {
-    return NextResponse.json({ mode: "browser", segments: chunks });
+    // Kleinteiliger für die Browser-Stimme: Chrome bricht Äußerungen über
+    // ~15 Sekunden stumm ab, ohne das Ende-Ereignis zu senden
+    return NextResponse.json({
+      mode: "browser",
+      segments: splitChunksForBrowserSpeech(chunks),
+    });
   }
 
   const hashes = chunks.map((chunk) => ttsSegmentHash(chunk.text));

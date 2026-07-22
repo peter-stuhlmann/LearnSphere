@@ -91,6 +91,39 @@ export interface TtsChunk {
 }
 
 /**
+ * Maximale Segmentlänge für die Browser-Stimme (Web Speech API).
+ *
+ * Chrome beendet eine einzelne Äußerung nach etwa 15 Sekunden Sprechzeit,
+ * ohne das "end"-Ereignis auszulösen: Die Stimme verstummt, der Player
+ * wartet weiter auf ein Signal, das nie kommt. Bei rund 950 Zeichen pro
+ * Minute entsprechen 180 Zeichen etwa 11 Sekunden – mit Sicherheitsabstand
+ * unterhalb der Grenze, auch bei langsamer Wiedergabegeschwindigkeit.
+ *
+ * Für die OpenAI-Stimme bleibt es bei TTS_MAX_SEGMENT_CHARS: dort spricht
+ * nichts gegen längere Abschnitte, und größere Segmente bedeuten weniger
+ * Cache-Einträge und weniger Anfragen.
+ */
+export const BROWSER_MAX_SEGMENT_CHARS = 180;
+
+/**
+ * Segmente für die Browser-Stimme kleinteiliger machen. Die Einteilung in
+ * Überschrift/Absatz bleibt erhalten, damit die Sprechpausen stimmen.
+ */
+export function splitChunksForBrowserSpeech(
+  chunks: TtsChunk[],
+  maxChars: number = BROWSER_MAX_SEGMENT_CHARS
+): TtsChunk[] {
+  return chunks.flatMap((chunk) =>
+    chunk.text.length <= maxChars
+      ? [chunk]
+      : splitIntoTtsSegments(chunk.text, maxChars).map((text) => ({
+          text,
+          kind: chunk.kind,
+        }))
+  );
+}
+
+/**
  * HTML strukturiert zerlegen: Überschriften (h1–h6) werden eigene Chunks
  * vom Typ "heading", alles andere absatzweise "paragraph" – der Player
  * setzt daraus natürliche Sprechpausen. Der Typ steckt bewusst nicht im
