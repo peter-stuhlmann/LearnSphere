@@ -28,6 +28,7 @@ import {
   SectionTitle,
 } from "@/components/ui/primitives";
 import { FormAlert } from "@/components/auth/AuthShell";
+import { ExamSignal, type SignalLevel } from "./ExamSignal";
 
 const Wrap = styled.main`
   padding: 4rem 0 2rem;
@@ -187,12 +188,21 @@ const timerPulse = keyframes`
   50% { box-shadow: 0 0 0 8px rgba(255, 107, 107, 0); }
 `;
 
-const TimerBadge = styled.div<{ $urgent: boolean }>`
+/* Timer und Signalampel wandern gemeinsam mit – beides muss während der
+   ganzen Prüfung sichtbar bleiben, nicht nur ganz oben auf der Seite. */
+const StatusRow = styled.div`
   position: sticky;
   top: 74px;
   z-index: 10;
-  width: max-content;
   margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+`;
+
+const TimerBadge = styled.div<{ $urgent: boolean }>`
+  width: max-content;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -225,6 +235,13 @@ const TimerBadge = styled.div<{ $urgent: boolean }>`
 /** Nach 2 Warnungen wird beim 3. Verlassen automatisch abgegeben. */
 const MAX_TAB_LEAVES = 3;
 
+/** Beschriftung der Ampel je Stufe (0 = ruhig, 1 = gestört, 2 = kritisch) */
+const SIGNAL_LABELS = [
+  "signalStable",
+  "signalDisturbed",
+  "signalCritical",
+] as const;
+
 /* Fragen/Antworten nicht markier-/kopierbar; Freitext bleibt bedienbar */
 const GuardedForm = styled.form`
   position: relative;
@@ -248,17 +265,31 @@ const LeaveOverlay = styled.div`
   backdrop-filter: blur(4px);
 `;
 
-const LeaveDialog = styled.div`
+const LeaveDialog = styled.div<{ $critical: boolean }>`
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
   max-width: 480px;
   padding: 2rem 1.75rem;
   border-radius: ${({ theme }) => theme.radii.lg};
-  border: 1px solid ${({ theme }) => theme.colors.danger};
-  background: ${({ theme }) => theme.colors.bgDeep};
+  border: 1px solid
+    ${({ $critical, theme }) =>
+      $critical ? theme.colors.danger : "rgba(245, 197, 66, 0.55)"};
+  /* schwaches Leuchten aus der Tiefe – passend zur Signalstation */
+  background: radial-gradient(
+        ellipse 80% 60% at 50% 0%,
+        ${({ $critical }) =>
+          $critical ? "rgba(255, 107, 107, 0.14)" : "rgba(245, 197, 66, 0.12)"},
+        transparent 70%
+      )
+      ${({ theme }) => theme.colors.bgDeep};
   text-align: center;
 
   h2 {
+    margin-top: 0.9rem;
     font-size: 1.3rem;
-    color: ${({ theme }) => theme.colors.danger};
+    color: ${({ $critical, theme }) =>
+      $critical ? theme.colors.danger : "#F5C542"};
   }
 
   p {
@@ -370,6 +401,10 @@ export function QuizView({
 
   // Anti-Schummeln: Tab-Verlassen zählen (2 Warnungen, dann Auto-Abgabe)
   const [leaveWarning, setLeaveWarning] = useState<number | null>(null);
+  /* Derselbe Zähler auch als State – die Ampel muss ihn dauerhaft anzeigen,
+     nicht nur im Moment des Verstoßes. */
+  const [leaves, setLeaves] = useState(0);
+  const signalLevel: SignalLevel = Math.min(2, leaves) as SignalLevel;
   const leaveCountRef = useRef(0);
   const lastLeaveAtRef = useRef(0);
   const examActive = !result && !attemptState.blocked;
@@ -402,6 +437,7 @@ export function QuizView({
       lastLeaveAtRef.current = now;
 
       leaveCountRef.current += 1;
+      setLeaves(leaveCountRef.current);
       if (leaveCountRef.current >= MAX_TAB_LEAVES) {
         setLeaveWarning(null);
         forceSubmitRef.current();
@@ -834,15 +870,31 @@ export function QuizView({
             : ""}
         </Muted>
 
-        {secondsLeft !== null ? (
-          <TimerBadge
-            $urgent={secondsLeft <= 60}
-            role="timer"
-            aria-label={t("timeLeft")}
-          >
-            ⏱ {formatDuration(secondsLeft)}
-          </TimerBadge>
-        ) : null}
+        <StatusRow>
+          {secondsLeft !== null ? (
+            <TimerBadge
+              $urgent={secondsLeft <= 60}
+              role="timer"
+              aria-label={t("timeLeft")}
+            >
+              ⏱ {formatDuration(secondsLeft)}
+            </TimerBadge>
+          ) : null}
+
+          {/* Weltall-Ampel: zeigt dauerhaft, wie es um die Prüfung steht –
+              nicht erst dann, wenn schon ein Verstoß passiert ist. */}
+          <div role="status" aria-live="polite">
+            <ExamSignal
+              level={signalLevel}
+              label={t(SIGNAL_LABELS[signalLevel])}
+              detail={
+                signalLevel === 0
+                  ? t("signalStableDetail")
+                  : t("signalRemaining", { left: MAX_TAB_LEAVES - leaves })
+              }
+            />
+          </div>
+        </StatusRow>
 
         <GuardedForm
           onSubmit={onSubmit}
@@ -930,8 +982,16 @@ export function QuizView({
 
         {leaveWarning !== null ? (
           <LeaveOverlay role="alertdialog" aria-modal="true">
-            <LeaveDialog>
-              <h2>⚠ {t("leaveWarningTitle")}</h2>
+            <LeaveDialog $critical={signalLevel === 2}>
+              <ExamSignal
+                large
+                level={signalLevel}
+                label={t(SIGNAL_LABELS[signalLevel])}
+                detail={t("signalRemaining", {
+                  left: MAX_TAB_LEAVES - leaveWarning,
+                })}
+              />
+              <h2>{t("leaveWarningTitle")}</h2>
               <p>
                 {t("leaveWarningText", {
                   count: leaveWarning,

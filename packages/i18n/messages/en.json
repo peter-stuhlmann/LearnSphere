@@ -1251,7 +1251,12 @@
     "attemptsUsed": "Attempt {used} of {max}",
     "blockedAlreadyPassed": "You have already passed this exam – retakes are not allowed.",
     "blockedExhausted": "You have used up all attempts for this exam.",
-    "blockedCooldown": "Attempt limit reached. Next attempt possible: {date}"
+    "blockedCooldown": "Attempt limit reached. Next attempt possible: {date}",
+    "signalStable": "Signal stable",
+    "signalDisturbed": "Signal disrupted",
+    "signalCritical": "Final warning",
+    "signalStableDetail": "Stay in the exam window",
+    "signalRemaining": "{left, plural, one {# switch} other {# switches}} left until automatic submission"
   },
   "certificate": {
     "title": "Certificate",

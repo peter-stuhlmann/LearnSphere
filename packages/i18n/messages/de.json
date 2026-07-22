@@ -1251,7 +1251,12 @@
     "attemptsUsed": "Versuch {used} von {max}",
     "blockedAlreadyPassed": "Du hast diese Prüfung bereits bestanden – eine Wiederholung ist nicht vorgesehen.",
     "blockedExhausted": "Du hast alle Versuche für diese Prüfung aufgebraucht.",
-    "blockedCooldown": "Versuchslimit erreicht. Nächster Versuch möglich: {date}"
+    "blockedCooldown": "Versuchslimit erreicht. Nächster Versuch möglich: {date}",
+    "signalStable": "Signal stabil",
+    "signalDisturbed": "Signal gestört",
+    "signalCritical": "Letzte Warnung",
+    "signalStableDetail": "Prüfungsfenster nicht verlassen",
+    "signalRemaining": "Noch {left} Wechsel bis zur automatischen Abgabe"
   },
   "certificate": {
     "title": "Zertifikat",
