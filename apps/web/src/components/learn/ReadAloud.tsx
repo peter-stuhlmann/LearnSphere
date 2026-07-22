@@ -220,6 +220,8 @@ export function ReadAloud({
   /** Nächster Segment-Index, wenn in einer Sprechpause pausiert wurde */
   const pendingNextRef = useRef<number | null>(null);
   const stoppedRef = useRef(false);
+  /** laufende Segment-Anfragen, damit nichts doppelt erzeugt wird */
+  const pendingUrlRef = useRef(new Map<number, Promise<void>>());
   const rateRef = useRef(1);
   const panelRef = useRef<HTMLDivElement>(null);
   const activeCueRef = useRef<HTMLButtonElement>(null);
@@ -320,13 +322,53 @@ export function ReadAloud({
     }
     gapTimerRef.current = window.setTimeout(() => {
       gapTimerRef.current = null;
-      playSegment(list, i + 1);
+      void playSegment(list, i + 1);
     }, gap);
   }
 
-  function playSegment(list: Segment[], i: number) {
+  /**
+   * Audio eines Segments beschaffen, falls es noch nicht existiert.
+   *
+   * Erzeugt wird erst kurz vor dem Abspielen – wer nach zehn Sekunden
+   * abbricht, bezahlt nicht die ganze Lektion. Das Ergebnis wird im
+   * Segment vermerkt, damit ein zweiter Durchlauf sofort spielt.
+   */
+  async function ensureUrl(list: Segment[], i: number): Promise<void> {
+    if (modeRef.current !== "openai") return;
+    const segment = list[i];
+    if (!segment || segment.url) return;
+    // Doppelanfragen vermeiden, wenn Vorabholen und Abspielen zusammenfallen
+    if (pendingUrlRef.current.has(i)) return pendingUrlRef.current.get(i);
+
+    const request = (async () => {
+      try {
+        const response = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lessonId, lang, index: i }),
+        });
+        if (!response.ok) return;
+        const data = (await response.json()) as { url?: string };
+        if (data.url) segment.url = data.url;
+      } catch {
+        // ohne URL fällt playSegment auf die Browser-Stimme zurück
+      } finally {
+        pendingUrlRef.current.delete(i);
+      }
+    })();
+    pendingUrlRef.current.set(i, request);
+    return request;
+  }
+
+  async function playSegment(list: Segment[], i: number) {
     if (stoppedRef.current || i >= list.length) return;
     setIndex(i);
+
+    await ensureUrl(list, i);
+    if (stoppedRef.current) return;
+    // das folgende Segment im Hintergrund vorbereiten, damit die Pause
+    // zwischen zwei Absätzen nicht hörbar länger wird
+    if (i + 1 < list.length) void ensureUrl(list, i + 1);
 
     if (modeRef.current === "openai" && list[i].url) {
       const audio = new Audio(list[i].url);
@@ -364,7 +406,7 @@ export function ReadAloud({
     audioRef.current = null;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setStatus("playing");
-    playSegment(list, i);
+    void playSegment(list, i);
   }
 
   async function start() {
@@ -411,7 +453,7 @@ export function ReadAloud({
     if (pendingNextRef.current !== null) {
       const next = pendingNextRef.current;
       pendingNextRef.current = null;
-      playSegment(segments, next);
+      void playSegment(segments, next);
       return;
     }
     if (modeRef.current === "openai") {

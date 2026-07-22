@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {
     lessonId?: string;
     lang?: string;
+    /** gesetzt: nur dieses eine Segment erzeugen (siehe unten) */
+    index?: number;
   } | null;
   if (!body?.lessonId) {
     return NextResponse.json({ error: "invalid_request" }, { status: 400 });
@@ -103,80 +105,117 @@ export async function POST(request: NextRequest) {
   }
 
   const hashes = chunks.map((chunk) => ttsSegmentHash(chunk.text));
+
+  /* Einzelnes Segment erzeugen. Der Client fragt es an, kurz bevor es
+     gespielt wird – so entstehen nur Kosten für das, was tatsächlich
+     gehört wird. Der Text kommt dabei nie vom Client, sondern aus der
+     Lektion; der Index wählt lediglich aus. */
+  if (typeof body.index === "number") {
+    const i = body.index;
+    if (!Number.isInteger(i) || i < 0 || i >= chunks.length) {
+      return NextResponse.json({ error: "invalid_request" }, { status: 400 });
+    }
+    const url = await ensureSegment(chunks[i].text, hashes[i], {
+      userId: session.user.id,
+      courseId: course.id,
+    });
+    if (!url) {
+      // sanfter Rückfall: lieber Browser-Stimme als gar kein Vorlesen
+      return NextResponse.json({ error: "tts_failed" }, { status: 503 });
+    }
+    return NextResponse.json(
+      { url },
+      { headers: { [AI_GENERATED_HEADER]: "true" } }
+    );
+  }
+
+  /* Übersicht: Was liegt schon vor? Hier wird bewusst NICHTS erzeugt.
+     Früher wurde beim Druck auf "Vorlesen" die ganze Lektion generiert –
+     wer nach zehn Sekunden abbrach, hatte trotzdem alles bezahlt. */
   const cached = await db.ttsSegment.findMany({
     where: { hash: { in: hashes } },
     select: { hash: true, url: true },
   });
   const urlByHash = new Map(cached.map((row) => [row.hash, row.url]));
 
-  // Fehlende Segmente einmalig generieren – nur die geänderten/neuen
-  for (let i = 0; i < chunks.length; i++) {
-    const hash = hashes[i];
-    if (urlByHash.has(hash)) continue;
-    try {
-      const response = await fetch("https://api.openai.com/v1/audio/speech", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: TTS_MODEL,
-          voice: TTS_VOICE,
-          input: chunks[i].text,
-          response_format: "mp3",
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`openai_tts_${response.status}`);
-      }
-      // KI-Kennzeichnung (Art. 50 Abs. 2 KI-VO): ID3-Tag mit
-      // DigitalSourceType=trainedAlgorithmicMedia in die Datei einbetten
-      const buffer = Buffer.from(
-        withAiAudioTag(new Uint8Array(await response.arrayBuffer()))
-      );
-
-      const directory = path.join(publicUploadsDir(), "tts");
-      await mkdir(directory, { recursive: true });
-      await writeFile(path.join(directory, `${hash}.mp3`), buffer);
-
-      const url = `/uploads/tts/${hash}.mp3`;
-      // upsert: parallele Anfragen desselben Segments dürfen nicht kollidieren
-      await db.ttsSegment.upsert({
-        where: { hash },
-        create: { hash, url },
-        update: {},
-      });
-      urlByHash.set(hash, url);
-
-      // Verbrauchsprotokoll: der Speech-Endpoint meldet keine Usage –
-      // Tokens ≈ Zeichen/4, Sprechdauer ≈ Zeichen/15 (Schätzwerte)
-      const chars = chunks[i].text.length;
-      void recordAiUsage({
-        activity: "TTS",
-        model: TTS_MODEL,
-        inputTokens: Math.ceil(chars / 4),
-        audioSeconds: chars / 15,
-        userChars: chars,
-        userId: session.user.id,
-        courseId: course.id,
-      });
-    } catch (error) {
-      console.error("[tts] Generierung fehlgeschlagen:", error);
-      // sanfter Rückfall: lieber Browser-Stimme als gar kein Vorlesen
-      return NextResponse.json({ mode: "browser", segments: chunks });
-    }
-  }
-
   return NextResponse.json(
     {
       mode: "openai",
       segments: chunks.map((chunk, i) => ({
         ...chunk,
-        url: urlByHash.get(hashes[i]),
+        url: urlByHash.get(hashes[i]) ?? null,
       })),
     },
     // Antwort liefert Links auf KI-generierte Audios
     { headers: { [AI_GENERATED_HEADER]: "true" } }
   );
+}
+
+/**
+ * Audio eines Segments liefern – aus dem Cache oder einmalig erzeugt.
+ * Der Cache ist global über den Texthash: Dasselbe Segment wird für alle
+ * Lernenden und alle Kurse nur ein einziges Mal bezahlt.
+ */
+async function ensureSegment(
+  text: string,
+  hash: string,
+  who: { userId: string; courseId: string }
+): Promise<string | null> {
+  const existing = await db.ttsSegment.findUnique({
+    where: { hash },
+    select: { url: true },
+  });
+  if (existing) return existing.url;
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: TTS_MODEL,
+        voice: TTS_VOICE,
+        input: text,
+        response_format: "mp3",
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`openai_tts_${response.status}`);
+    }
+    // KI-Kennzeichnung (Art. 50 Abs. 2 KI-VO): ID3-Tag mit
+    // DigitalSourceType=trainedAlgorithmicMedia in die Datei einbetten
+    const buffer = Buffer.from(
+      withAiAudioTag(new Uint8Array(await response.arrayBuffer()))
+    );
+
+    const directory = path.join(publicUploadsDir(), "tts");
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, `${hash}.mp3`), buffer);
+
+    const url = `/uploads/tts/${hash}.mp3`;
+    // upsert: parallele Anfragen desselben Segments dürfen nicht kollidieren
+    await db.ttsSegment.upsert({
+      where: { hash },
+      create: { hash, url },
+      update: {},
+    });
+
+    // Verbrauchsprotokoll: der Speech-Endpoint meldet keine Usage –
+    // Tokens ≈ Zeichen/4, Sprechdauer ≈ Zeichen/15 (Schätzwerte)
+    void recordAiUsage({
+      activity: "TTS",
+      model: TTS_MODEL,
+      inputTokens: Math.ceil(text.length / 4),
+      audioSeconds: text.length / 15,
+      userChars: text.length,
+      userId: who.userId,
+      courseId: who.courseId,
+    });
+    return url;
+  } catch (error) {
+    console.error("[tts] Generierung fehlgeschlagen:", error);
+    return null;
+  }
 }
