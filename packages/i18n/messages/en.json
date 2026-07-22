@@ -1203,7 +1203,7 @@
     "focusHint": "Hide everything except the lesson (Esc exits)",
     "focusExit": "Exit focus",
     "journeyTitle": "Your learning journey",
-    "journeyHint": "Each station is a section – click to jump there. Drag to rotate the view."
+    "journeyHint": "Each station is a section – click to jump there."
   },
   "exam": {
     "title": "Exam: {title}",

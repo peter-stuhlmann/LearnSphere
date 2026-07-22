@@ -1203,7 +1203,7 @@
     "focusHint": "Alles ausblenden außer der Lektion (Esc beendet)",
     "focusExit": "Fokus beenden",
     "journeyTitle": "Deine Lernreise",
-    "journeyHint": "Jede Station ist ein Abschnitt – klicke, um dorthin zu springen. Ziehen dreht die Ansicht."
+    "journeyHint": "Jede Station ist ein Abschnitt – klicke, um dorthin zu springen."
   },
   "exam": {
     "title": "Prüfung: {title}",
