@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { ensureCourseIndex, embedQuery } from "@/lib/assistant/indexer";
-import { rankChunks } from "@/lib/assistant/retrieval";
+import {
+  ensureCourseIndex,
+  embedQuery,
+  loadCourseChunks,
+} from "@/lib/assistant/indexer";
+import { rankChunks, queryTerms } from "@/lib/assistant/retrieval";
+import { buildCourseMap } from "@/lib/assistant/summaries";
 import { ASSISTANT_MODEL, buildSystemPrompt } from "@/lib/assistant/prompt";
 import { AI_GENERATED_HEADER } from "@/lib/ai-marking";
 import { recordAiUsage } from "@/lib/ai-usage-server";
@@ -15,6 +20,8 @@ import { recordAiUsage } from "@/lib/ai-usage-server";
  */
 
 const MAX_MESSAGE_CHARS = 2000;
+/** Zeichenbudget der Auszüge je Frage – siehe retrieval.ts */
+const RETRIEVAL_CHAR_BUDGET = 25_000;
 const HISTORY_TURNS = 12;
 
 interface AccessResult {
@@ -175,18 +182,17 @@ export async function POST(request: NextRequest) {
   // Memory aktuell halten (inkrementell, meist ein No-Op)
   await ensureCourseIndex(access.course.id);
 
-  // Retrieval – hart auf DIESEN Kurs begrenzt
-  const [queryEmbedding, courseChunks, history] = await Promise.all([
+  /* Retrieval – hart auf DIESEN Kurs begrenzt. Die Chunks kommen aus dem
+     Prozess-Cache, die Landkarte (Zusammenfassung jeder Lektion) immer
+     vollständig aus der Datenbank: Sie ist klein und muss jede Frage
+     begleiten, damit der Assistent den ganzen Kurs überblickt. */
+  const [queryEmbedding, candidates, summaryRows, history] = await Promise.all([
     embedQuery(message),
-    db.knowledgeChunk.findMany({
+    loadCourseChunks(access.course.id, lang),
+    db.knowledgeSummary.findMany({
       where: { courseId: access.course.id, lang },
-      select: {
-        lessonId: true,
-        sectionTitle: true,
-        lessonTitle: true,
-        text: true,
-        embedding: true,
-      },
+      orderBy: { order: "asc" },
+      select: { sectionTitle: true, lessonTitle: true, order: true, text: true },
     }),
     db.assistantMessage.findMany({
       where: {
@@ -200,13 +206,10 @@ export async function POST(request: NextRequest) {
     }),
   ]);
 
-  const candidates = courseChunks.map((chunk) => ({
-    ...chunk,
-    embedding: chunk.embedding as number[],
-  }));
   const ranked = rankChunks(queryEmbedding, candidates, {
-    topK: 8,
+    charBudget: RETRIEVAL_CHAR_BUDGET,
     currentLessonId: access.lesson.id,
+    terms: queryTerms(message),
   });
   // Die aktuelle Lektion immer beilegen ("fasse zusammen", "erklär nochmal")
   const currentLesson = candidates
@@ -217,6 +220,7 @@ export async function POST(request: NextRequest) {
       [...ranked, ...currentLesson].map((chunk) => [chunk.text, chunk])
     ).values(),
   ];
+  const courseMap = buildCourseMap(summaryRows);
 
   const sources = [
     ...new Map(
@@ -237,6 +241,7 @@ export async function POST(request: NextRequest) {
     courseTitle: access.course.title,
     lang,
     currentLessonTitle: access.lesson.title,
+    courseMap,
     chunks: contextChunks,
   });
 

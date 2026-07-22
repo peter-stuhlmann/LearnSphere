@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   /// "native" = lokale Entwicklung (Windows/macOS), zusätzlich die Engine
   /// für das Produktions-Image (Debian Bookworm bringt OpenSSL 3.0 mit).
   /// Ohne diesen expliziten Eintrag hängt die Auswahl daran, ob Prisma die
@@ -90,46 +90,46 @@ enum CouponKind {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
+  id                   String    @id @default(cuid())
+  name                 String?
+  email                String    @unique
+  emailVerified        DateTime?
   /// Avatar als Data-URL (portabel, kein Datei-Storage nötig)
-  image         String?   @db.MediumText
-  passwordHash  String?
-  role          Role      @default(CLIENT)
-  locale        String    @default("de")
-  totpSecret    String?
-  totpEnabled   Boolean   @default(false)
+  image                String?   @db.MediumText
+  passwordHash         String?
+  role                 Role      @default(CLIENT)
+  locale               String    @default("de")
+  totpSecret           String?
+  totpEnabled          Boolean   @default(false)
   /// Replay-Schutz: letzter verbrauchter TOTP-Zeitschritt (floor(unix/30))
-  totpLastUsedStep Int?
+  totpLastUsedStep     Int?
   /// 2FA-Wiederherstellungscodes (nur SHA-256-Hashes, einmal verwendbar)
-  totpRecoveryCodes Json?
+  totpRecoveryCodes    Json?
   /// Storefront: öffentliche Creator-Seite unter /c/[handle]
-  handle         String? @unique
-  storefrontName String?
+  handle               String?   @unique
+  storefrontName       String?
   /// Akzentfarbe der Storefront (Hex)
-  brandColor     String?
+  brandColor           String?
   /// Whitelabel: eigene Domain, die auf die Storefront zeigt
-  customDomain   String? @unique
+  customDomain         String?   @unique
   /// Stripe Connect: eigenes Konto des Creators für Direktauszahlungen
   stripeAccountId      String?
-  stripeChargesEnabled Boolean @default(false)
+  stripeChargesEnabled Boolean   @default(false)
   /// Bankverbindung für manuelle Auszahlungen (Plattform-Verkäufe)
-  payoutHolder String?
-  payoutIban   String?
+  payoutHolder         String?
+  payoutIban           String?
   /// Öffentliche Creator-Beschreibung (Rich-Text, sanitisiert)
-  creatorBio   String? @db.MediumText
+  creatorBio           String?   @db.MediumText
   /// Affiliate-Programm: eindeutiger Code für Links (?aff=CODE)
-  affiliateCode     String?   @unique
+  affiliateCode        String?   @unique
   /// Zeitpunkt des Beitritts (= Bedingungen akzeptiert); null = kein Affiliate
-  affiliateJoinedAt DateTime?
+  affiliateJoinedAt    DateTime?
   /// termine.lol-Verbindung des Creator-Kontos (Connect-Flow; Key bleibt
   /// serverseitig). Kurse schalten Buchung per Course.bookingEnabled frei.
-  bookingCalendarId String?
-  bookingApiKey     String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  bookingCalendarId    String?
+  bookingApiKey        String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   accounts            Account[]
   sessions            Session[]
@@ -145,11 +145,11 @@ model User {
   payouts             Payout[]
   apiSubscription     ApiSubscription?
   coupons             Coupon[]
-  affiliateSales      Enrollment[]     @relation("AffiliateSales")
+  affiliateSales      Enrollment[]         @relation("AffiliateSales")
   assistantMessages   AssistantMessage[]
   aiUsage             AiUsage[]
   mobileSessions      MobileSession[]
-  refundsReceived     Refund[]         @relation("CreatorRefunds")
+  refundsReceived     Refund[]             @relation("CreatorRefunds")
   flashcardReviews    FlashcardReview[]
   learnActivities     LearnActivity[]
 }
@@ -182,22 +182,22 @@ model MobileSession {
 /// Kosten werden NICHT gespeichert, sondern zur Anzeige aus der Preistabelle
 /// (lib/ai-usage.ts, mit Stand-Datum) berechnet.
 model AiUsage {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
   /// Aktivität (AI_ACTIVITIES in lib/ai-usage.ts)
-  activity  String
-  model     String
+  activity     String
+  model        String
   /// vom Anbieter gemeldete Tokens; System/User-Aufteilung ist geschätzt
   /// (anteilig nach Prompt-Zeichen – die APIs melden nur die Gesamtsumme)
-  inputTokens  Int @default(0)
-  systemTokens Int @default(0)
-  userTokens   Int @default(0)
-  outputTokens Int @default(0)
+  inputTokens  Int      @default(0)
+  systemTokens Int      @default(0)
+  userTokens   Int      @default(0)
+  outputTokens Int      @default(0)
   /// Audio-Sekunden für minutenbasierte Preise (Whisper, TTS-Ausgabe)
-  audioSeconds Float @default(0)
+  audioSeconds Float    @default(0)
   /// auslösender Nutzer (null = System)
-  userId   String?
-  courseId String?
+  userId       String?
+  courseId     String?
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -260,13 +260,43 @@ model KnowledgeChunk {
   lessonTitle  String
   text         String          @db.Text
   contentHash  String
-  /// float[] des Embedding-Modells (text-embedding-3-small)
-  embedding    Json
+  /// Embedding als rohes Float32-Array (Little Endian). Als JSON waren
+  /// es ~23 KB je Chunk und mussten pro Frage geparst werden; binaer sind
+  /// es 6 KB ohne Parsing.
+  embedding    Bytes           @db.Blob
   updatedAt    DateTime        @updatedAt
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([courseId, contentHash])
+  @@index([courseId])
+}
+
+/// Verdichtete Landkarte des Kurses: je Lektion und Abschnitt eine
+/// Zusammenfassung, die dem Assistenten bei JEDER Frage mitgegeben wird.
+/// Retrieval liefert Details, diese Tabelle liefert den Ueberblick - erst
+/// dadurch kann der Assistent Zusammenhaenge ueber Lektionen hinweg sehen.
+model KnowledgeSummary {
+  id           String   @id @default(cuid())
+  courseId     String
+  /// LESSON | SECTION | COURSE
+  kind         String
+  sectionId    String?
+  lessonId     String?
+  lang         String
+  /// Anzeige-Fundstelle, denormalisiert wie beim Chunk
+  sectionTitle String
+  lessonTitle  String
+  /// Reihenfolge im Kurs - die Landkarte wird in Kursreihenfolge ausgegeben
+  order        Int      @default(0)
+  text         String   @db.Text
+  /// Hash der Quelltexte: unveraenderte Lektionen werden nicht neu erzeugt
+  sourceHash   String
+  updatedAt    DateTime @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, kind, lang, sectionId, lessonId])
   @@index([courseId])
 }
 
@@ -515,12 +545,12 @@ model VerificationToken {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expires   DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -543,58 +573,59 @@ model EmailVerifyToken {
 }
 
 model Course {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
   creatorId            String
-  slug                 String   @unique
+  slug                 String    @unique
   title                String
   subtitle             String?
-  description          String?  @db.Text
-  language             String   @default("de")
+  description          String?   @db.Text
+  language             String    @default("de")
   /// Zusätzliche Kurssprachen (CSV, z. B. "en") – Basissprache ist `language`
-  extraLanguages       String   @default("")
+  extraLanguages       String    @default("")
   /// Übersetzungen je Sprache: { en: { title, subtitle, description } }
   translations         Json?
   coverImage           String?
-  priceCents           Int      @default(0)
-  currency             String   @default("EUR")
-  published            Boolean  @default(false)
+  priceCents           Int       @default(0)
+  currency             String    @default("EUR")
+  published            Boolean   @default(false)
   /// Sichtbar im öffentlichen LearnSphere-Katalog (Shop)
-  listedInShop         Boolean  @default(true)
-  requiredWatchPercent Int      @default(80)
-  finalExamRequired    Boolean  @default(true)
+  listedInShop         Boolean   @default(true)
+  requiredWatchPercent Int       @default(80)
+  finalExamRequired    Boolean   @default(true)
   /// KI-Selbsttests ("Teste dich") in Lektionen – Creator kann abschalten
-  selfTestsEnabled     Boolean  @default(true)
+  selfTestsEnabled     Boolean   @default(true)
   /// Live-Termine via termine.lol: Checkbox "Termine anbieten". Die
   /// Verbindung selbst hängt am Creator-Konto (User.bookingCalendarId/-ApiKey)
-  bookingEnabled       Boolean  @default(false)
+  bookingEnabled       Boolean   @default(false)
   /// Genau eine Kategorie aus der festen LearnSphere-Liste (lib/categories.ts)
   category             String?
   /// Zertifikat-Design des Creators (lib/certificate/theme.ts); null = Default
   certificateTheme     Json?
   /// Freie Tags des Creators, normalisiert kommagetrennt ("react,frontend")
-  tags                 String   @default("")
+  tags                 String    @default("")
   /// Warteliste: "Demnächst"-Seite mit E-Mail-Eintragung für unveröffentlichte
   /// Kurse; bei Veröffentlichung werden Eingetragene benachrichtigt
-  waitlistEnabled      Boolean  @default(false)
+  waitlistEnabled      Boolean   @default(false)
   /// Vom Admin gesperrt (Moderations-Flag): blockiert die Veröffentlichung
   flaggedAt            DateTime?
-  flagReason           String?  @db.Text
+  flagReason           String?   @db.Text
   /// Creator hat den Editor zuletzt geöffnet – Standard-Sortierung in
   /// "Meine Kurse" (per Raw-SQL gesetzt, damit updatedAt unberührt bleibt)
   lastOpenedAt         DateTime?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  creator     User         @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  sections    Section[]
-  quizzes     Quiz[]
-  enrollments Enrollment[]
-  couponCourses CouponCourse[]
-  reviews     Review[]
-  knowledgeChunks   KnowledgeChunk[]
-  assistantMessages AssistantMessage[]
-  refunds           Refund[]
-  waitlistEntries   WaitlistEntry[]
+  creator            User               @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  sections           Section[]
+  quizzes            Quiz[]
+  enrollments        Enrollment[]
+  couponCourses      CouponCourse[]
+  reviews            Review[]
+  knowledgeChunks    KnowledgeChunk[]
+  knowledgeSummaries KnowledgeSummary[]
+  assistantMessages  AssistantMessage[]
+  refunds            Refund[]
+  waitlistEntries    WaitlistEntry[]
 
   @@index([creatorId])
   @@index([published])
@@ -602,12 +633,12 @@ model Course {
 }
 
 model Section {
-  id       String @id @default(cuid())
-  courseId String
-  title    String
-  order    Int
+  id            String  @id @default(cuid())
+  courseId      String
+  title         String
+  order         Int
   /// Übersetzungen je Sprache: { en: { title } }
-  translations Json?
+  translations  Json?
   /// Drip Content: frühestens X Tage nach Einschreibung freigeschaltet
   /// (null/0 = sofort verfügbar)
   dripAfterDays Int?
@@ -623,10 +654,10 @@ model Section {
 }
 
 model Lesson {
-  id        String  @id @default(cuid())
-  sectionId String
-  title     String
-  order     Int
+  id              String  @id @default(cuid())
+  sectionId       String
+  title           String
+  order           Int
   /// Gesamtdauer aller Video-/Audio-Blöcke (denormalisiert für Fortschritt)
   durationSeconds Int     @default(0)
   /// kostenlose Vorschau: ohne Einschreibung ansehbar
@@ -634,14 +665,14 @@ model Lesson {
   /// Übersetzungen je Sprache: { en: { title } }
   translations    Json?
 
-  section  Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  progress LessonProgress[]
-  blocks   LessonBlock[]
-  comments LessonComment[]
+  section           Section            @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  progress          LessonProgress[]
+  blocks            LessonBlock[]
+  comments          LessonComment[]
   selfTestQuestions SelfTestQuestion[]
   notes             LessonNote[]
   /// Einschreibungen, deren letzte Position diese Lektion ist
-  resumedBy Enrollment[] @relation("EnrollmentLastLesson")
+  resumedBy         Enrollment[]       @relation("EnrollmentLastLesson")
 
   @@index([sectionId])
 }
@@ -672,62 +703,62 @@ model LessonComment {
 }
 
 model LessonBlock {
-  id       String    @id @default(cuid())
-  lessonId String
-  type     BlockType
-  order    Int
+  id              String    @id @default(cuid())
+  lessonId        String
+  type            BlockType
+  order           Int
   /// optionale Beschriftung des Blocks
-  title    String?
+  title           String?
   /// Video-/Audio-/Bild-/Datei-URL (extern oder /uploads/…)
-  url      String?   @db.Text
-  fileName String?
+  url             String?   @db.Text
+  fileName        String?
   /// Text- oder HTML-Inhalt
-  content  String?   @db.MediumText
+  content         String?   @db.MediumText
   /// eigenes CSS für HTML-Blöcke
-  css      String?   @db.MediumText
+  css             String?   @db.MediumText
   /// Abspieldauer für Video/Audio (Fortschrittsgewichtung)
-  durationSeconds Int @default(0)
+  durationSeconds Int       @default(0)
   /// Transkript für Video/Audio, je Sprache (auto-transkribiert oder manuell)
-  transcriptDe String? @db.MediumText
-  transcriptEn String? @db.MediumText
+  transcriptDe    String?   @db.MediumText
+  transcriptEn    String?   @db.MediumText
   /// Kapitelmarker für Video/Audio: [{ t: sekunden, title }]
-  chapters     Json?
+  chapters        Json?
   /// Zeitgestempelte Transkript-Segmente [{start, end, de, en}] für die
   /// Karaoke-Anzeige im Player (aus Whisper verbose_json)
-  transcriptCues Json?
+  transcriptCues  Json?
   /// Vorschaubild (Poster) für Video-Blöcke – beim Upload automatisch aus
   /// dem 1. Frame erzeugt, vom Creator ersetzbar
-  poster String? @db.Text
+  poster          String?   @db.Text
   /// Herkunft des Inhalts (TEXT/HTML): HUMAN | HUMAN_AI_ASSISTED | AI |
   /// AI_EDITED | AI_REVIEWED – Lernende sehen sie als Fußnote
-  provenance String @default("HUMAN")
+  provenance      String    @default("HUMAN")
   /// Übersetzungen je Sprache: { en: { title, url, fileName, poster,
   /// content, durationSeconds } } – fehlende Felder fallen auf die Basis zurück
-  translations Json?
+  translations    Json?
 
-  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lesson       Lesson             @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   watchBuckets BlockWatchBucket[]
 
   @@index([lessonId])
 }
 
 model Quiz {
-  id          String   @id @default(cuid())
-  courseId    String
-  sectionId   String?  @unique
-  kind        QuizKind @default(FINAL)
-  title       String
-  passPercent Int      @default(70)
+  id                 String   @id @default(cuid())
+  courseId           String
+  sectionId          String?  @unique
+  kind               QuizKind @default(FINAL)
+  title              String
+  passPercent        Int      @default(70)
   /// null = unbegrenzt viele Versuche
   maxAttempts        Int?
   /// null = maxAttempts zählt alle Versuche; sonst rollierendes Zeitfenster in Stunden
   attemptWindowHours Int?
   /// darf eine bereits bestandene Prüfung wiederholt werden?
-  retakeAfterPass    Boolean @default(true)
+  retakeAfterPass    Boolean  @default(true)
   /// Fragen in zufälliger Reihenfolge zeigen
-  shuffleQuestions   Boolean @default(false)
+  shuffleQuestions   Boolean  @default(false)
   /// Antwortoptionen in zufälliger Reihenfolge zeigen
-  shuffleAnswers     Boolean @default(false)
+  shuffleAnswers     Boolean  @default(false)
   /// Zeitlimit in Minuten; null = ohne Zeitbegrenzung (Standard)
   timeLimitMinutes   Int?
 
@@ -741,17 +772,17 @@ model Quiz {
 }
 
 model Question {
-  id     String       @id @default(cuid())
-  quizId String
-  text   String       @db.Text
-  kind   QuestionKind @default(SINGLE)
-  order  Int
+  id             String       @id @default(cuid())
+  quizId         String
+  text           String       @db.Text
+  kind           QuestionKind @default(SINGLE)
+  order          Int
   /// Gewichtung der Frage in der Bewertung (Quote = Punkte-Anteil)
-  points Int          @default(1)
+  points         Int          @default(1)
   /// Freitext: Musterlösung bzw. exakt erwartete Antwort
-  expectedAnswer String? @db.Text
+  expectedAnswer String?      @db.Text
   /// Freitext: true = KI bewertet sinngemäß, false = exakte Übereinstimmung
-  aiGraded       Boolean @default(false)
+  aiGraded       Boolean      @default(false)
 
   quiz             Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
   options          AnswerOption[]
@@ -805,35 +836,35 @@ model CouponCourse {
 }
 
 model Enrollment {
-  id              String    @id @default(cuid())
-  userId          String
-  courseId        String
-  pricePaidCents  Int       @default(0)
-  couponCode      String?
+  id                  String       @id @default(cuid())
+  userId              String
+  courseId            String
+  pricePaidCents      Int          @default(0)
+  couponCode          String?
   /// Verkaufskanal bestimmt die Umsatzbeteiligung (50 % / 75 %)
-  salesChannel      SalesChannel @default(PLATFORM)
+  salesChannel        SalesChannel @default(PLATFORM)
   /// Anteil des Creators in Cent (Rest = LearnSphere)
-  creatorShareCents Int          @default(0)
+  creatorShareCents   Int          @default(0)
   /// true = via Stripe Connect direkt ausgezahlt (zählt nicht ins Guthaben)
-  paidViaConnect    Boolean      @default(false)
+  paidViaConnect      Boolean      @default(false)
   /// Affiliate, der den Kauf vermittelt hat (15 % Provision)
   affiliateUserId     String?
-  affiliateShareCents Int     @default(0)
+  affiliateShareCents Int          @default(0)
   /// beim Kauf eingesetztes Guthaben des Käufers (Cent)
-  creditUsedCents     Int     @default(0)
+  creditUsedCents     Int          @default(0)
   /// zuletzt geöffnete Lektion – dort geht es beim nächsten Besuch weiter
-  lastLessonId    String?
+  lastLessonId        String?
   /// letzter Besuch im Lernbereich – Standard-Sortierung in "Mein Lernen"
-  lastVisitedAt   DateTime?
+  lastVisitedAt       DateTime?
   /// 30-Tage-Rückgabegarantie: bis dahin Rückgabe möglich und
   /// Abschlussprüfung gesperrt; null = kein Rückgaberecht (gratis)
-  refundableUntil  DateTime?
+  refundableUntil     DateTime?
   /// Garantie freiwillig vorzeitig beendet (schaltet die Prüfung frei)
-  guaranteeWaivedAt DateTime?
+  guaranteeWaivedAt   DateTime?
   /// Stripe-Checkout-Session des Kaufs – für Geld-zurück bei Rückgabe
-  stripeSessionId  String?
-  completedAt     DateTime?
-  createdAt       DateTime  @default(now())
+  stripeSessionId     String?
+  completedAt         DateTime?
+  createdAt           DateTime     @default(now())
 
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)

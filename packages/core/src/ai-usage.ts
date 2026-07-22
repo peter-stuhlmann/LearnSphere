@@ -50,6 +50,7 @@ export const AI_ACTIVITIES = [
   "COPILOT",
   "CHAPTERS",
   "EMBEDDING",
+  "SUMMARY",
 ] as const;
 
 export type AiActivity = (typeof AI_ACTIVITIES)[number];

@@ -215,6 +215,7 @@ describe("AI_ACTIVITIES", () => {
       "COPILOT",
       "CHAPTERS",
       "EMBEDDING",
+      "SUMMARY",
     ]) {
       expect(AI_ACTIVITIES).toContain(activity);
     }

@@ -43,6 +43,31 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toMatch(/Do NOT refuse a subject question/i);
   });
 
+  it("bettet die Landkarte ein und weist auf ihre Verdichtung hin", () => {
+    const withMap = buildSystemPrompt({
+      courseTitle: "Sternenkunde",
+      lang: "de",
+      currentLessonTitle: null,
+      courseMap: "## Grundlagen\n### Die Sonne\nEin Stern.",
+      chunks,
+    });
+    expect(withMap).toContain("COURSE MAP");
+    expect(withMap).toContain("### Die Sonne");
+    // Verdichtet: das Modell darf sie nicht als Wortlaut zitieren
+    expect(withMap).toMatch(/do not quote it as the course/i);
+  });
+
+  it("leere Landkarte wird weggelassen statt leer eingebettet", () => {
+    const noMap = buildSystemPrompt({
+      courseTitle: "Sternenkunde",
+      lang: "de",
+      currentLessonTitle: null,
+      courseMap: "   ",
+      chunks,
+    });
+    expect(noMap).not.toContain("COURSE MAP");
+  });
+
   it("unbekannte Sprache und fehlende Fundstellen-Titel fallen sauber zurück", () => {
     const exotic = buildSystemPrompt({
       courseTitle: "Sternenkunde",

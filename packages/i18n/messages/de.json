@@ -143,7 +143,8 @@
       "GRADING": "Prüfungsbewertung",
       "COPILOT": "Kurs-Copilot",
       "CHAPTERS": "Kapitelmarker",
-      "EMBEDDING": "Kurs-Index (Embeddings)"
+      "EMBEDDING": "Kurs-Index (Embeddings)",
+      "SUMMARY": "Kurs-Zusammenfassungen (Landkarte)"
     },
     "statUsers": "Nutzer",
     "statCreators": "Creator",
@@ -1556,5 +1557,11 @@
       "too_many_attempts": "Zu viele Meldungen in kurzer Zeit. Bitte versuche es später noch einmal.",
       "generic": "Das hat leider nicht geklappt. Bitte schreib uns direkt an accessibility@learnsphere.one."
     }
+  },
+  "assistantCoverage": {
+    "title": "des Kursvideos kennt der Lernassistent",
+    "complete": "Alle Videos und Audios haben ein Transkript. Der Assistent kennt den gesamten Kurs.",
+    "incomplete": "{blocks} Medienblöcke ({duration}) haben kein Transkript. Für den Assistenten sind sie stumm – er sieht nur den Lektionstitel. Transkript im jeweiligen Block erzeugen lassen.",
+    "more": "… und {count} weitere Lektionen"
   }
 }

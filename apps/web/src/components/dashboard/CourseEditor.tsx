@@ -13,6 +13,7 @@ import {
 } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import styled from "styled-components";
+import { AssistantCoverage } from "./AssistantCoverage";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   addLesson,
@@ -2160,6 +2161,10 @@ export function CourseEditor({
               </QuizLink>
             </SettingsForm>
           </Card>
+
+          {/* Wissensstand des Lernassistenten: Videos ohne Transkript
+              sind fuer ihn stumm - das muss der Creator sehen. */}
+          <AssistantCoverage sections={course.sections} />
 
           <section aria-labelledby="sections-title">
             <h2

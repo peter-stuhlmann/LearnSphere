@@ -143,7 +143,8 @@
       "GRADING": "Exam grading",
       "COPILOT": "Course copilot",
       "CHAPTERS": "Chapter markers",
-      "EMBEDDING": "Course index (embeddings)"
+      "EMBEDDING": "Course index (embeddings)",
+      "SUMMARY": "Course summaries (map)"
     },
     "statUsers": "Users",
     "statCreators": "Creators",
@@ -1556,5 +1557,11 @@
       "too_many_attempts": "Too many reports in a short time. Please try again later.",
       "generic": "That did not work. Please email us directly at accessibility@learnsphere.one."
     }
+  },
+  "assistantCoverage": {
+    "title": "of your course videos are known to the assistant",
+    "complete": "Every video and audio block has a transcript. The assistant knows the whole course.",
+    "incomplete": "{blocks} media blocks ({duration}) have no transcript. They are silent to the assistant – it only sees the lesson title. Generate a transcript in the block itself.",
+    "more": "… and {count} more lessons"
   }
 }
