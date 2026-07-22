@@ -296,7 +296,10 @@ model KnowledgeSummary {
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-  @@unique([courseId, kind, lang, sectionId, lessonId])
+  /// Drei Spalten statt fuenf: Ein Index aus fuenf VARCHAR(191) waere
+  /// 3820 Byte und damit ueber InnoDBs Grenze von 3072. Eine Lektion hat
+  /// ohnehin genau eine Zusammenfassung je Sprache.
+  @@unique([courseId, lang, lessonId])
   @@index([courseId])
 }
 

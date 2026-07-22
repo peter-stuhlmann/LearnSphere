@@ -18,9 +18,16 @@ ALTER TABLE `KnowledgeChunk` MODIFY COLUMN `embedding` BLOB NOT NULL;
 -- Alle indexierten Kurse zur Neuindexierung vormerken
 UPDATE `KnowledgeIndexState` SET `staleAt` = CURRENT_TIMESTAMP(3);
 
--- 2) Zusammenfassungen je Lektion und Abschnitt. Sie gehen dem Assistenten
---    bei JEDER Frage vollständig mit: Das Retrieval liefert Details zur
---    Frage, diese Tabelle liefert den Überblick über den ganzen Kurs.
+-- 2) Zusammenfassungen je Lektion. Sie gehen dem Assistenten bei JEDER
+--    Frage vollständig mit: Das Retrieval liefert Details zur Frage, diese
+--    Tabelle liefert den Überblick über den ganzen Kurs.
+--
+--    DROP IF EXISTS, damit die Migration wiederholbar bleibt: Ihr erster
+--    Anlauf scheiterte hier an einem zu langen Unique-Index, und ein
+--    zurückgesetzter Lauf muss die Schritte davor gefahrlos wiederholen
+--    können.
+DROP TABLE IF EXISTS `KnowledgeSummary`;
+
 CREATE TABLE `KnowledgeSummary` (
     `id` VARCHAR(191) NOT NULL,
     `courseId` VARCHAR(191) NOT NULL,
@@ -36,7 +43,11 @@ CREATE TABLE `KnowledgeSummary` (
     `updatedAt` DATETIME(3) NOT NULL,
 
     INDEX `KnowledgeSummary_courseId_idx`(`courseId`),
-    UNIQUE INDEX `KnowledgeSummary_courseId_kind_lang_sectionId_lessonId_key`(`courseId`, `kind`, `lang`, `sectionId`, `lessonId`),
+    -- Drei Spalten statt fünf: Fünf VARCHAR(191) in utf8mb4 wären 3820 Byte
+    -- und damit über InnoDBs Grenze von 3072. MariaDB weicht in diesem Fall
+    -- still auf einen Hash-Index aus, MySQL lehnt ab – deshalb fiel es erst
+    -- in der Produktion auf.
+    UNIQUE INDEX `KnowledgeSummary_courseId_lang_lessonId_key`(`courseId`, `lang`, `lessonId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 

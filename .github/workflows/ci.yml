@@ -19,8 +19,24 @@ jobs:
   check:
     runs-on: ubuntu-latest
     env:
-      # Prisma braucht eine DATABASE_URL zum Generieren (kein DB-Zugriff)
-      DATABASE_URL: "mysql://ci:ci@localhost:3306/ci"
+      DATABASE_URL: "mysql://root:ci@127.0.0.1:3306/ci"
+    # Dieselbe Version wie in Produktion. Lokal läuft MariaDB, und die ist
+    # in Grenzfällen nachsichtiger: Sie schluckt Kleinschreibung von
+    # Tabellennamen und wandelt zu lange Indizes still in Hash-Indizes um.
+    # Beides hat schon je ein Deployment zerlegt.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+          MYSQL_DATABASE: ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
     steps:
       - uses: actions/checkout@v5
 
@@ -42,6 +58,13 @@ jobs:
       # einer frischen Produktions-DB auf, dort dann zur Laufzeit.
       - name: Migrationen decken das Schema ab
         run: npm run check:migrations
+
+      # Der eigentliche Beweis: Laufen alle Migrationen auf einer leeren
+      # MySQL 8.4 durch? Genau das passiert beim Start des Containers in
+      # Produktion – und genau dort ist es schon zweimal gescheitert,
+      # obwohl lokal alles grün war.
+      - name: Migrationen auf frischer MySQL 8.4
+        run: npx prisma migrate deploy --schema apps/web/prisma/schema.prisma
 
       # Läuft im Workspace (apps/web). Ein blankes "tsc --noEmit" im Root
       # prüft mangels tsconfig.json gar nichts und ist still grün.

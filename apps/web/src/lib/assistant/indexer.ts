@@ -189,11 +189,9 @@ async function refreshSummaries(
 
     await db.knowledgeSummary.upsert({
       where: {
-        courseId_kind_lang_sectionId_lessonId: {
+        courseId_lang_lessonId: {
           courseId,
-          kind: "LESSON",
           lang: source.lang,
-          sectionId: source.sectionId,
           lessonId: source.lessonId,
         },
       },

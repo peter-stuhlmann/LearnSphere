@@ -81,8 +81,15 @@ for (const dir of dirs) {
     }
   }
 
+  /* DROP TABLE nur berücksichtigen, wenn danach im selben Skript kein
+     CREATE TABLE derselben Tabelle mehr folgt. Sonst zählte ein
+     "DROP TABLE IF EXISTS x; CREATE TABLE x (…)" – das Muster, mit dem
+     eine Migration wiederholbar bleibt – als Löschung. */
   for (const m of sql.matchAll(/DROP TABLE\s+(?:IF EXISTS\s+)?`(\w+)`/gi)) {
-    built.delete(m[1].toLowerCase());
+    const name = m[1];
+    const rest = sql.slice(m.index + m[0].length);
+    const recreated = new RegExp(`CREATE TABLE\\s+\`${name}\``, "i").test(rest);
+    if (!recreated) built.delete(name.toLowerCase());
   }
 
   // ALTER TABLE `alt` RENAME TO `neu`
