@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { courseWatchPercent, isEligibleForExam } from "@elearning/core/progress";
 import { sectionLockState, type SectionLockState } from "@elearning/core/drip";
+import { canAttemptQuiz } from "@elearning/core/exam-policy";
 import { parseTranscriptCues } from "@elearning/core/blocks";
 import { courseLanguages } from "@elearning/core/course-i18n";
 import { hasSelfTestContent } from "@elearning/core/self-test";
@@ -35,7 +36,17 @@ export default async function LearnPage({
             orderBy: { order: "asc" },
             include: { blocks: { orderBy: { order: "asc" } } },
           },
-          quiz: { select: { id: true, title: true, passPercent: true } },
+          quiz: {
+            select: {
+              id: true,
+              title: true,
+              passPercent: true,
+              // für die Anzeige "nächster Versuch möglich ab …"
+              maxAttempts: true,
+              attemptWindowHours: true,
+              retakeAfterPass: true,
+            },
+          },
         },
       },
       quizzes: {
@@ -68,7 +79,9 @@ export default async function LearnPage({
       },
       include: {
         lessonProgress: true,
-        quizAttempts: { select: { quizId: true, passed: true } },
+        quizAttempts: {
+          select: { quizId: true, passed: true, createdAt: true },
+        },
         certificate: { select: { serial: true } },
       },
     }),
@@ -163,6 +176,37 @@ export default async function LearnPage({
     );
   });
 
+  /* Zwischenprüfungen: bestanden? Und falls gesperrt – ab wann wieder?
+     Beides fließt in die Lernreise (Ringfarbe und Hinweistext). */
+  const quizStateBySection = new Map<
+    string,
+    { passed: boolean; nextAttemptAt: string | null; exhausted: boolean }
+  >();
+  for (const section of course.sections) {
+    if (!section.quiz) continue;
+    const attempts = enrollment!.quizAttempts
+      .filter((a) => a.quizId === section.quiz!.id)
+      .map((a) => ({ createdAt: a.createdAt, passed: a.passed }));
+    const decision = canAttemptQuiz({
+      attempts,
+      policy: {
+        maxAttempts: section.quiz.maxAttempts,
+        attemptWindowHours: section.quiz.attemptWindowHours,
+        retakeAfterPass: section.quiz.retakeAfterPass,
+      },
+      now,
+    });
+    quizStateBySection.set(section.id, {
+      passed: attempts.some((a) => a.passed),
+      nextAttemptAt:
+        !decision.allowed && decision.reason === "cooldown"
+          ? decision.nextAttemptAt.toISOString()
+          : null,
+      exhausted:
+        !decision.allowed && decision.reason === "attempts_exhausted",
+    });
+  }
+
   const finalQuizRaw = course.quizzes[0] ?? null;
   const finalQuiz = finalQuizRaw
     ? {
@@ -208,6 +252,7 @@ export default async function LearnPage({
             locked: lock.locked,
             unlocksAt: lock.unlocksAt?.toISOString() ?? null,
             requiresPreviousQuiz: lock.requiresPreviousQuiz,
+            quizState: quizStateBySection.get(s.id) ?? null,
             quiz: s.quiz
               ? {
                   id: s.quiz.id,

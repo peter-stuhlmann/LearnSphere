@@ -324,6 +324,14 @@ interface LearnSection {
   /** Prüfungs-Gate: Zwischenprüfung des vorherigen Abschnitts nötig */
   requiresPreviousQuiz: boolean;
   quiz: { id: string; title: string; passed: boolean } | null;
+  /** Stand der Zwischenprüfung – für Ringfarbe und Hinweis in der Lernreise */
+  quizState: {
+    passed: boolean;
+    /** gesperrt bis: nächster Versuch erst ab diesem Zeitpunkt */
+    nextAttemptAt: string | null;
+    /** alle erlaubten Versuche verbraucht */
+    exhausted: boolean;
+  } | null;
   lessons: LearnLesson[];
 }
 
@@ -744,7 +752,20 @@ export function LearnView({
                 section.lessons.length > 0 &&
                 section.lessons.every((lesson) => lesson.completed),
               locked: section.locked,
+              hasQuiz: section.quiz !== null,
+              quizPassed: section.quizState?.passed ?? false,
+              quizNextAttemptAt: section.quizState?.nextAttemptAt ?? null,
+              quizExhausted: section.quizState?.exhausted ?? false,
             }))}
+            finalExam={
+              course.finalExamRequired && course.finalQuiz
+                ? {
+                    title: t("examSectionTitle"),
+                    passed: certificateSerial !== null,
+                    unlocked: examEligible,
+                  }
+                : null
+            }
             onSelectSection={(sectionId) => {
               const section = viewCourse.sections.find(
                 (s) => s.id === sectionId

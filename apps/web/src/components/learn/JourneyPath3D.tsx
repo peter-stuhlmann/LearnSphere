@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
+import { useLocale } from "next-intl";
 import * as THREE from "three";
 import styled, { keyframes } from "styled-components";
 import { JourneyLine, JourneyStream } from "./JourneyStream";
@@ -9,6 +10,8 @@ import { JourneyLine, JourneyStream } from "./JourneyStream";
 const VIOLET = "#8B7CFF";
 const LIME = "#C8FF4D";
 const DIM = "#39405e";
+const GOLD = "#F5C542";
+const SUN = "#FFD782";
 
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(10px); }
@@ -129,6 +132,20 @@ export interface JourneySection {
   percent: number;
   completed: boolean;
   locked: boolean;
+  /** hat dieser Abschnitt eine Zwischenprüfung? */
+  hasQuiz: boolean;
+  quizPassed: boolean;
+  /** gesperrt bis: nächster Prüfungsversuch erst ab diesem Zeitpunkt */
+  quizNextAttemptAt: string | null;
+  /** alle erlaubten Versuche verbraucht */
+  quizExhausted: boolean;
+}
+
+export interface JourneyFinalExam {
+  title: string;
+  passed: boolean;
+  /** Zulassung erreicht (Sehanteil + Zwischenprüfungen) */
+  unlocked: boolean;
 }
 
 /* ------------------------------------------------------------------ *
@@ -178,15 +195,135 @@ const ROUTE = new THREE.CatmullRomCurve3([
   new THREE.Vector3(4.35, 0.55, -0.7),
 ]);
 
-/** Gleichmäßig auf der Strecke verteilte Haltepunkte. */
-function journeyPoints(count: number): THREE.Vector3[] {
-  if (count === 1) return [ROUTE.getPointAt(0.5)];
+/**
+ * Gleichmäßig auf der Strecke verteilte Haltepunkte. Gibt es eine
+ * Abschlussprüfung, endet die Reihe der Abschnitte vorher – das letzte
+ * Stück der Route gehört der Sonne.
+ */
+function journeyPoints(count: number, maxT: number): THREE.Vector3[] {
+  if (count === 1) return [ROUTE.getPointAt(maxT * 0.5)];
   return Array.from({ length: count }, (_, i) =>
-    ROUTE.getPointAt(i / (count - 1))
+    ROUTE.getPointAt((i / (count - 1)) * maxT)
   );
 }
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+/**
+ * Kurzer Zusatz zur Zwischenprüfung für die Infozeile: bestanden, gesperrt
+ * bis zu einem Zeitpunkt, oder Versuche aufgebraucht.
+ */
+function describeQuiz(section: JourneySection, locale: string): string {
+  if (!section.hasQuiz) return "";
+  if (section.quizPassed) return " · ✓ Zwischenprüfung bestanden";
+  if (section.quizExhausted) return " · Zwischenprüfung: keine Versuche mehr";
+  if (section.quizNextAttemptAt) {
+    const when = new Date(section.quizNextAttemptAt);
+    const minutes = Math.max(
+      1,
+      Math.round((when.getTime() - Date.now()) / 60000)
+    );
+    if (minutes > 90) {
+      return ` · nächster Prüfungsversuch ab ${new Intl.DateTimeFormat(locale, {
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(when)}`;
+    }
+    return ` · nächster Prüfungsversuch in ${minutes} Min.`;
+  }
+  return " · Zwischenprüfung offen";
+}
+
+/**
+ * Die Abschlussprüfung als Sonne am Ende der Route – das Ziel der Reise.
+ * Bestanden strahlt sie warm und hell, freigeschaltet glimmt sie erwartungs-
+ * voll, davor bleibt sie ein matter, kalter Himmelskörper.
+ */
+function FinalSun({
+  exam,
+  position,
+  glowTexture,
+  active,
+  reducedMotion,
+  onHover,
+}: {
+  exam: JourneyFinalExam;
+  position: THREE.Vector3;
+  glowTexture: THREE.Texture;
+  active: boolean;
+  reducedMotion: boolean;
+  onHover: (over: boolean) => void;
+}) {
+  const halo = useRef<THREE.Sprite>(null);
+  const corona = useRef<THREE.Sprite>(null);
+  const body = useRef<THREE.Mesh>(null);
+  const time = useRef(0);
+
+  const color = exam.passed ? SUN : exam.unlocked ? GOLD : "#6b7390";
+
+  useFrame((_, delta) => {
+    time.current += delta;
+    const beat = reducedMotion ? 1 : 1 + Math.sin(time.current * 1.2) * 0.06;
+    const reach = exam.passed ? 2.6 : exam.unlocked ? 1.9 : 1.15;
+    const scale = reach * beat * (active ? 1.18 : 1);
+    halo.current?.scale.set(scale, scale, 1);
+
+    // zweite, langsamer atmende Hülle erzeugt den Eindruck von Korona
+    const coronaScale =
+      (exam.passed ? 4.2 : 3) *
+      (reducedMotion ? 1 : 1 + Math.sin(time.current * 0.7 + 1) * 0.05);
+    corona.current?.scale.set(coronaScale, coronaScale, 1);
+
+    if (body.current && !reducedMotion) {
+      body.current.rotation.y += delta * 0.25;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <sprite ref={corona}>
+        <spriteMaterial
+          map={glowTexture}
+          color={color}
+          transparent
+          opacity={exam.passed ? 0.3 : exam.unlocked ? 0.2 : 0.1}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </sprite>
+      <sprite ref={halo}>
+        <spriteMaterial
+          map={glowTexture}
+          color={color}
+          transparent
+          opacity={exam.passed ? 0.95 : exam.unlocked ? 0.7 : 0.35}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </sprite>
+      <mesh
+        ref={body}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          onHover(true);
+        }}
+        onPointerOut={() => onHover(false)}
+      >
+        <sphereGeometry args={[0.26, 32, 32]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={exam.passed ? 2.2 : exam.unlocked ? 1.2 : 0.35}
+          roughness={0.35}
+          toneMapped={false}
+        />
+      </mesh>
+      {exam.passed ? (
+        <pointLight color={SUN} intensity={2.4} distance={6} />
+      ) : null}
+    </group>
+  );
+}
 
 /**
  * Ein Lichtpunkt zieht unablässig die Route entlang – der eigentliche
@@ -254,6 +391,9 @@ function Traveller({
  * Sternenfeld in mehreren Tiefen
  * ------------------------------------------------------------------ */
 function Starfield({ reducedMotion }: { reducedMotion: boolean }) {
+  /* Sterne sitzen auf Kugelschalen rund um die Szene, nicht in einem
+     Quader dahinter. Sonst wäre beim Drehen plötzlich der Rand des
+     Weltalls zu sehen. */
   const layers = useMemo(() => {
     let seed = 7;
     const random = () => {
@@ -261,15 +401,20 @@ function Starfield({ reducedMotion }: { reducedMotion: boolean }) {
       return seed / 2147483647;
     };
     return [
-      { count: 90, depth: -5, size: 0.028, opacity: 0.5, speed: 0.012 },
-      { count: 60, depth: -3.2, size: 0.04, opacity: 0.68, speed: 0.02 },
-      { count: 26, depth: -1.6, size: 0.055, opacity: 0.85, speed: 0.032 },
+      { count: 260, radius: 26, size: 0.075, opacity: 0.45, speed: 0.006 },
+      { count: 160, radius: 18, size: 0.07, opacity: 0.62, speed: 0.011 },
+      { count: 70, radius: 12, size: 0.06, opacity: 0.8, speed: 0.018 },
     ].map((layer) => {
       const positions = new Float32Array(layer.count * 3);
       for (let i = 0; i < layer.count; i += 1) {
-        positions[i * 3] = (random() - 0.5) * 16;
-        positions[i * 3 + 1] = (random() - 0.5) * 7;
-        positions[i * 3 + 2] = layer.depth - random() * 1.5;
+        // gleichmäßig auf der Kugeloberfläche verteilen
+        const u = random() * 2 - 1;
+        const theta = random() * Math.PI * 2;
+        const r = Math.sqrt(1 - u * u);
+        const jitter = 0.85 + random() * 0.3;
+        positions[i * 3] = layer.radius * jitter * r * Math.cos(theta);
+        positions[i * 3 + 1] = layer.radius * jitter * u * 0.55;
+        positions[i * 3 + 2] = layer.radius * jitter * r * Math.sin(theta);
       }
       return { ...layer, positions };
     });
@@ -281,9 +426,10 @@ function Starfield({ reducedMotion }: { reducedMotion: boolean }) {
     if (reducedMotion) return;
     groups.current.forEach((points, i) => {
       if (!points) return;
-      // langsame Drift – die vorderen Ebenen schneller (Tiefenwirkung)
-      points.position.x += delta * layers[i].speed;
-      if (points.position.x > 3) points.position.x = -3;
+      /* Sanftes Kreisen statt Verschieben: Auf einer Kugelschale gibt es
+         keinen Rand, an dem etwas zurückspringen müsste. Die inneren
+         Schalen drehen schneller – daraus entsteht die Tiefenwirkung. */
+      points.rotation.y += delta * layers[i].speed;
     });
   });
 
@@ -291,7 +437,7 @@ function Starfield({ reducedMotion }: { reducedMotion: boolean }) {
     <>
       {layers.map((layer, i) => (
         <points
-          key={layer.depth}
+          key={layer.radius}
           ref={(el) => {
             groups.current[i] = el;
           }}
@@ -426,14 +572,33 @@ function Station({
         />
       </mesh>
 
-      {/* Ring markiert die Station, an der es weitergeht */}
+      {/* Prüfungsring: Hat der Abschnitt eine Zwischenprüfung, trägt der
+          Planet einen Ring – golden, sobald sie bestanden ist, sonst
+          hellgrau und halbdurchsichtig. */}
+      {section.hasQuiz ? (
+        <mesh rotation={[Math.PI / 2.35, 0, 0.35]}>
+          <torusGeometry args={[0.3, 0.016, 14, 60]} />
+          <meshStandardMaterial
+            color={section.quizPassed ? GOLD : "#c9cfdd"}
+            emissive={section.quizPassed ? GOLD : "#8f97ab"}
+            emissiveIntensity={section.quizPassed ? 1.5 : 0.25}
+            transparent
+            opacity={section.quizPassed ? 1 : 0.45}
+            toneMapped={false}
+          />
+        </mesh>
+      ) : null}
+
+      {/* zusätzlicher, rotierender Ring an der Station, an der es weitergeht */}
       {isNext ? (
         <mesh ref={ring} rotation={[Math.PI / 2.6, 0, 0]}>
-          <torusGeometry args={[0.34, 0.011, 12, 48]} />
+          <torusGeometry args={[0.42, 0.009, 12, 48]} />
           <meshStandardMaterial
             color={LIME}
             emissive={LIME}
             emissiveIntensity={1.6}
+            transparent
+            opacity={0.85}
             toneMapped={false}
           />
         </mesh>
@@ -447,14 +612,18 @@ function Station({
  * ------------------------------------------------------------------ */
 function Scene({
   sections,
+  finalExam,
   hovered,
   onHover,
+  onHoverSun,
   onSelect,
   reducedMotion,
 }: {
   sections: JourneySection[];
+  finalExam: JourneyFinalExam | null;
   hovered: number | null;
   onHover: (index: number | null) => void;
+  onHoverSun: (over: boolean) => void;
   onSelect: (index: number) => void;
   reducedMotion: boolean;
 }) {
@@ -462,8 +631,14 @@ function Scene({
   const intro = useRef(0);
   const drag = useRef({ active: false, lastX: 0, rotation: 0 });
 
-
-  const points = useMemo(() => journeyPoints(sections.length), [sections]);
+  // Mit Abschlussprüfung enden die Abschnitte früher – das letzte Stück
+  // der Route führt zur Sonne
+  const stationsEndAt = finalExam ? 0.78 : 1;
+  const points = useMemo(
+    () => journeyPoints(sections.length, stationsEndAt),
+    [sections, stationsEndAt]
+  );
+  const sunPosition = useMemo(() => ROUTE.getPointAt(1), []);
   // Die Strecke selbst ist fest – so schwingt sie auch bei zwei Stationen
   const curve = ROUTE;
 
@@ -592,6 +767,17 @@ function Scene({
           onSelect={() => onSelect(i)}
         />
       ))}
+
+      {finalExam ? (
+        <FinalSun
+          exam={finalExam}
+          position={sunPosition}
+          glowTexture={glowTexture}
+          active={hovered === -2}
+          reducedMotion={reducedMotion}
+          onHover={onHoverSun}
+        />
+      ) : null}
     </group>
   );
 }
@@ -611,14 +797,18 @@ export function JourneyPath3D({
   title,
   hint,
   sections,
+  finalExam = null,
   onSelectSection,
 }: {
   title: string;
   hint: string;
   sections: JourneySection[];
+  /** Abschlussprüfung als Sonne am Ende der Route */
+  finalExam?: JourneyFinalExam | null;
   onSelectSection: (sectionId: string) => void;
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
+  const locale = useLocale();
   const reducedMotion = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -642,7 +832,8 @@ export function JourneyPath3D({
   }, []);
 
   const done = sections.filter((s) => s.completed).length;
-  const current = hovered !== null ? sections[hovered] : null;
+  // -2 steht für die Sonne (Abschlussprüfung), nicht für einen Abschnitt
+  const current = hovered !== null && hovered >= 0 ? sections[hovered] : null;
 
   if (sections.length === 0) return null;
 
@@ -654,7 +845,9 @@ export function JourneyPath3D({
         <small>Etappen</small>
       </Progress>
       <Canvas
-        camera={{ position: [0, 2.9, 9.4], fov: 46 }}
+        /* Enger Blickwinkel aus größerem Abstand: Bei weitem Winkel werden
+           Kugeln am Bildrand perspektivisch zu Ellipsen gezerrt. */
+        camera={{ position: [0, 3.6, 15.5], fov: 27 }}
         frameloop={visible && !reducedMotion ? "always" : "demand"}
         dpr={[1, 1.75]}
         gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
@@ -665,17 +858,30 @@ export function JourneyPath3D({
         <pointLight position={[4, -1, 3]} intensity={0.5} color={LIME} />
         <Scene
           sections={sections}
+          finalExam={finalExam}
           hovered={hovered}
           onHover={setHovered}
+          onHoverSun={(over) => setHovered(over ? -2 : null)}
           onSelect={(index) => onSelectSection(sections[index].id)}
           reducedMotion={reducedMotion}
         />
       </Canvas>
-      <HoverInfo $visible={current !== null}>
-        {current ? (
+      <HoverInfo $visible={hovered !== null}>
+        {hovered === -2 && finalExam ? (
           <>
-            <strong>{current.title}</strong> · <em>{Math.round(current.percent)} %</em>
-            {current.locked ? " · 🔒 noch gesperrt" : ""}
+            <strong>🎯 {finalExam.title}</strong> ·{" "}
+            {finalExam.passed
+              ? "bestanden – Zertifikat verdient"
+              : finalExam.unlocked
+                ? "freigeschaltet – du kannst antreten"
+                : "noch gesperrt: Sehanteil und Zwischenprüfungen fehlen"}
+          </>
+        ) : current ? (
+          <>
+            <strong>{current.title}</strong> ·{" "}
+            <em>{Math.round(current.percent)} %</em>
+            {current.locked ? " · 🔒 Abschnitt noch gesperrt" : ""}
+            {describeQuiz(current, locale)}
           </>
         ) : (
           hint
