@@ -233,6 +233,18 @@ function TierCards({ tiers }: { tiers: TierInfo[] }) {
 
 const LIST_EXAMPLE = `curl "https://learnsphere.one/api/public/v1/courses?q=react&per=12"`;
 
+const HEALTH_EXAMPLE = `curl -i "https://learnsphere.one/api/health"`;
+
+const HEALTH_RESPONSE = `{
+  "status": "ok",
+  "timestamp": "2026-07-22T10:15:00.000Z",
+  "uptimeSeconds": 86400,
+  "version": "0.1.0",
+  "checks": {
+    "database": { "status": "ok", "durationMs": 3 }
+  }
+}`;
+
 const LIST_RESPONSE = `{
   "data": [
     {
@@ -378,8 +390,32 @@ function GermanDocs() {
             </td>
             <td>Zu viele Anfragen – kurz warten und erneut versuchen.</td>
           </tr>
+          <tr>
+            <td>503</td>
+            <td>
+              <code>{`status: "error"`}</code>
+            </td>
+            <td>
+              Nur beim Health-Check: Der Dienst ist vorübergehend nicht
+              betriebsbereit.
+            </td>
+          </tr>
         </tbody>
       </ParamTable>
+
+      <SectionH3>Health-Check</SectionH3>
+      <p>
+        Ein Endpunkt für Monitoring und Load Balancer – ohne Key, ohne
+        Rate-Limit, nie zwischengespeichert. Er antwortet mit{" "}
+        <code>200</code>, solange alle Prüfungen bestehen, und mit{" "}
+        <code>503</code>, sobald eine fehlschlägt. Für automatische Überwachung
+        reicht es, den HTTP-Status auszuwerten; der Rumpf nennt zusätzlich
+        Laufzeit, Version und die einzelnen Prüfungen mit ihrer Dauer.
+        Fehlerursachen stehen bewusst nur im Server-Log, nicht in der Antwort.
+      </p>
+      <Endpoint path="/api/health" />
+      <CodeBlock>{HEALTH_EXAMPLE}</CodeBlock>
+      <CodeBlock>{HEALTH_RESPONSE}</CodeBlock>
 
       <SectionH2 id="public">1. Öffentliche Katalog-API (kostenlos)</SectionH2>
       <p>
@@ -623,8 +659,30 @@ function EnglishDocs() {
             </td>
             <td>Too many requests – wait briefly and retry.</td>
           </tr>
+          <tr>
+            <td>503</td>
+            <td>
+              <code>{`status: "error"`}</code>
+            </td>
+            <td>
+              Health check only: the service is temporarily not operational.
+            </td>
+          </tr>
         </tbody>
       </ParamTable>
+
+      <SectionH3>Health check</SectionH3>
+      <p>
+        An endpoint for monitoring and load balancers – no key, no rate limit,
+        never cached. It responds with <code>200</code> while every check
+        passes, and with <code>503</code> as soon as one fails. For automated
+        monitoring the HTTP status is enough; the body additionally reports
+        uptime, version and each individual check with its duration. Failure
+        causes deliberately stay in the server log rather than the response.
+      </p>
+      <Endpoint path="/api/health" />
+      <CodeBlock>{HEALTH_EXAMPLE}</CodeBlock>
+      <CodeBlock>{HEALTH_RESPONSE}</CodeBlock>
 
       <SectionH2 id="public">1. Public catalog API (free)</SectionH2>
       <p>
