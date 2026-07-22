@@ -1017,7 +1017,8 @@
       "key_limit_reached": "Maximum of 5 active keys – revoke an old one first.",
       "api_plan_required": "This requires the API plan (€25/month or €20/month yearly).",
       "generic": "Something went wrong. Please try again."
-    }
+    },
+    "apiComplimentaryBadge": "Operator access"
   },
   "storefront": {
     "coursesBy": "Courses by {name}",

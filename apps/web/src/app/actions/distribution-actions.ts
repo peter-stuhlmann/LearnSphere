@@ -56,7 +56,7 @@ export async function createApiKey(input: {
 
   // Die Creator-API ist kostenpflichtig; Affiliates dürfen ebenfalls Keys
   // erstellen (die Affiliate-API prüft die Mitgliedschaft selbst).
-  const { isApiPlanUsable } = await import("@/lib/api-auth");
+  const { hasApiAccess } = await import("@/lib/api-access");
   const [plan, user] = await Promise.all([
     db.apiSubscription.findUnique({
       where: { userId: session.user.id },
@@ -64,10 +64,13 @@ export async function createApiKey(input: {
     }),
     db.user.findUnique({
       where: { id: session.user.id },
-      select: { affiliateJoinedAt: true },
+      select: { affiliateJoinedAt: true, role: true },
     }),
   ]);
-  if (!isApiPlanUsable(plan?.status) && !user?.affiliateJoinedAt) {
+  if (
+    !hasApiAccess({ role: user?.role, status: plan?.status }) &&
+    !user?.affiliateJoinedAt
+  ) {
     return { ok: false, error: "api_plan_required" };
   }
 

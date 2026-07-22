@@ -143,6 +143,8 @@ interface DistributionViewProps {
   apiPlan: {
     usable: boolean;
     pastDue: boolean;
+    /** Zugang als Betreiber der Plattform, ohne Abo */
+    complimentary: boolean;
     hasStripeCustomer: boolean;
     justActivated: boolean;
   };
@@ -383,8 +385,20 @@ export function DistributionView({
             <CardTitle id="api-title">
               {t("apiTitle")}{" "}
               {apiPlan.usable ? (
-                <Badge $tone={apiPlan.pastDue ? "violet" : "success"}>
-                  {apiPlan.pastDue ? t("apiPastDueBadge") : t("apiActiveBadge")}
+                /* Betreiber sehen einen eigenen Hinweis – "API aktiv" wäre
+                   irreführend, es steht ja kein Abo dahinter. */
+                <Badge
+                  $tone={
+                    apiPlan.complimentary || apiPlan.pastDue
+                      ? "violet"
+                      : "success"
+                  }
+                >
+                  {apiPlan.complimentary
+                    ? t("apiComplimentaryBadge")
+                    : apiPlan.pastDue
+                      ? t("apiPastDueBadge")
+                      : t("apiActiveBadge")}
                 </Badge>
               ) : null}
             </CardTitle>

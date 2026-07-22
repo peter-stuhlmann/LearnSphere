@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
+import { hasApiAccess } from "@/lib/api-access";
 
 export const API_CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -12,12 +13,8 @@ export type ApiAuthResult =
   | { ok: true; userId: string }
   | { ok: false; status: 401 | 403; error: "unauthorized" | "api_plan_required" };
 
-/** Ein API-Plan gilt bei aktivem Abo; PAST_DUE = Kulanzfenster. */
-export function isApiPlanUsable(
-  status: "ACTIVE" | "PAST_DUE" | "CANCELED" | undefined | null
-): boolean {
-  return status === "ACTIVE" || status === "PAST_DUE";
-}
+// Weiterhin von hier exportiert – die Aufrufer kennen diesen Ort
+export { isApiPlanUsable, hasApiAccess } from "@/lib/api-access";
 
 /**
  * Prüft den Bearer-Token und den API-Plan des Key-Inhabers.
@@ -36,14 +33,21 @@ export async function authenticateApiRequest(
       id: true,
       userId: true,
       revokedAt: true,
-      user: { select: { apiSubscription: { select: { status: true } } } },
+      user: {
+        select: { role: true, apiSubscription: { select: { status: true } } },
+      },
     },
   });
   if (!key || key.revokedAt) {
     return { ok: false, status: 401, error: "unauthorized" };
   }
 
-  if (!isApiPlanUsable(key.user.apiSubscription?.status)) {
+  if (
+    !hasApiAccess({
+      role: key.user.role,
+      status: key.user.apiSubscription?.status,
+    })
+  ) {
     return { ok: false, status: 403, error: "api_plan_required" };
   }
 

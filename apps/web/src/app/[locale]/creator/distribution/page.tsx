@@ -40,6 +40,7 @@ export default async function DistributionPage({
         customDomain: true,
         stripeAccountId: true,
         stripeChargesEnabled: true,
+        role: true,
       },
     }),
     db.course.findMany({
@@ -63,7 +64,7 @@ export default async function DistributionPage({
 
   const { isStripeEnabled } = await import("@/lib/stripe");
   const { loadPayoutSummary } = await import("@/lib/payout-server");
-  const { isApiPlanUsable } = await import("@/lib/api-auth");
+  const { hasApiAccess } = await import("@/lib/api-access");
   const [payout, apiSubscription, refundRows] = await Promise.all([
     loadPayoutSummary(session!.user.id),
     db.apiSubscription.findUnique({
@@ -108,7 +109,12 @@ export default async function DistributionPage({
         })),
       }}
       apiPlan={{
-        usable: isApiPlanUsable(apiSubscription?.status),
+        usable: hasApiAccess({
+          role: user?.role,
+          status: apiSubscription?.status,
+        }),
+        // Betreiber der Plattform: Zugang ohne Abo, also auch ohne Kasse
+        complimentary: user?.role === "ADMIN",
         pastDue: apiSubscription?.status === "PAST_DUE",
         hasStripeCustomer: Boolean(apiSubscription?.stripeCustomerId),
         justActivated: api === "1",

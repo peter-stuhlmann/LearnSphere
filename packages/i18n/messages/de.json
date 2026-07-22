@@ -1017,7 +1017,8 @@
       "key_limit_reached": "Maximal 5 aktive Schlüssel – widerrufe zuerst einen alten.",
       "api_plan_required": "Dafür brauchst du den API-Plan (25 €/Monat bzw. 20 €/Monat jährlich).",
       "generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
-    }
+    },
+    "apiComplimentaryBadge": "Betreiber-Zugang"
   },
   "storefront": {
     "coursesBy": "Kurse von {name}",
