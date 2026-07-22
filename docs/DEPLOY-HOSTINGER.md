@@ -59,7 +59,7 @@ systemctl reload caddy
 
 ```bash
 git pull
-docker compose up -d --build   # baut neu, migriert, startet – Uploads/DB bleiben (Volumes)
+docker compose build web && docker compose rm -sf web && docker compose up -d
 ```
 
 ## Backups

@@ -405,8 +405,16 @@ genügt künftig ein `git push`, siehe [DEPLOY-CI-CD.md](DEPLOY-CI-CD.md).
 ```bash
 cd /opt/learnsphere
 git pull
-docker compose up -d --build
+docker compose build web
+docker compose rm -sf web
+docker compose up -d
 ```
+
+> **Nicht** `docker compose up -d --build` verwenden. Docker benennt den
+> alten Container beim Austausch um und scheitert dann reproduzierbar mit
+> `Conflict. The container name … is already in use`. Das Bauen vorab hält
+> außerdem die Ausfallzeit klein: Die alte Fassung läuft weiter, bis das
+> neue Image fertig ist. Die Datenbank bleibt in beiden Fällen unberührt.
 
 Datenbank und Uploads bleiben erhalten (sie liegen auf Volumes), neue
 Schema-Änderungen werden beim Start automatisch migriert. Rechne mit
