@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
@@ -14,6 +14,16 @@ import {
 import { AI_GENERATED_HEADER, withAiAudioTag } from "@/lib/ai-marking";
 import { recordAiUsage } from "@/lib/ai-usage-server";
 import { publicUploadsDir } from "@/lib/storage";
+
+/** Liegt die MP3-Datei zu diesem Hash wirklich im Uploads-Verzeichnis? */
+async function segmentFileExists(hash: string): Promise<boolean> {
+  try {
+    await access(path.join(publicUploadsDir(), "tts", `${hash}.mp3`));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Kostenbremse: mehr Segmente liest sinnvollerweise niemand am Stück */
 const MAX_SEGMENTS = 150;
@@ -136,7 +146,24 @@ export async function POST(request: NextRequest) {
     where: { hash: { in: hashes } },
     select: { hash: true, url: true },
   });
-  const urlByHash = new Map(cached.map((row) => [row.hash, row.url]));
+
+  /* Nur Einträge ausliefern, deren Datei wirklich da ist. Zeigt ein Eintrag
+     ins Leere – etwa nach einem Umzug, bei dem nur die Datenbank mitkam –
+     bekäme der Player eine tote URL und bliebe stumm stehen. Der Eintrag
+     wird verworfen, das Segment beim Abspielen neu erzeugt. */
+  const urlByHash = new Map<string, string>();
+  const dead: string[] = [];
+  for (const row of cached) {
+    if (await segmentFileExists(row.hash)) {
+      urlByHash.set(row.hash, row.url);
+    } else {
+      dead.push(row.hash);
+    }
+  }
+  if (dead.length > 0) {
+    console.warn(`[tts] ${dead.length} Cache-Einträge ohne Datei – verworfen`);
+    await db.ttsSegment.deleteMany({ where: { hash: { in: dead } } });
+  }
 
   return NextResponse.json(
     {
@@ -165,7 +192,10 @@ async function ensureSegment(
     where: { hash },
     select: { url: true },
   });
-  if (existing) return existing.url;
+  // Eintrag ohne Datei ist wertlos – verwerfen und neu erzeugen, statt eine
+  // URL zurückzugeben, die ins Leere zeigt
+  if (existing && (await segmentFileExists(hash))) return existing.url;
+  if (existing) await db.ttsSegment.deleteMany({ where: { hash } });
 
   try {
     const response = await fetch("https://api.openai.com/v1/audio/speech", {

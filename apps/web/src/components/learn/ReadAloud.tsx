@@ -378,11 +378,35 @@ export function ReadAloud({
         audioRef.current = null;
         if (!stoppedRef.current) scheduleNext(list, i);
       };
-      audio.onerror = () => stop();
-      void audio.play().catch(() => stop());
+      /* Datei nicht ladbar – etwa weil der Cache-Eintrag eine Umzugsleiche
+         ist. Früher blieb der Player hier einfach stehen und erholte sich
+         nie. Jetzt: URL verwerfen und dasselbe Segment mit der Browser-
+         Stimme sprechen. Der Server merzt den toten Eintrag beim nächsten
+         Start aus, danach wird es neu erzeugt. */
+      // onerror und ein abgelehntes play() können beide feuern – nur einmal
+      // ausweichen, sonst spräche der Browser das Segment doppelt
+      let recovered = false;
+      const recover = () => {
+        audioRef.current = null;
+        if (recovered || stoppedRef.current) return;
+        recovered = true;
+        list[i].url = undefined;
+        speak(list, i);
+      };
+      audio.onerror = recover;
+      void audio.play().catch(recover);
       return;
     }
 
+    speak(list, i);
+  }
+
+  /** Ein Segment mit der Browser-Stimme sprechen (Web Speech API). */
+  function speak(list: Segment[], i: number) {
+    if (!("speechSynthesis" in window)) {
+      stop();
+      return;
+    }
     const utterance = new SpeechSynthesisUtterance(list[i].text);
     utterance.lang = lang === "de" ? "de-DE" : "en-GB";
     utterance.rate = rateRef.current;
