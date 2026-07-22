@@ -7,11 +7,17 @@ import * as THREE from "three";
 import styled, { keyframes } from "styled-components";
 import { JourneyLine, JourneyStream } from "./JourneyStream";
 
-const VIOLET = "#8B7CFF";
-const LIME = "#C8FF4D";
-const DIM = "#39405e";
+/* Zwei Farben tragen die ganze Szene: Blau heißt "offen", Gold heißt
+   "geschafft" – bei Planeten, Ringen und der Abschlusssonne gleichermaßen. */
+const BLUE = "#5AA9FF";
+/** blasses Blau der Prüfungsringe, solange die Prüfung offen ist */
+const RING_BLUE = "#9CC6FF";
+/** gesperrte Abschnitte: dasselbe Blau, nur weit heruntergedimmt */
+const DIM = "#2f4a72";
 const GOLD = "#F5C542";
 const SUN = "#FFD782";
+/** Violett bleibt dem Sternenhintergrund vorbehalten */
+const VIOLET = "#8B7CFF";
 
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(10px); }
@@ -207,6 +213,16 @@ function journeyPoints(count: number, maxT: number): THREE.Vector3[] {
   );
 }
 
+/**
+ * Halbe Breite, die die Reise in Weltmaßen belegt: äußerster Routenpunkt
+ * (4.35) plus Lichthof des Planeten bzw. die Korona der Sonne.
+ */
+const SCENE_HALF_WIDTH = 5.4;
+
+/** Kamerafahrt: von weit hinten heran auf den Ruheabstand */
+const CAMERA_START_Z = 18;
+const CAMERA_END_Z = 14.2;
+
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 /**
@@ -259,7 +275,11 @@ function FinalSun({
   const body = useRef<THREE.Mesh>(null);
   const time = useRef(0);
 
-  const color = exam.passed ? SUN : exam.unlocked ? GOLD : "#6b7390";
+  /* Gleiche Logik wie bei den Planeten: blau bis bestanden, dann gold.
+     Ob die Prüfung schon freigeschaltet ist, steuert nur die Helligkeit –
+     die Farbe wechselt erst mit dem Bestehen, sonst verlöre Gold seine
+     Bedeutung. */
+  const color = exam.passed ? SUN : BLUE;
 
   useFrame((_, delta) => {
     time.current += delta;
@@ -372,7 +392,7 @@ function Traveller({
       <sprite ref={sprite}>
         <spriteMaterial
           map={glowTexture}
-          color={LIME}
+          color={SUN}
           transparent
           opacity={0.85}
           depthWrite={false}
@@ -497,7 +517,8 @@ function Station({
   const ring = useRef<THREE.Mesh>(null);
   const time = useRef(0);
 
-  const color = section.completed ? LIME : section.locked ? DIM : VIOLET;
+  // Gold heißt fertig, Blau heißt offen – gesperrt ist dasselbe Blau, gedimmt
+  const color = section.completed ? GOLD : section.locked ? DIM : BLUE;
 
   useFrame((_, delta) => {
     time.current += delta;
@@ -525,8 +546,10 @@ function Station({
       halo.current.scale.set(scale, scale, 1);
     }
     if (ring.current && !reducedMotion) {
-      ring.current.rotation.z += delta * 0.8;
-      const s = 1 + Math.sin(time.current * 2.6) * 0.12;
+      // langsame Eigendrehung; nur die Station, an der es weitergeht,
+      // lässt ihren Ring zusätzlich atmen
+      ring.current.rotation.z += delta * 0.35;
+      const s = isNext ? 1 + Math.sin(time.current * 2.2) * 0.07 : 1;
       ring.current.scale.setScalar(s);
     }
   });
@@ -572,33 +595,19 @@ function Station({
         />
       </mesh>
 
-      {/* Prüfungsring: Hat der Abschnitt eine Zwischenprüfung, trägt der
-          Planet einen Ring – golden, sobald sie bestanden ist, sonst
-          hellgrau und halbdurchsichtig. */}
+      {/* Prüfungsring – und zwar ausschließlich dann, wenn der Abschnitt
+          wirklich eine Zwischenprüfung hat. Blass blau, solange sie offen
+          ist, golden sobald sie bestanden wurde. Ein Ring bedeutet in dieser
+          Szene immer "hier wird geprüft", nichts anderes. */}
       {section.hasQuiz ? (
-        <mesh rotation={[Math.PI / 2.35, 0, 0.35]}>
+        <mesh ref={ring} rotation={[Math.PI / 2.35, 0, 0.35]}>
           <torusGeometry args={[0.3, 0.016, 14, 60]} />
           <meshStandardMaterial
-            color={section.quizPassed ? GOLD : "#c9cfdd"}
-            emissive={section.quizPassed ? GOLD : "#8f97ab"}
-            emissiveIntensity={section.quizPassed ? 1.5 : 0.25}
+            color={section.quizPassed ? GOLD : RING_BLUE}
+            emissive={section.quizPassed ? GOLD : RING_BLUE}
+            emissiveIntensity={section.quizPassed ? 1.5 : 0.3}
             transparent
-            opacity={section.quizPassed ? 1 : 0.45}
-            toneMapped={false}
-          />
-        </mesh>
-      ) : null}
-
-      {/* zusätzlicher, rotierender Ring an der Station, an der es weitergeht */}
-      {isNext ? (
-        <mesh ref={ring} rotation={[Math.PI / 2.6, 0, 0]}>
-          <torusGeometry args={[0.42, 0.009, 12, 48]} />
-          <meshStandardMaterial
-            color={LIME}
-            emissive={LIME}
-            emissiveIntensity={1.6}
-            transparent
-            opacity={0.85}
+            opacity={section.quizPassed ? 1 : 0.42}
             toneMapped={false}
           />
         </mesh>
@@ -654,8 +663,8 @@ function Scene({
 
 
   const glowTexture = useMemo(() => makeGlowTexture(), []);
-  const doneColor = useMemo(() => new THREE.Color(LIME), []);
-  const openColor = useMemo(() => new THREE.Color(VIOLET), []);
+  const doneColor = useMemo(() => new THREE.Color(GOLD), []);
+  const openColor = useMemo(() => new THREE.Color(BLUE), []);
   useEffect(() => () => glowTexture.dispose(), [glowTexture]);
 
   const nextIndex = useMemo(
@@ -687,12 +696,12 @@ function Scene({
     );
     camera.position.y = THREE.MathUtils.lerp(
       camera.position.y,
-      2.9 - 1.15 * t + pointerY * 0.28 + idle * 0.06,
+      2.6 - 1.05 * t + pointerY * 0.28 + idle * 0.06,
       0.06
     );
     camera.position.z = THREE.MathUtils.lerp(
       camera.position.z,
-      9.4 - 3.5 * t,
+      CAMERA_START_Z - (CAMERA_START_Z - CAMERA_END_Z) * t,
       0.06
     );
     camera.lookAt(0, 0, 0);
@@ -702,6 +711,21 @@ function Scene({
         group.current.rotation.y,
         drag.current.rotation,
         0.09
+      );
+
+      /* Die Szene an das Sichtfeld anpassen. viewport.width ist die in
+         Weltmaßen sichtbare Breite auf Höhe z=0 – auf schmalen Displays
+         ist sie kleiner als die Route breit ist, und die äußeren Planeten
+         lägen außerhalb des Bildes (nicht anklickbar). Statt die Kamera
+         zurückzufahren – was die Planeten winzig machte – wird die ganze
+         Reise so weit verkleinert, dass sie mit Rand hineinpasst. */
+      const fit = THREE.MathUtils.clamp(
+        (state.viewport.width * 0.5 * 0.86) / SCENE_HALF_WIDTH,
+        0.34,
+        1
+      );
+      group.current.scale.setScalar(
+        THREE.MathUtils.lerp(group.current.scale.x || fit, fit, 0.12)
       );
     }
   });
@@ -847,15 +871,15 @@ export function JourneyPath3D({
       <Canvas
         /* Enger Blickwinkel aus größerem Abstand: Bei weitem Winkel werden
            Kugeln am Bildrand perspektivisch zu Ellipsen gezerrt. */
-        camera={{ position: [0, 3.6, 15.5], fov: 27 }}
+        camera={{ position: [0, 2.6, CAMERA_START_Z], fov: 27 }}
         frameloop={visible && !reducedMotion ? "always" : "demand"}
         dpr={[1, 1.75]}
         gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
       >
         <ambientLight intensity={0.55} />
         <directionalLight position={[3, 6, 5]} intensity={0.9} />
-        <pointLight position={[-5, 2, 2]} intensity={0.8} color={VIOLET} />
-        <pointLight position={[4, -1, 3]} intensity={0.5} color={LIME} />
+        <pointLight position={[-5, 2, 2]} intensity={0.8} color={BLUE} />
+        <pointLight position={[4, -1, 3]} intensity={0.5} color={BLUE} />
         <Scene
           sections={sections}
           finalExam={finalExam}
