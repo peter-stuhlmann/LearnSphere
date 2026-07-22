@@ -10,6 +10,12 @@ interface MailInput {
    * "noreply" (Default), "hello", "newsletter", "billing".
    */
   sender?: string;
+  /**
+   * Antwortadresse. Wird bei Meldungen von Nutzern gesetzt, damit man
+   * direkt aus dem Postfach heraus antworten kann – der Absender bleibt
+   * die eigene Domain (sonst scheitert SPF/DKIM).
+   */
+  replyTo?: string;
 }
 
 /**
@@ -56,6 +62,7 @@ export async function sendMail(input: MailInput): Promise<void> {
           subject,
           text: input.text,
           ...(input.html ? { html: input.html } : {}),
+          ...(input.replyTo ? { reply_to: input.replyTo } : {}),
         }),
         signal: AbortSignal.timeout(15_000),
       });
@@ -94,5 +101,6 @@ export async function sendMail(input: MailInput): Promise<void> {
     subject,
     text: input.text,
     html: input.html,
+    replyTo: input.replyTo,
   });
 }

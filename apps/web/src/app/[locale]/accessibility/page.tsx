@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { LegalArticle } from "@/components/marketing/LegalArticle";
+import { AccessibilityFeedbackForm } from "@/components/marketing/AccessibilityFeedbackForm";
 
 export async function generateMetadata({
   params,
@@ -49,6 +50,7 @@ export default async function AccessibilityPage({
           </a>
           . We take every report seriously.
         </p>
+        <AccessibilityFeedbackForm />
       </LegalArticle>
     );
   }
@@ -82,6 +84,7 @@ export default async function AccessibilityPage({
         </a>
         . Wir nehmen jede Meldung ernst.
       </p>
+      <AccessibilityFeedbackForm />
     </LegalArticle>
   );
 }

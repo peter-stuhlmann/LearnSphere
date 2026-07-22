@@ -1535,5 +1535,26 @@
     "continueKicker": "Continue with",
     "dueCards": "{count, plural, one {# flashcard is} other {# flashcards are}} due for review.",
     "noDueCards": "No flashcards due – it all sticks. 💪"
+  },
+  "a11yFeedback": {
+    "open": "Open the form",
+    "name": "Name",
+    "email": "Email address",
+    "subject": "Subject",
+    "subjectDefault": "Accessibility feedback",
+    "message": "Your report",
+    "messagePlaceholder": "What got in your way? Where did it happen? What do you use to browse (e.g. screen reader, keyboard)?",
+    "submit": "Send report",
+    "sending": "Sending …",
+    "success": "Thank you! We received your report and will get back to you.",
+    "privacyNote": "We use your details solely to reply to your report.",
+    "errors": {
+      "name_required": "Please enter your name.",
+      "email_invalid": "Please enter a valid email address.",
+      "subject_required": "Please enter a subject.",
+      "message_required": "Please describe briefly what happened.",
+      "too_many_attempts": "Too many reports in a short time. Please try again later.",
+      "generic": "That did not work. Please email us directly at accessibility@learnsphere.one."
+    }
   }
 }

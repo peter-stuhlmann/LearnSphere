@@ -1535,5 +1535,26 @@
     "continueKicker": "Weiter mit",
     "dueCards": "{count, plural, one {# Karteikarte ist} other {# Karteikarten sind}} fällig zum Wiederholen.",
     "noDueCards": "Keine Karteikarten fällig – alles sitzt. 💪"
+  },
+  "a11yFeedback": {
+    "open": "Formular öffnen",
+    "name": "Name",
+    "email": "E-Mail-Adresse",
+    "subject": "Betreff",
+    "subjectDefault": "Feedback zur Barrierefreiheit",
+    "message": "Deine Meldung",
+    "messagePlaceholder": "Was hat dich behindert? Wo ist es passiert? Womit bedienst du die Seite (z. B. Screenreader, Tastatur)?",
+    "submit": "Meldung senden",
+    "sending": "Wird gesendet …",
+    "success": "Danke! Deine Meldung ist bei uns angekommen. Wir melden uns bei dir.",
+    "privacyNote": "Wir nutzen deine Angaben ausschließlich, um auf deine Meldung zu antworten.",
+    "errors": {
+      "name_required": "Bitte gib deinen Namen an.",
+      "email_invalid": "Bitte gib eine gültige E-Mail-Adresse an.",
+      "subject_required": "Bitte gib einen Betreff an.",
+      "message_required": "Bitte beschreibe kurz, worum es geht.",
+      "too_many_attempts": "Zu viele Meldungen in kurzer Zeit. Bitte versuche es später noch einmal.",
+      "generic": "Das hat leider nicht geklappt. Bitte schreib uns direkt an accessibility@learnsphere.one."
+    }
   }
 }
