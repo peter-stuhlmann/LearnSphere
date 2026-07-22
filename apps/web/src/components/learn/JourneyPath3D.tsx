@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import styled, { keyframes } from "styled-components";
+import { JourneyLine, JourneyStream } from "./JourneyStream";
 
 const VIOLET = "#8B7CFF";
 const LIME = "#C8FF4D";
@@ -160,100 +161,32 @@ function makeGlowTexture(): THREE.Texture {
   return texture;
 }
 
-/** Stationen liegen auf einer ruhigen Welle statt auf einer Geraden. */
+/**
+ * Fester Streckenverlauf, unabhängig von der Zahl der Abschnitte.
+ *
+ * Würde man die Kurve aus den Stationen selbst bilden, ergäbe ein Kurs mit
+ * zwei Abschnitten eine schnurgerade Linie – die Route soll aber immer wie
+ * eine Reise aussehen. Deshalb steht die Strecke fest, und die Stationen
+ * werden gleichmäßig darauf verteilt.
+ */
+const ROUTE = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(-4.35, -0.45, 0.8),
+  new THREE.Vector3(-2.55, 0.75, -0.75),
+  new THREE.Vector3(-0.75, -0.3, 1.15),
+  new THREE.Vector3(1.15, 0.95, -0.45),
+  new THREE.Vector3(2.9, -0.2, 0.95),
+  new THREE.Vector3(4.35, 0.55, -0.7),
+]);
+
+/** Gleichmäßig auf der Strecke verteilte Haltepunkte. */
 function journeyPoints(count: number): THREE.Vector3[] {
-  const spread = Math.max(1, count - 1);
-  return Array.from({ length: count }, (_, i) => {
-    const t = count > 1 ? i / spread : 0.5;
-    return new THREE.Vector3(
-      (t - 0.5) * 8.6,
-      Math.sin(t * Math.PI * 1.8) * 0.9,
-      Math.cos(t * Math.PI * 1.35) * 1.35
-    );
-  });
+  if (count === 1) return [ROUTE.getPointAt(0.5)];
+  return Array.from({ length: count }, (_, i) =>
+    ROUTE.getPointAt(i / (count - 1))
+  );
 }
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-
-/* ------------------------------------------------------------------ *
- * Leuchtender Pfad mit wanderndem Energiepuls
- * ------------------------------------------------------------------ */
-const flowVertex = /* glsl */ `
-  varying vec2 vUv;
-  void main() {
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-const flowFragment = /* glsl */ `
-  varying vec2 vUv;
-  uniform float uTime;
-  uniform float uIntro;
-  uniform vec3 uColor;
-
-  void main() {
-    // zwei versetzte Wellen ergeben einen lebendigeren Fluss
-    float wave = sin((vUv.x * 7.0 - uTime * 1.15) * 6.2831);
-    float wave2 = sin((vUv.x * 3.0 - uTime * 0.55) * 6.2831);
-    float pulse = smoothstep(0.25, 1.0, wave) * 0.65
-                + smoothstep(0.4, 1.0, wave2) * 0.35;
-
-    // der Pfad "zeichnet" sich beim Erscheinen von links nach rechts
-    float reveal = smoothstep(uIntro - 0.12, uIntro + 0.02, vUv.x);
-    float alpha = (1.0 - reveal);
-    if (alpha <= 0.001) discard;
-
-    vec3 color = uColor * (0.95 + 1.15 * pulse);
-    gl_FragColor = vec4(color, alpha);
-  }
-`;
-
-function FlowPath({
-  curve,
-  intro,
-  reducedMotion,
-}: {
-  curve: THREE.CatmullRomCurve3;
-  intro: React.RefObject<number>;
-  reducedMotion: boolean;
-}) {
-  const material = useRef<THREE.ShaderMaterial>(null);
-  /* Startwerte des Shaders. Fortgeschrieben wird pro Bild ausschließlich
-     über material.current.uniforms – so bleibt dieses Objekt unberührt
-     und das Material wird nicht bei jedem Render neu aufgebaut. */
-  const initialUniforms = useMemo(
-    () => ({
-      uTime: { value: 0 },
-      uIntro: { value: 0 },
-      uColor: { value: new THREE.Color(LIME) },
-    }),
-    []
-  );
-
-  useFrame((_, delta) => {
-    const mat = material.current;
-    if (!mat) return;
-    if (!reducedMotion) mat.uniforms.uTime.value += delta;
-    // 0 = ganz sichtbar, 1 = noch nicht gezeichnet
-    mat.uniforms.uIntro.value = 1 - (intro.current ?? 1);
-  });
-
-  return (
-    <mesh>
-      <tubeGeometry args={[curve, 160, 0.058, 14, false]} />
-      <shaderMaterial
-        ref={material}
-        uniforms={initialUniforms}
-        vertexShader={flowVertex}
-        fragmentShader={flowFragment}
-        transparent
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </mesh>
-  );
-}
 
 /**
  * Ein Lichtpunkt zieht unablässig die Route entlang – der eigentliche
@@ -531,7 +464,8 @@ function Scene({
 
 
   const points = useMemo(() => journeyPoints(sections.length), [sections]);
-  const curve = useMemo(() => new THREE.CatmullRomCurve3(points), [points]);
+  // Die Strecke selbst ist fest – so schwingt sie auch bei zwei Stationen
+  const curve = ROUTE;
 
   /** Anteil der Reise, der bereits geschafft ist (0..1) */
   const progress = useMemo(() => {
@@ -543,14 +477,10 @@ function Scene({
     return Math.min(1, sum / sections.length);
   }, [sections]);
 
-  const doneCurve = useMemo(() => {
-    if (progress <= 0.02 || points.length < 2) return null;
-    const sampled = curve.getPoints(180);
-    const cut = Math.max(2, Math.floor(sampled.length * progress));
-    return new THREE.CatmullRomCurve3(sampled.slice(0, cut));
-  }, [curve, points.length, progress]);
 
   const glowTexture = useMemo(() => makeGlowTexture(), []);
+  const doneColor = useMemo(() => new THREE.Color(LIME), []);
+  const openColor = useMemo(() => new THREE.Color(VIOLET), []);
   useEffect(() => () => glowTexture.dispose(), [glowTexture]);
 
   const nextIndex = useMemo(
@@ -623,50 +553,25 @@ function Scene({
     >
       <Starfield reducedMotion={reducedMotion} />
 
-      {/* ruhender Grundpfad – der noch nicht gegangene Teil der Route */}
+      {/* Die Route: haarfeine Führungslinie, darüber ein Strom aus
+          Lichtpartikeln. Bewusst kein Volumen – eine Röhre mit
+          halbdurchsichtigem Material sieht ohne Bloom wie ein Schlauch aus. */}
       {points.length > 1 ? (
         <>
-          <mesh>
-            <tubeGeometry args={[curve, 140, 0.022, 10, false]} />
-            <meshBasicMaterial color="#5c6690" transparent opacity={0.9} />
-          </mesh>
-          {/* zarter Schimmer darum, damit der Weg nicht flach wirkt */}
-          <mesh>
-            <tubeGeometry args={[curve, 140, 0.075, 10, false]} />
-            <meshBasicMaterial
-              color={VIOLET}
-              transparent
-              opacity={0.09}
-              depthWrite={false}
-              blending={THREE.AdditiveBlending}
-            />
-          </mesh>
+          <JourneyLine curve={curve} color="#4d5680" opacity={0.5} />
+          <JourneyStream
+            curve={curve}
+            progress={progress}
+            count={260}
+            texture={glowTexture}
+            doneColor={doneColor}
+            openColor={openColor}
+            reducedMotion={reducedMotion}
+            intro={intro}
+          />
           <Traveller
             curve={curve}
             glowTexture={glowTexture}
-            reducedMotion={reducedMotion}
-          />
-        </>
-      ) : null}
-
-      {/* zurückgelegter Weg mit wanderndem Energiepuls */}
-      {doneCurve ? (
-        <>
-          {/* breiter Lichthof, damit der geschaffte Weg sofort ins Auge
-              fällt – er ist die Kernaussage der ganzen Grafik */}
-          <mesh>
-            <tubeGeometry args={[doneCurve, 120, 0.16, 12, false]} />
-            <meshBasicMaterial
-              color={LIME}
-              transparent
-              opacity={0.13}
-              depthWrite={false}
-              blending={THREE.AdditiveBlending}
-            />
-          </mesh>
-          <FlowPath
-            curve={doneCurve}
-            intro={intro}
             reducedMotion={reducedMotion}
           />
         </>
