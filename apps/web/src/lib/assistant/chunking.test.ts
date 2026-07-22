@@ -52,6 +52,18 @@ const course: KnowledgeCourseInput = {
               transcriptEn: null,
               translations: null,
             },
+            {
+              id: "b4",
+              type: "HTML",
+              title: "Fakten zur Sonne",
+              content:
+                "<style>b{color:red}</style><ul><li>Sie ist 4,6 Milliarden Jahre alt.</li></ul>",
+              transcriptDe: null,
+              transcriptEn: null,
+              translations: {
+                en: { title: "Sun facts", content: "<ul><li>It is 4.6 billion years old.</li></ul>" },
+              },
+            },
           ],
         },
       ],
@@ -95,6 +107,22 @@ describe("buildKnowledgeChunks", () => {
       (c) => c.sourceType === "TRANSCRIPT" && c.lang === "en"
     );
     expect(tr?.text).toContain("Welcome to the sun lesson.");
+  });
+
+  it("indexiert HTML-Blöcke samt Blocktitel", () => {
+    /* HTML-Blöcke (Faktenkästen, Zeitleisten, Zitate) wurden früher
+       übersprungen – der Assistent kannte einen Gutteil des Kurses nicht. */
+    const html = chunks.find((c) => c.blockId === "b4" && c.lang === "de");
+    expect(html?.text).toContain("Fakten zur Sonne");
+    expect(html?.text).toContain("4,6 Milliarden Jahre");
+    // CSS aus dem Inhalt darf nicht ins Wissen wandern
+    expect(html?.text).not.toContain("color:red");
+    // als TEXT geführt: der Enum in der DB bleibt unverändert
+    expect(html?.sourceType).toBe("TEXT");
+
+    const htmlEn = chunks.find((c) => c.blockId === "b4" && c.lang === "en");
+    expect(htmlEn?.text).toContain("Sun facts");
+    expect(htmlEn?.text).toContain("4.6 billion years");
   });
 
   it("HTML wird bereinigt", () => {

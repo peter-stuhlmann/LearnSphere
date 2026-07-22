@@ -143,12 +143,27 @@ export function buildKnowledgeChunks(
         const prefix = `${sectionTitle} · ${lessonTitle}\n`;
 
         for (const block of lesson.blocks) {
-          if (block.type === "TEXT") {
+          /* TEXT und HTML liefern beide Fließtext. HTML-Blöcke (Zeitleisten,
+             Faktenkästen, Zitate) wurden früher übersprungen – der Assistent
+             war für einen erheblichen Teil des Kursinhalts blind. Das
+             mitgelieferte CSS steht in einem eigenen Feld und fließt nicht
+             ein; etwaiges <style> im Inhalt entfernt htmlToPlainText.
+             Beide landen als Quelle "TEXT" – für den Assistenten ist der
+             Unterschied bedeutungslos, und der Enum bleibt unverändert. */
+          if (block.type === "TEXT" || block.type === "HTML") {
             const html = isBase
               ? (block.content ?? "")
               : translated(block.translations, lang, "content", block.content);
+            const blockTitle = isBase
+              ? (block.title ?? "")
+              : translated(block.translations, lang, "title", block.title);
+            // Der Blocktitel ist oft die aussagekräftigste Zeile
+            // ("Fakten zum Film") und hilft beim Retrieval
+            const body = [blockTitle, htmlToPlainText(html)]
+              .filter(Boolean)
+              .join("\n");
             for (const segment of splitIntoTtsSegments(
-              htmlToPlainText(html),
+              body,
               KNOWLEDGE_CHUNK_MAX_CHARS
             )) {
               push({

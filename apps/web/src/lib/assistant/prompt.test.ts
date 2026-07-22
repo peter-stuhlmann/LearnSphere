@@ -30,8 +30,17 @@ describe("buildSystemPrompt", () => {
 
   it("enthält die Kernregeln: Ehrlichkeit, Markierung, kein Prüfungs-Leak", () => {
     expect(prompt).toMatch(/honest|weiß|do not know/i);
-    expect(prompt).toMatch(/not part of the course/i);
+    // Ergänzendes Wissen muss als solches gekennzeichnet werden
+    expect(prompt).toMatch(/steht so nicht im Kurs/i);
     expect(prompt).toMatch(/exam/i);
+  });
+
+  it("erlaubt ausdrücklich Fachwissen zum Kursthema", () => {
+    /* Ohne diese Erlaubnis wich das Modell auf "steht nicht im Kurs" aus,
+       auch wenn die Frage dem Kursthema galt (z. B. Filminhalt in einem
+       Filmkurs). Die Regel ist der Kern der Antwortqualität. */
+    expect(prompt).toMatch(/general knowledge/i);
+    expect(prompt).toMatch(/Do NOT refuse a subject question/i);
   });
 
   it("unbekannte Sprache und fehlende Fundstellen-Titel fallen sauber zurück", () => {
