@@ -225,8 +225,6 @@ export default async function QuizPage({
       key={`${attempts.length}-${showPersistedResult ? "result" : "quiz"}-${guaranteeBlocked ? "guard" : "open"}`}
       attemptState={attemptState}
       remainingSeconds={remainingSeconds}
-      // Wasserzeichen macht Screenshots dem Prüfling zuordenbar
-      watermark={session!.user.email ?? ""}
       initialResult={
         showPersistedResult && latestAttempt
           ? {

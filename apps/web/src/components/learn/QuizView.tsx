@@ -237,23 +237,6 @@ const GuardedForm = styled.form`
   }
 `;
 
-/* Personalisiertes Wasserzeichen: macht Screenshots dem Konto zuordenbar */
-const Watermark = styled.div`
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  overflow: hidden;
-  pointer-events: none;
-  transform: rotate(-24deg) scale(1.4);
-  font-family: ${({ theme }) => theme.fonts.mono};
-  font-size: 0.85rem;
-  line-height: 3.2;
-  word-spacing: 1.5rem;
-  color: ${({ theme }) => theme.colors.text};
-  opacity: 0.05;
-  text-align: center;
-`;
-
 const LeaveOverlay = styled.div`
   position: fixed;
   inset: 0;
@@ -352,8 +335,6 @@ interface QuizViewProps {
   initialResult: { scorePercent: number; certificateSerial: string | null } | null;
   /** Darf laut Wiederholungsregeln ein neuer Versuch gestartet werden? */
   canRetry: boolean;
-  /** Wasserzeichen über den Fragen (E-Mail) – macht Screenshots zuordenbar */
-  watermark: string;
 }
 
 export function QuizView({
@@ -362,7 +343,6 @@ export function QuizView({
   remainingSeconds,
   initialResult,
   canRetry,
-  watermark,
 }: QuizViewProps) {
   const t = useTranslations("exam");
   const locale = useLocale();
@@ -871,9 +851,6 @@ export function QuizView({
           onCut={(e) => e.preventDefault()}
           onContextMenu={(e) => e.preventDefault()}
         >
-          <Watermark aria-hidden>
-            {Array.from({ length: 90 }, () => watermark).join("   ")}
-          </Watermark>
           {quiz.questions.map((question, qi) => (
             <QuestionCard key={question.id} as="fieldset">
               <QuestionMeta>
