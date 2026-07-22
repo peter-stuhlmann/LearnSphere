@@ -545,12 +545,18 @@ function Station({
       const scale = base * breathe * (active ? 1.5 : 1);
       halo.current.scale.set(scale, scale, 1);
     }
-    if (ring.current && !reducedMotion) {
+    if (ring.current) {
       // langsame Eigendrehung; nur die Station, an der es weitergeht,
       // lässt ihren Ring zusätzlich atmen
-      ring.current.rotation.z += delta * 0.35;
-      const s = isNext ? 1 + Math.sin(time.current * 2.2) * 0.07 : 1;
-      ring.current.scale.setScalar(s);
+      if (!reducedMotion) ring.current.rotation.z += delta * 0.35;
+      const beat =
+        isNext && !reducedMotion ? 1 + Math.sin(time.current * 2.2) * 0.07 : 1;
+      /* Beim Überfahren wächst der Ring im selben Maß wie der Planet –
+         sonst schöbe sich der Planet unter dem Ring hindurch. Bewusst
+         außerhalb der reducedMotion-Prüfung: Die Hervorhebung ist
+         Rückmeldung auf eine Eingabe, keine Zierde. */
+      const hover = active ? 1.45 : 1;
+      ring.current.scale.setScalar(hover * beat);
     }
   });
 
