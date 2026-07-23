@@ -1,4 +1,4 @@
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { after, NextRequest, NextResponse } from "next/server";
@@ -146,15 +146,24 @@ async function handleUpload(request: NextRequest) {
   // Das Poster ist unkritisch und bleibt öffentlich unter public/uploads.
   let poster: string | null = null;
   if (kind === "video") {
-    const posterName = await generateVideoPoster(filePath);
-    if (posterName) {
-      const publicDir = path.join(publicUploadsDir(), userId);
-      await mkdir(publicDir, { recursive: true });
-      await rename(
-        path.join(directory, posterName),
-        path.join(publicDir, posterName)
-      );
-      poster = `/uploads/${userId}/${posterName}`;
+    try {
+      const posterName = await generateVideoPoster(filePath);
+      if (posterName) {
+        const publicDir = path.join(publicUploadsDir(), userId);
+        await mkdir(publicDir, { recursive: true });
+        /* Das Poster entsteht im geschützten Ordner (neben dem Video) und
+           gehört in den öffentlichen. Die beiden liegen auf getrennten
+           Docker-Volumes – ein rename() darüber scheitert mit EXDEV. Also
+           kopieren und die Quelle entfernen. */
+        const source = path.join(directory, posterName);
+        await copyFile(source, path.join(publicDir, posterName));
+        await rm(source, { force: true });
+        poster = `/uploads/${userId}/${posterName}`;
+      }
+    } catch (err) {
+      // Ein Vorschaubild ist Beiwerk – das Video ist längst gespeichert.
+      // Ein Fehler hier darf den Upload nicht scheitern lassen.
+      console.error("[upload] Poster konnte nicht abgelegt werden:", err);
     }
   }
 
