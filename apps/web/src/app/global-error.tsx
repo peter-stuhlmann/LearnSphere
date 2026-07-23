@@ -10,7 +10,6 @@ import * as Sentry from "@sentry/nextjs";
  */
 export default function GlobalError({
   error,
-  reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
@@ -51,7 +50,10 @@ export default function GlobalError({
           </p>
           <button
             type="button"
-            onClick={reset}
+            // Bewusst ein harter Reload statt Nexts reset(): reset() rendert
+            // nur clientseitig neu (kein Request) – ist der Fehlerzustand
+            // nicht rein lokal, passiert dabei sichtbar gar nichts.
+            onClick={() => window.location.reload()}
             style={{
               background: "#C8FF4D",
               color: "#0B0C15",
