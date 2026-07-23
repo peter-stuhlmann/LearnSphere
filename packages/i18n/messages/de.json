@@ -1146,8 +1146,8 @@
     "startCourse": "Jetzt anfangen",
     "continueCourse": "Weiterlernen",
     "watched": "{percent} % gesehen",
-    "examLocked": "Prüfung gesperrt",
-    "examUnlocked": "Prüfung freigeschaltet",
+    "examLocked": "Gesperrt",
+    "examUnlocked": "Freigeschaltet",
     "examPassedBadge": "Bestanden",
     "examSectionTitle": "Abschlussprüfung",
     "provenance": {
@@ -1390,11 +1390,35 @@
   "mail": {
     "reset": {
       "subject": "Passwort zurücksetzen – LearnSphere",
-      "body": "Hallo!\n\nDu (oder jemand anderes) hast das Zurücksetzen deines Passworts angefordert. Klicke auf den folgenden Link, um ein neues Passwort zu wählen. Der Link ist 60 Minuten gültig.\n\n{url}\n\nFalls du das nicht warst, kannst du diese E-Mail ignorieren.\n\nDein LearnSphere-Team"
+      "preview": "Wähle ein neues Passwort für dein LearnSphere-Konto.",
+      "heading": "Passwort zurücksetzen",
+      "intro": "Du (oder jemand anderes) hast das Zurücksetzen deines Passworts angefordert. Klicke auf den Button, um ein neues Passwort zu wählen. Der Link ist 60 Minuten gültig.",
+      "button": "Neues Passwort wählen",
+      "note": "Falls du das nicht warst, kannst du diese E-Mail ignorieren – dein Passwort bleibt unverändert."
     },
     "verify": {
       "subject": "Bitte bestätige deine E-Mail-Adresse – LearnSphere",
-      "body": "Willkommen bei LearnSphere!\n\nBitte bestätige deine E-Mail-Adresse über den folgenden Link, um dein Konto zu aktivieren. Der Link ist 24 Stunden gültig.\n\n{url}\n\nFalls du dich nicht registriert hast, kannst du diese E-Mail ignorieren – das Konto bleibt dann inaktiv.\n\nDein LearnSphere-Team"
+      "preview": "Nur noch ein Klick, dann ist dein Konto aktiv.",
+      "heading": "Willkommen bei LearnSphere!",
+      "intro": "Schön, dass du dabei bist. Bestätige deine E-Mail-Adresse über den Button, um dein Konto zu aktivieren. Der Link ist 24 Stunden gültig.",
+      "button": "E-Mail bestätigen",
+      "note": "Falls du dich nicht registriert hast, kannst du diese E-Mail ignorieren – das Konto bleibt inaktiv."
+    },
+    "newsletter": {
+      "subject": "Bitte bestätige dein LearnSphere-Abo ✨",
+      "preview": "Ein Klick fehlt noch zu deinem Newsletter-Abo.",
+      "heading": "Fast geschafft!",
+      "intro": "Schön, dass du dabei sein willst. Bestätige dein Newsletter-Abo mit einem Klick.",
+      "button": "Abo bestätigen",
+      "note": "Falls du das nicht warst, ignoriere diese E-Mail einfach."
+    },
+    "waitlist": {
+      "subject": "„{title}\" ist jetzt verfügbar 🎉",
+      "preview": "Der Kurs von deiner Warteliste ist online.",
+      "heading": "Der Kurs ist da!",
+      "intro": "Gute Nachrichten: „{title}\", für den du auf der Warteliste stehst, ist jetzt auf LearnSphere verfügbar.",
+      "button": "Zum Kurs",
+      "note": "Du erhältst diese E-Mail einmalig, weil du dich auf die Warteliste eingetragen hast."
     }
   },
   "stats": {

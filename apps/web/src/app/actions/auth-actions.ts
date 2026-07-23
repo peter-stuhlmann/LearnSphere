@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { auth, signIn } from "@/auth";
 import { db } from "@/lib/db";
 import { sendMail } from "@/lib/mail";
+import { buildEmail } from "@/lib/email-template";
 import { generateToken, hashToken, isExpired } from "@/lib/tokens";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { buildOtpAuthUrl, generateTotpSecret, verifyTotp } from "@/lib/totp";
@@ -44,10 +45,19 @@ async function sendVerificationMail(
   });
   const url = `${process.env.NEXT_PUBLIC_APP_URL}/${locale}/${locale === "de" ? "email-bestaetigen" : "verify-email"}?token=${token}`;
 
+  const mail = buildEmail({
+    locale,
+    preview: t("preview"),
+    heading: t("heading"),
+    paragraphs: [t("intro")],
+    button: { label: t("button"), url },
+    note: t("note"),
+  });
   await sendMail({
     to: email,
     subject: t("subject"),
-    text: t("body", { url }),
+    text: mail.text,
+    html: mail.html,
   });
 }
 
@@ -227,10 +237,19 @@ export async function requestPasswordReset(input: {
   });
   const url = `${process.env.NEXT_PUBLIC_APP_URL}/${input.locale}/reset-password?token=${token}`;
 
+  const mail = buildEmail({
+    locale: input.locale,
+    preview: t("preview"),
+    heading: t("heading"),
+    paragraphs: [t("intro")],
+    button: { label: t("button"), url },
+    note: t("note"),
+  });
   await sendMail({
     to: email,
     subject: t("subject"),
-    text: t("body", { url }),
+    text: mail.text,
+    html: mail.html,
   });
 
   return { ok: true };

@@ -1146,8 +1146,8 @@
     "startCourse": "Start now",
     "continueCourse": "Continue learning",
     "watched": "{percent}% watched",
-    "examLocked": "Exam locked",
-    "examUnlocked": "Exam unlocked",
+    "examLocked": "Locked",
+    "examUnlocked": "Unlocked",
     "examPassedBadge": "Passed",
     "examSectionTitle": "Final exam",
     "provenance": {
@@ -1390,11 +1390,35 @@
   "mail": {
     "reset": {
       "subject": "Reset your password – LearnSphere",
-      "body": "Hi!\n\nYou (or someone else) requested a password reset. Click the link below to choose a new password. The link is valid for 60 minutes.\n\n{url}\n\nIf this wasn't you, you can safely ignore this email.\n\nYour LearnSphere team"
+      "preview": "Choose a new password for your LearnSphere account.",
+      "heading": "Reset your password",
+      "intro": "You (or someone else) requested a password reset. Click the button to choose a new password. The link is valid for 60 minutes.",
+      "button": "Choose a new password",
+      "note": "If this wasn't you, you can safely ignore this email – your password stays unchanged."
     },
     "verify": {
       "subject": "Please confirm your email address – LearnSphere",
-      "body": "Welcome to LearnSphere!\n\nPlease confirm your email address via the link below to activate your account. The link is valid for 24 hours.\n\n{url}\n\nIf you didn't sign up, you can safely ignore this email – the account will remain inactive.\n\nYour LearnSphere team"
+      "preview": "One click and your account is active.",
+      "heading": "Welcome to LearnSphere!",
+      "intro": "Great to have you. Confirm your email address via the button to activate your account. The link is valid for 24 hours.",
+      "button": "Confirm email",
+      "note": "If you didn't sign up, you can safely ignore this email – the account stays inactive."
+    },
+    "newsletter": {
+      "subject": "Please confirm your LearnSphere subscription ✨",
+      "preview": "One click left to join the newsletter.",
+      "heading": "Almost there!",
+      "intro": "Great to have you. Confirm your newsletter subscription with one click.",
+      "button": "Confirm subscription",
+      "note": "If this wasn't you, simply ignore this email."
+    },
+    "waitlist": {
+      "subject": "\"{title}\" is now available 🎉",
+      "preview": "The course from your waitlist is live.",
+      "heading": "The course is here!",
+      "intro": "Good news: \"{title}\", which you joined the waitlist for, is now available on LearnSphere.",
+      "button": "View the course",
+      "note": "You receive this one-time email because you joined the waitlist."
     }
   },
   "stats": {

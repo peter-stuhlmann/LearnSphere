@@ -2,7 +2,9 @@
 
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { getTranslations } from "next-intl/server";
 import { sendMail } from "@/lib/mail";
+import { buildEmail } from "@/lib/email-template";
 import { generateToken, hashToken } from "@/lib/tokens";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { ActionResult } from "./auth-actions";
@@ -53,16 +55,21 @@ export async function subscribeNewsletter(input: {
   });
 
   const confirmUrl = `${appUrl()}/${locale}/newsletter/confirm?token=${token}`;
-  const de = locale === "de";
+  const t = await getTranslations({ locale, namespace: "mail.newsletter" });
+  const mail = buildEmail({
+    locale,
+    preview: t("preview"),
+    heading: t("heading"),
+    paragraphs: [t("intro")],
+    button: { label: t("button"), url: confirmUrl },
+    note: t("note"),
+  });
   await sendMail({
     to: email,
     sender: "newsletter",
-    subject: de
-      ? "Bitte bestätige dein LearnSphere-Abo ✨"
-      : "Please confirm your LearnSphere subscription ✨",
-    text: de
-      ? `Schön, dass du dabei sein willst! Bestätige dein Newsletter-Abo mit einem Klick:\n\n${confirmUrl}\n\nFalls du das nicht warst, ignoriere diese Mail einfach.`
-      : `Great to have you! Confirm your newsletter subscription with one click:\n\n${confirmUrl}\n\nIf this wasn't you, simply ignore this email.`,
+    subject: t("subject"),
+    text: mail.text,
+    html: mail.html,
   });
 
   return { ok: true };

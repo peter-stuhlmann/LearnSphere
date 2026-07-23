@@ -1,5 +1,7 @@
+import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { sendMail } from "@/lib/mail";
+import { buildEmail } from "@/lib/email-template";
 
 function appUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -31,18 +33,24 @@ export async function notifyWaitlist(courseId: string): Promise<void> {
   });
 
   for (const entry of entries) {
-    const de = entry.locale !== "en";
-    const url = courseUrl(de ? "de" : "en", course.slug);
+    const locale = entry.locale === "en" ? "en" : "de";
+    const url = courseUrl(locale, course.slug);
+    const t = await getTranslations({ locale, namespace: "mail.waitlist" });
     try {
+      const mail = buildEmail({
+        locale,
+        preview: t("preview"),
+        heading: t("heading"),
+        paragraphs: [t("intro", { title: course.title })],
+        button: { label: t("button"), url },
+        note: t("note"),
+      });
       await sendMail({
         to: entry.email,
         sender: "hello",
-        subject: de
-          ? `„${course.title}" ist jetzt verfügbar 🎉`
-          : `"${course.title}" is now available 🎉`,
-        text: de
-          ? `Gute Nachrichten: Der Kurs „${course.title}", für den du auf der Warteliste stehst, ist jetzt auf LearnSphere verfügbar.\n\nZum Kurs:\n${url}\n\nDu erhältst diese Mail einmalig, weil du dich auf die Warteliste eingetragen hast.`
-          : `Good news: the course "${course.title}" you joined the waitlist for is now available on LearnSphere.\n\nView the course:\n${url}\n\nYou receive this one-time email because you joined the waitlist.`,
+        subject: t("subject", { title: course.title }),
+        text: mail.text,
+        html: mail.html,
       });
       await db.waitlistEntry.update({
         where: { id: entry.id },
