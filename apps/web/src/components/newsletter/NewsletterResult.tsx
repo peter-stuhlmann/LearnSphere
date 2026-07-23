@@ -13,7 +13,11 @@ const Wrap = styled.main`
 `;
 
 const Card = styled.div`
+  /* Der umgebende Container ist volle Breite (max. 1200px); place-items auf
+     dem Wrap zentriert nur ihn, nicht die Karte darin. Ohne dieses auto
+     klebte die Karte am linken Containerrand. */
   max-width: 460px;
+  margin-inline: auto;
   text-align: center;
   padding: 2.4rem 2rem;
   border-radius: ${({ theme }) => theme.radii.lg};
