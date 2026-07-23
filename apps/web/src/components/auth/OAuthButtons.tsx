@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import styled from "styled-components";
 import { oauthSignIn } from "@/app/actions/auth-actions";
@@ -108,8 +108,10 @@ const LinkedInIcon = (
  * Social-Login (Google/LinkedIn) für Anmeldung und Registrierung.
  * Die Buttons sind immer sichtbar; die Flows funktionieren, sobald die
  * OAuth-Client-Daten in der .env hinterlegt sind (AUTH_GOOGLE_ID, …).
+ * `note` erscheint zwischen Buttons und Trenner – für Hinweise, die sich
+ * auf den Social-Login beziehen (nicht auf das E-Mail-Formular darunter).
  */
-export function OAuthButtons() {
+export function OAuthButtons({ note }: { note?: ReactNode }) {
   const t = useTranslations("auth");
   const locale = useLocale();
   const [pending, startTransition] = useTransition();
@@ -140,6 +142,7 @@ export function OAuthButtons() {
           {t("continueWithLinkedIn")}
         </ProviderButton>
       </Buttons>
+      {note}
       <Divider aria-hidden>{t("orWithEmail")}</Divider>
     </div>
   );

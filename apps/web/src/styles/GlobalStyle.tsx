@@ -109,6 +109,20 @@ export const GlobalStyle = createGlobalStyle`
     transform: scale(0.97);
   }
 
+  /* Das Passwort-Auge (pwd-validator-react) ist per translateY(-50%)
+     vertikal zentriert – die Press-Interaktion darf das Transform nur
+     ergänzen, nicht ersetzen, sonst springt das Icon beim Klick. */
+  .pvr-input-toggle:not(:disabled):active {
+    transform: translateY(-50%) scale(0.97);
+  }
+
+  /* Labels, die eine Checkbox/einen Radio-Button togglen: Beim Klicken
+     soll sich der Text nicht versehentlich markieren. */
+  label:has(input[type="checkbox"]),
+  label:has(input[type="radio"]) {
+    user-select: none;
+  }
+
   /* Kein border-radius hier: Das würde die Form des fokussierten Elements
      selbst verändern (Pill-Buttons, abgerundete Textareas) – die Outline
      folgt in modernen Browsern ohnehin dem Radius des Elements. */

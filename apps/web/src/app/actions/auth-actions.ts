@@ -14,6 +14,7 @@ import {
   generateRecoveryCodes,
   hashRecoveryCode,
 } from "@/lib/recovery-codes";
+import { checkPwned } from "pwd-validator-react/hibp";
 import { passwordSchema, registerSchema } from "@elearning/core/validation";
 
 export interface ActionResult {
@@ -81,7 +82,13 @@ export async function registerUser(input: {
   confirmPassword: string;
   acceptTerms: boolean;
   locale: string;
+  /** Honeypot: unsichtbares Formularfeld – Menschen lassen es leer */
+  website?: string;
 }): Promise<ActionResult> {
+  // Honeypot gefüllt → Bot. Stiller Erfolg, damit das Skript nichts lernt.
+  if (input.website) {
+    return { ok: true };
+  }
   // AGB-Einbeziehung serverseitig erzwingen (Checkbox im Formular)
   if (input.acceptTerms !== true) {
     return { ok: false, error: "terms_required" };
@@ -89,6 +96,18 @@ export async function registerUser(input: {
   const parsed = registerSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "invalid" };
+  }
+
+  // Passwörter aus bekannten Datenlecks ablehnen (HIBP, k-Anonymität:
+  // nur die ersten 5 Zeichen des SHA-1-Hashes verlassen den Server).
+  // Ist die API nicht erreichbar, blockieren wir die Registrierung nicht.
+  try {
+    const { isPwned } = await checkPwned(parsed.data.password);
+    if (isPwned) {
+      return { ok: false, error: "password_pwned" };
+    }
+  } catch {
+    // fail-open: HIBP-Ausfall darf keine Registrierung verhindern
   }
 
   // max. 5 Registrierungen pro E-Mail-Adresse und Stunde

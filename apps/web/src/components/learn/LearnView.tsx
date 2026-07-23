@@ -172,9 +172,10 @@ const Check = styled.span<{ $done: boolean }>`
 
 const QuizRow = styled(Link)`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
+  gap: 0.4rem 0.6rem;
   padding: 0.7rem 1.1rem;
   font-size: 0.9rem;
   color: ${({ theme }) => theme.colors.violet};
@@ -279,9 +280,10 @@ const FocusExit = styled.button`
 /* Menüpunkt „Abschlussprüfung & Zertifikat" ganz unten in der Kurs-Sidebar */
 const ExamNavRow = styled(Link)`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
+  gap: 0.4rem 0.6rem;
   padding: 0.85rem 1.1rem;
   font-size: 0.9rem;
   font-weight: 600;
@@ -840,7 +842,7 @@ export function LearnView({
                       params: { slug: course.slug, quizId: section.quiz.id },
                     }}
                   >
-                    ✦ {t("sectionQuiz")}
+                    <span>✦ {t("sectionQuiz")}</span>
                     <Badge $tone={section.quiz.passed ? "success" : "muted"}>
                       {section.quiz.passed
                         ? t("quizPassed")
@@ -860,7 +862,7 @@ export function LearnView({
                   params: { slug: course.slug, quizId: course.finalQuiz.id },
                 }}
               >
-                🎓 {t("examSectionTitle")}
+                <span>🎓 {t("examSectionTitle")}</span>
                 <Badge
                   $tone={
                     certificateSerial
