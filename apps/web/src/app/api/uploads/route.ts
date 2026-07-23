@@ -28,12 +28,39 @@ const KINDS: UploadKind[] = ["video", "audio", "image", "file"];
  * die zugriffsgeprüfte Video-Route /api/media/v/….
  */
 export async function POST(request: NextRequest) {
+  try {
+    return await handleUpload(request);
+  } catch (err) {
+    // Bisher fiel hier eine unbehandelte Ausnahme durch und wurde ein
+    // nackter 500 ohne Grund – der Client zeigte nur "Upload fehlgeschlagen",
+    // die Ursache stand nirgends. Jetzt landet sie im Server-Log, und der
+    // Client bekommt einen Code, mit dem sich etwas anfangen lässt.
+    console.error("[upload] fehlgeschlagen:", err);
+    // Node meldet einen vollen Datenträger als ENOSPC – der häufigste
+    // Betriebsgrund, und einer, den nur der Betreiber lösen kann.
+    const code = (err as { code?: string } | null)?.code;
+    if (code === "ENOSPC") {
+      return NextResponse.json({ error: "storage_full" }, { status: 507 });
+    }
+    return NextResponse.json({ error: "upload_failed" }, { status: 500 });
+  }
+}
+
+async function handleUpload(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const formData = await request.formData();
+  // Bricht die Verbindung mitten im Upload ab (Timeout, Größenlimit des
+  // Reverse-Proxy), scheitert schon das Einlesen des Formulars.
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch (err) {
+    console.error("[upload] Formular unvollständig empfangen:", err);
+    return NextResponse.json({ error: "upload_incomplete" }, { status: 400 });
+  }
   const file = formData.get("file");
   const kind = formData.get("kind");
 

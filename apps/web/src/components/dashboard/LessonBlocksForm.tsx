@@ -51,6 +51,24 @@ import {
 import { suggestChapters } from "@/app/actions/copilot-actions";
 import { ensureHtml, plainTextToHtml } from "@/lib/richtext";
 
+/**
+ * Antwort der Upload-Route in eine anzeigbare Meldung übersetzen. Ein
+ * abgelehntes Bild trägt einen Klartext-Grund (Moderation); die übrigen
+ * Fälle sind Codes, für die es eine eigene Meldung gibt – ein voller
+ * Datenträger etwa muss der Betreiber lösen, nicht der Creator.
+ */
+function uploadFailureMessage(
+  t: (key: string, values?: Record<string, string>) => string,
+  body: { error?: string; reason?: string } | null
+): string {
+  if (body?.error === "content_flagged") {
+    return t("uploadRejected", { reason: body.reason ?? "" });
+  }
+  if (body?.error === "storage_full") return t("uploadStorageFull");
+  if (body?.error === "upload_incomplete") return t("uploadIncomplete");
+  return t("uploadFailed");
+}
+
 const Form = styled.form`
   display: flex;
   flex-direction: column;
@@ -539,7 +557,7 @@ function BlockUpload({
   const t = useTranslations("dashboard");
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  /** null = ok; "" = generischer Fehler; sonst Ablehnungsgrund (Moderation) */
+  /** null = kein Fehler; sonst die fertige, anzeigbare Fehlermeldung */
   const [failed, setFailed] = useState<string | null>(null);
 
   const kind = uploadKindForBlockType(block.type);
@@ -569,7 +587,7 @@ function BlockUpload({
           error?: string;
           reason?: string;
         } | null;
-        setFailed(body?.error === "content_flagged" ? (body.reason ?? "") : "");
+        setFailed(uploadFailureMessage(t, body));
         return;
       }
       const data = (await res.json()) as {
@@ -590,7 +608,7 @@ function BlockUpload({
       }
       onUploaded(patch);
     } catch {
-      setFailed("");
+      setFailed(t("uploadFailed"));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -618,7 +636,7 @@ function BlockUpload({
       <span>{t(`uploadHints.${kind}` as never)}</span>
       {failed !== null ? (
         <ErrorText role="alert">
-          {failed ? t("uploadRejected", { reason: failed }) : t("uploadFailed")}
+          {failed}
         </ErrorText>
       ) : null}
     </UploadRow>
@@ -661,7 +679,7 @@ function PosterPicker({
   const t = useTranslations("dashboard");
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  /** null = ok; "" = generischer Fehler; sonst Ablehnungsgrund (Moderation) */
+  /** null = kein Fehler; sonst die fertige, anzeigbare Fehlermeldung */
   const [failed, setFailed] = useState<string | null>(null);
 
   async function onFile() {
@@ -680,13 +698,13 @@ function PosterPicker({
           error?: string;
           reason?: string;
         } | null;
-        setFailed(body?.error === "content_flagged" ? (body.reason ?? "") : "");
+        setFailed(uploadFailureMessage(t, body));
         return;
       }
       const data = (await res.json()) as { url: string };
       onPatch({ poster: data.url });
     } catch {
-      setFailed("");
+      setFailed(t("uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -721,7 +739,7 @@ function PosterPicker({
       ) : null}
       {failed !== null ? (
         <ErrorText role="alert">
-          {failed ? t("uploadRejected", { reason: failed }) : t("uploadFailed")}
+          {failed}
         </ErrorText>
       ) : null}
     </PosterRow>

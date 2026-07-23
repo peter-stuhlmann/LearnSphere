@@ -896,7 +896,9 @@
     "waitlistEnabled": "Enable waitlist (“coming soon” page)",
     "waitlistHint": "While the course is unpublished, the course page shows a “coming soon” page with email signup. On publishing, everyone on the list is notified once.",
     "courseStats": "Course analytics",
-    "dragHint": "Drag to reorder (or use ↑/↓)"
+    "dragHint": "Drag to reorder (or use ↑/↓)",
+    "uploadStorageFull": "The server storage is full. Please tell the operator – uploads are temporarily unavailable.",
+    "uploadIncomplete": "The file did not arrive completely. For large files this can be a slow connection or a size limit."
   },
   "creatorPricing": {
     "title": "Pricing for creators",

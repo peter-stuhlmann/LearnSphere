@@ -896,7 +896,9 @@
     "waitlistEnabled": "Warteliste aktivieren („Demnächst“-Seite)",
     "waitlistHint": "Solange der Kurs unveröffentlicht ist, zeigt die Kursseite eine „Demnächst“-Seite mit E-Mail-Eintragung. Beim Veröffentlichen werden alle Eingetragenen einmalig benachrichtigt.",
     "courseStats": "Kurs-Statistiken",
-    "dragHint": "Zum Umsortieren ziehen (oder ↑/↓ nutzen)"
+    "dragHint": "Zum Umsortieren ziehen (oder ↑/↓ nutzen)",
+    "uploadStorageFull": "Der Speicher auf dem Server ist voll. Bitte den Betreiber informieren – Uploads sind vorübergehend nicht möglich.",
+    "uploadIncomplete": "Die Datei kam nicht vollständig an. Bei großen Dateien kann eine langsame Verbindung oder ein Größenlimit die Ursache sein."
   },
   "creatorPricing": {
     "title": "Preise für Creator",
