@@ -24,6 +24,12 @@ const COLORS = {
   border: "#262A3A",
 };
 
+/* Systemschrift-Stack für den Fließtext. Ohne font-family fallen Mail-
+   Clients auf ihre Standardschrift zurück – häufig Times New Roman. Diese
+   Fonts sind auf praktisch jedem Gerät vorhanden, es lädt nichts nach. */
+const FONT =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
 export interface EmailButton {
   label: string;
   url: string;
@@ -79,7 +85,7 @@ function renderHtml(content: EmailContent, strings: Strings): string {
   const paragraphs = content.paragraphs
     .map(
       (text) =>
-        `<p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:${COLORS.text};">${escapeHtml(
+        `<p style="margin:0 0 16px;font-family:${FONT};font-size:15px;line-height:1.65;color:${COLORS.text};">${escapeHtml(
           text
         )}</p>`
     )
@@ -89,15 +95,15 @@ function renderHtml(content: EmailContent, strings: Strings): string {
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">
          <tr><td style="border-radius:999px;background:${COLORS.accent};">
            <a href="${encodeURI(content.button.url)}"
-              style="display:inline-block;padding:13px 28px;font-size:15px;font-weight:700;color:${COLORS.onAccent};text-decoration:none;border-radius:999px;">
+              style="display:inline-block;padding:13px 28px;font-family:${FONT};font-size:15px;font-weight:700;color:${COLORS.onAccent};text-decoration:none;border-radius:999px;">
              ${escapeHtml(content.button.label)}
            </a>
          </td></tr>
        </table>
-       <p style="margin:0 0 4px;font-size:12px;line-height:1.6;color:${COLORS.textMuted};">${escapeHtml(
+       <p style="margin:0 0 4px;font-family:${FONT};font-size:12px;line-height:1.6;color:${COLORS.textMuted};">${escapeHtml(
          strings.fallback
        )}</p>
-       <p style="margin:0 0 18px;font-size:12px;line-height:1.6;word-break:break-all;">
+       <p style="margin:0 0 18px;font-family:${FONT};font-size:12px;line-height:1.6;word-break:break-all;">
          <a href="${encodeURI(content.button.url)}" style="color:${COLORS.violet};text-decoration:underline;">${escapeHtml(
            content.button.url
          )}</a>
@@ -105,14 +111,14 @@ function renderHtml(content: EmailContent, strings: Strings): string {
     : "";
 
   const note = content.note
-    ? `<p style="margin:0;font-size:13px;line-height:1.6;color:${COLORS.textMuted};">${escapeHtml(
+    ? `<p style="margin:0;font-family:${FONT};font-size:13px;line-height:1.6;color:${COLORS.textMuted};">${escapeHtml(
         content.note
       )}</p>`
     : "";
 
   const footerLinks =
     content.footerLinks && content.footerLinks.length > 0
-      ? `<p style="margin:0 0 8px;font-size:12px;line-height:1.6;">${content.footerLinks
+      ? `<p style="margin:0 0 8px;font-family:${FONT};font-size:12px;line-height:1.6;">${content.footerLinks
           .map(
             (link) =>
               `<a href="${encodeURI(link.url)}" style="color:${COLORS.textMuted};text-decoration:underline;">${escapeHtml(
@@ -132,7 +138,7 @@ function renderHtml(content: EmailContent, strings: Strings): string {
 <meta name="color-scheme" content="dark light">
 <title>${escapeHtml(content.heading)}</title>
 </head>
-<body style="margin:0;padding:0;background:${COLORS.bgDeep};">
+<body style="margin:0;padding:0;background:${COLORS.bgDeep};font-family:${FONT};">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(
     content.preview
   )}</div>
@@ -143,7 +149,7 @@ function renderHtml(content: EmailContent, strings: Strings): string {
         <span style="font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:${COLORS.text};">Learn<span style="color:${COLORS.accent};">Sphere</span></span>
       </td></tr>
       <tr><td style="border:1px solid ${COLORS.border};border-radius:16px;background:${COLORS.bgElevated};padding:32px 28px;">
-        <h1 style="margin:0 0 18px;font-size:21px;line-height:1.3;color:${COLORS.text};">${escapeHtml(
+        <h1 style="margin:0 0 18px;font-family:${FONT};font-size:21px;line-height:1.3;color:${COLORS.text};">${escapeHtml(
           content.heading
         )}</h1>
         ${paragraphs}
@@ -152,10 +158,10 @@ function renderHtml(content: EmailContent, strings: Strings): string {
       </td></tr>
       <tr><td style="padding:22px 4px 0;">
         ${footerLinks}
-        <p style="margin:0;font-size:12px;line-height:1.6;color:${COLORS.textMuted};">${escapeHtml(
+        <p style="margin:0;font-family:${FONT};font-size:12px;line-height:1.6;color:${COLORS.textMuted};">${escapeHtml(
           strings.footer
         )}</p>
-        <p style="margin:8px 0 0;font-size:12px;color:${COLORS.textMuted};">© LearnSphere</p>
+        <p style="margin:8px 0 0;font-family:${FONT};font-size:12px;color:${COLORS.textMuted};">© LearnSphere</p>
       </td></tr>
     </table>
   </td></tr>
