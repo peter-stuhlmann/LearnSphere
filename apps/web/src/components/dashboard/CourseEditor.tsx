@@ -2162,11 +2162,17 @@ export function CourseEditor({
             </SettingsForm>
           </Card>
 
-          {/* Wissensstand des Lernassistenten: Videos ohne Transkript
-              sind fuer ihn stumm - das muss der Creator sehen. */}
-          <AssistantCoverage sections={course.sections} />
+          {/* Rechte Spalte des Grids: EIN direktes Kind, damit die Abschnitte
+              nicht unter die 380px-Sidebar rutschen. Die Abdeckungsanzeige
+              rendert null, solange es keine Medien gibt – als eigenes
+              Grid-Kind hätte ihr Erscheinen nach dem ersten Video-Upload das
+              Spaltenraster verschoben. */}
+          <div>
+            {/* Wissensstand des Lernassistenten: Videos ohne Transkript
+                sind fuer ihn stumm - das muss der Creator sehen. */}
+            <AssistantCoverage sections={course.sections} />
 
-          <section aria-labelledby="sections-title">
+            <section aria-labelledby="sections-title">
             <h2
               id="sections-title"
               style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
@@ -2512,7 +2518,8 @@ export function CourseEditor({
                 </RowSplit>
               </InlineForm>
             </div>
-          </section>
+            </section>
+          </div>
         </Grid>
 
         <section
