@@ -25,6 +25,15 @@ COPY packages/api-contracts/package.json packages/api-contracts/package.json
 # Mobile-Workspace bewusst ausgespart (Expo zieht hunderte MB nach)
 RUN npm ci --workspace @elearning/web --include-workspace-root --ignore-scripts
 
+# ffmpeg-static lädt sein Binary über ein Install-Skript – das --ignore-scripts
+# oben unterbindet den Download. Für die automatische Transkription (Audio
+# aus Video ziehen, in Stücke schneiden) braucht es dieses Binary. Deshalb den
+# Download hier gezielt für dieses eine Paket nachholen, statt alle Scripts zu
+# erlauben. Ohne diesen Schritt scheitert jede Video-Transkription zur Laufzeit
+# mit "spawn …/ffmpeg-static/ffmpeg ENOENT".
+RUN node node_modules/ffmpeg-static/install.js \
+ && test -x node_modules/ffmpeg-static/ffmpeg
+
 COPY packages ./packages
 COPY apps/web ./apps/web
 
@@ -79,6 +88,12 @@ COPY --from=builder /repo/apps/web/scripts ./scripts
 # liegt – ein eigenständig gestartetes Skript kann es dann nicht laden
 # ("Cannot find module 'bcryptjs'"). @prisma/client ist bereits vorhanden.
 COPY --from=builder /repo/node_modules/bcryptjs ./node_modules/bcryptjs
+
+# ffmpeg-static-Binary. Das File-Tracing von Next.js nimmt das JS des Pakets
+# mit (der Pfad wird zur Laufzeit aufgelöst), nicht aber die ausführbare
+# Binärdatei daneben. Sie muss – wie die Prisma-Engine – ausdrücklich
+# übernommen werden, sonst schlägt jede Video-Transkription fehl.
+COPY --from=builder /repo/node_modules/ffmpeg-static/ffmpeg ./node_modules/ffmpeg-static/ffmpeg
 
 # Migrationen + vollständige Prisma-CLI für "migrate deploy" beim Start
 COPY --from=builder /repo/apps/web/prisma ./prisma

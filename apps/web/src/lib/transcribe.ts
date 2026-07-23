@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
+import { access, mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -71,9 +72,16 @@ export async function resolveFfmpeg(): Promise<string | null> {
     const mod = (await import("ffmpeg-static")) as {
       default?: string | null;
     };
-    if (mod.default) return mod.default;
+    // Nur zurückgeben, wenn das Binary auch wirklich ausführbar dort liegt.
+    // ffmpeg-static meldet einen Pfad, selbst wenn das Binary fehlt (etwa
+    // weil sein Download-Skript beim Install übersprungen wurde) – dann
+    // gäbe es zur Laufzeit ein ENOENT statt des System-Fallbacks darunter.
+    if (mod.default) {
+      await access(mod.default, fsConstants.X_OK);
+      return mod.default;
+    }
   } catch {
-    // Paket nicht installiert → System-ffmpeg probieren
+    // Paket fehlt oder Binary nicht ausführbar → System-ffmpeg probieren
   }
   try {
     await execFileAsync("ffmpeg", ["-version"], { timeout: 10_000 });
