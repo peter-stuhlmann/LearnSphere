@@ -198,7 +198,12 @@ Voraussetzungen, die in Produktion ohnehin schon gesetzt sein sollten
 
 - `AUTH_SECRET` – zufälliger Schlüssel, in Produktion Pflicht.
 - `AUTH_TRUST_HOST=true` – nötig, weil die App hinter dem Reverse-Proxy
-  läuft; ohne das erkennt Auth.js die Callback-Domain falsch.
+  läuft.
+- **`AUTH_URL="https://learnsphere.one"`** – die feste Basis-URL für die
+  Login-Callbacks. **In Produktion für OAuth zwingend.** Fehlt sie, leitet
+  Auth.js auf die interne Container-Adresse `0.0.0.0:3000` um, und die
+  Anmeldung scheitert mit `OAuthCallbackError`. Ohne Slash am Ende, exakt
+  die öffentliche Domain.
 - `NEXT_PUBLIC_APP_URL="https://learnsphere.one"` – muss der echten Domain
   entsprechen.
 
@@ -227,4 +232,5 @@ Anbieter verifiziert).
 | Google: „App nicht verifiziert" / nur Testnutzer kommen rein | App ist noch im Test-Status. Entweder das eigene Konto als **Testnutzer** eintragen, oder die App **veröffentlichen** (Abschnitt 1.2). |
 | LinkedIn: „scope … is not authorized" | Das Produkt aus 2.2 ist nicht freigeschaltet. Reiter **Products** prüfen. |
 | Button bewirkt nichts, keine Weiterleitung | Die `AUTH_…`-Werte sind leer oder wurden nach dem Setzen nicht neu geladen (Dev-Server / Container neu starten). |
-| Lokal geht's, in Produktion nicht | In `.env.production` fehlen die Werte, oder `AUTH_TRUST_HOST` / `NEXT_PUBLIC_APP_URL` stimmen nicht. Container neu erstellen (`docker compose up -d web`). |
+| Weiterleitung geht auf `0.0.0.0:3000`, `ERR_ADDRESS_INVALID`, `OAuthCallbackError` | `AUTH_URL` fehlt in `.env.production`. Auf `AUTH_URL="https://learnsphere.one"` setzen und `docker compose up -d web`. |
+| Lokal geht's, in Produktion nicht | In `.env.production` fehlen die Werte, oder `AUTH_URL` / `AUTH_TRUST_HOST` / `NEXT_PUBLIC_APP_URL` stimmen nicht. Container neu erstellen (`docker compose up -d web`). |
