@@ -3,6 +3,10 @@
 import { useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { installThreeClockWarningFilter } from "@/lib/three-warnings";
+
+// fiber instanziiert intern die (seit three r183 deprecatete) Clock
+installThreeClockWarningFilter();
 
 const COUNT = 140;
 const RADIUS = 3.2;

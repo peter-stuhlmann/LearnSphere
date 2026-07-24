@@ -4,6 +4,10 @@ import { useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import styled from "styled-components";
+import { installThreeClockWarningFilter } from "@/lib/three-warnings";
+
+// fiber instanziiert intern die (seit three r183 deprecatete) Clock
+installThreeClockWarningFilter();
 
 const VIOLET = "#8B7CFF";
 const LIME = "#C8FF4D";

@@ -6,6 +6,10 @@ import { useLocale } from "next-intl";
 import * as THREE from "three";
 import styled, { keyframes } from "styled-components";
 import { JourneyLine, JourneyStream } from "./JourneyStream";
+import { installThreeClockWarningFilter } from "@/lib/three-warnings";
+
+// fiber instanziiert intern die (seit three r183 deprecatete) Clock
+installThreeClockWarningFilter();
 
 /* Zwei Farben tragen die ganze Szene: Blau heißt "offen", Gold heißt
    "geschafft" – bei Planeten, Ringen und der Abschlusssonne gleichermaßen. */
