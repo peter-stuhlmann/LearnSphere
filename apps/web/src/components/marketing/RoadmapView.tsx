@@ -101,11 +101,13 @@ const Node = styled.span<{ $status: Status; $side: "left" | "right" }>`
   border: 3px solid ${({ theme }) => theme.colors.bg};
 
   background: ${({ theme, $status }) =>
-    $status === "progress"
-      ? theme.colors.accent
-      : $status === "next"
-        ? theme.colors.violet
-        : theme.colors.textFaint};
+    $status === "done"
+      ? theme.colors.success
+      : $status === "progress"
+        ? theme.colors.accent
+        : $status === "next"
+          ? theme.colors.violet
+          : theme.colors.textFaint};
 
   ${({ $status }) =>
     $status === "progress"
@@ -134,11 +136,13 @@ const Node = styled.span<{ $status: Status; $side: "left" | "right" }>`
 const CardBox = styled.div<{ $status: Status }>`
   border: 1px solid
     ${({ theme, $status }) =>
-      $status === "progress"
-        ? "rgba(200, 255, 77, 0.35)"
-        : $status === "next"
-          ? "rgba(139, 124, 255, 0.35)"
-          : theme.colors.border};
+      $status === "done"
+        ? "rgba(77, 255, 166, 0.35)"
+        : $status === "progress"
+          ? "rgba(200, 255, 77, 0.35)"
+          : $status === "next"
+            ? "rgba(139, 124, 255, 0.35)"
+            : theme.colors.border};
   border-radius: ${({ theme }) => theme.radii.lg};
   background: ${({ theme }) => theme.colors.surface};
   padding: 1.4rem 1.5rem;
@@ -184,23 +188,29 @@ const StatusBadge = styled.span<{ $status: Status }>`
   border-radius: ${({ theme }) => theme.radii.pill};
 
   ${({ theme, $status }) =>
-    $status === "progress"
+    $status === "done"
       ? css`
-          color: ${theme.colors.accent};
-          background: ${theme.colors.accentSoft};
-          border: 1px solid rgba(200, 255, 77, 0.4);
+          color: ${theme.colors.success};
+          background: ${theme.colors.successSoft};
+          border: 1px solid rgba(77, 255, 166, 0.4);
         `
-      : $status === "next"
+      : $status === "progress"
         ? css`
-            color: ${theme.colors.violet};
-            background: ${theme.colors.violetSoft};
-            border: 1px solid rgba(139, 124, 255, 0.4);
+            color: ${theme.colors.accent};
+            background: ${theme.colors.accentSoft};
+            border: 1px solid rgba(200, 255, 77, 0.4);
           `
-        : css`
-            color: ${theme.colors.textMuted};
-            background: ${theme.colors.surface};
-            border: 1px solid ${theme.colors.borderStrong};
-          `}
+        : $status === "next"
+          ? css`
+              color: ${theme.colors.violet};
+              background: ${theme.colors.violetSoft};
+              border: 1px solid rgba(139, 124, 255, 0.4);
+            `
+          : css`
+              color: ${theme.colors.textMuted};
+              background: ${theme.colors.surface};
+              border: 1px solid ${theme.colors.borderStrong};
+            `}
 `;
 
 const Quarter = styled.span`
@@ -209,17 +219,14 @@ const Quarter = styled.span`
   color: ${({ theme }) => theme.colors.textFaint};
 `;
 
-type Status = "progress" | "next" | "planned";
+type Status = "done" | "progress" | "next" | "planned";
 
 const ITEMS: { key: string; status: Status; quarter: string }[] = [
+  { key: "mvp", status: "done", quarter: "2026" },
   { key: "r1", status: "progress", quarter: "Q3 2026" },
-  { key: "r2", status: "progress", quarter: "Q3 2026" },
-  { key: "r3", status: "next", quarter: "Q4 2026" },
-  { key: "r4", status: "next", quarter: "Q4 2026" },
-  { key: "r5", status: "planned", quarter: "Q1 2027" },
-  { key: "r6", status: "planned", quarter: "Q1 2027" },
-  { key: "r7", status: "planned", quarter: "2027" },
-  { key: "r8", status: "planned", quarter: "2027" },
+  { key: "r5", status: "next", quarter: "Q4 2026" },
+  { key: "r3", status: "next", quarter: "Q1 2027" },
+  { key: "r4", status: "planned", quarter: "2027" },
 ];
 
 export function RoadmapView() {
@@ -267,11 +274,13 @@ export function RoadmapView() {
                   <CardBox $status={item.status}>
                     <MetaRow $side={side}>
                       <StatusBadge $status={item.status}>
-                        {item.status === "progress"
-                          ? t("statusProgress")
-                          : item.status === "next"
-                            ? t("statusNext")
-                            : t("statusPlanned")}
+                        {item.status === "done"
+                          ? t("statusDone")
+                          : item.status === "progress"
+                            ? t("statusProgress")
+                            : item.status === "next"
+                              ? t("statusNext")
+                              : t("statusPlanned")}
                       </StatusBadge>
                       <Quarter>{item.quarter}</Quarter>
                     </MetaRow>
