@@ -200,10 +200,10 @@ const Callout = styled.div<{ $tone?: "info" | "warn" }>`
   }
 `;
 
-function Endpoint({ path }: { path: string }) {
+function Endpoint({ path, method = "GET" }: { path: string; method?: string }) {
   return (
     <EndpointRow>
-      <span className="method">GET</span>
+      <span className="method">{method}</span>
       <span className="path">{path}</span>
     </EndpointRow>
   );
@@ -271,6 +271,28 @@ const CREATOR_EXAMPLE = `curl "https://learnsphere.one/api/v1/courses" \\
   -H "Authorization: Bearer ls_1234…abcd"`;
 
 const ERROR_EXAMPLE = `{ "error": "api_plan_required" }`;
+
+const CHECKOUT_EXAMPLE = `curl -X POST "https://learnsphere.one/api/v1/checkout" \\
+  -H "Authorization: Bearer ls_1234…abcd" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "course": "react-fuer-einsteiger",
+    "email": "kundin@example.com",
+    "successUrl": "https://deine-seite.de/danke",
+    "cancelUrl": "https://deine-seite.de/kurs"
+  }'`;
+
+const CHECKOUT_RESPONSE = `{ "data": { "url": "https://checkout.stripe.com/c/pay/cs_…" } }`;
+
+const ENROLLMENTS_RESPONSE = `{
+  "data": [
+    {
+      "course": "react-fuer-einsteiger",
+      "enrolledAt": "2026-07-24T10:15:00.000Z",
+      "completedAt": null
+    }
+  ]
+}`;
 
 export function ApiDocsView() {
   const locale = useLocale();
@@ -496,25 +518,70 @@ function GermanDocs() {
       <CodeBlock>{CREATOR_EXAMPLE}</CodeBlock>
       <p>Ohne gültigen Key oder aktives Paket kommt ein Fehler:</p>
       <CodeBlock>{ERROR_EXAMPLE}</CodeBlock>
+      <Callout>
+        <p>
+          <strong>Server-only:</strong> Die Creator-API beantwortet keine
+          Browser-Anfragen (kein CORS) – dein Key gehört ausschließlich auf
+          deinen Server. Lese-Endpunkte sind auf 120 Anfragen/Minute je Key
+          begrenzt, der Checkout auf 20; bei 429 sagt dir der{" "}
+          <code>Retry-After</code>-Header, wann es weitergeht.
+        </p>
+      </Callout>
       <Endpoint path="/api/v1/courses" />
       <p>
         Alle deine veröffentlichten Kurse mit Preisen, Bewertungen,{" "}
         <code>url</code> (Kauflink mit <code>?via=api</code> – so wird der
         Verkauf deinem Kanal zugerechnet) und <code>embedUrl</code> fürs
-        Widget.
+        Widget. Optional seitenweise mit <code>?page=1&amp;per=25</code>{" "}
+        (max. 100) – dann kommt ein <code>meta</code>-Block dazu.
       </p>
       <Endpoint path="/api/v1/courses/{slug}" />
       <p>
         Kursdetail inklusive komplettem Curriculum (Abschnitte und Lektionen
         mit Dauer und Vorschau-Flag) – nur für deine eigenen Kurse.
       </p>
+      <Endpoint path="/api/v1/courses/{slug}/content" />
+      <p>
+        Kompletter Kursinhalt deines Kurses: Abschnitte, Lektionen und
+        aufgelöste Blöcke (Texte, signierte Video-/Datei-URLs, Kapitelmarken,
+        KI-Herkunftsangaben). Für die serverseitige Auslieferung an
+        eingeschriebene Nutzer:innen – die signierten Medien-URLs laufen ab,
+        also pro Abruf frisch holen statt cachen. Übersetzungen über{" "}
+        <code>?lang=en</code>.
+      </p>
+      <Endpoint path="/api/v1/enrollments?email={email}" />
+      <p>
+        Einschreibungen einer Käufer:in in <em>deinen</em> Kursen – damit
+        entscheidet deine Seite, wer Inhalte sehen darf: Nutzer:in bei dir
+        einloggen, E-Mail hier prüfen, bei Treffer den Kursinhalt ausliefern.
+        Optional <code>&amp;course={"{slug}"}</code> für einen einzelnen Kurs.
+      </p>
+      <CodeBlock>{ENROLLMENTS_RESPONSE}</CodeBlock>
+      <Endpoint method="POST" path="/api/v1/checkout" />
+      <p>
+        Der komplette Checkout für deine eigene Seite: Du schickst Kurs-Slug,
+        Käufer-E-Mail und deine Rücksprung-URLs – zurück kommt eine
+        Stripe-Checkout-URL, zu der du weiterleitest. Nach der Zahlung wird
+        die Einschreibung automatisch angelegt (Konto entsteht bei Bedarf
+        anhand der E-Mail – die Person wird darüber per Mail informiert),
+        der Verkauf läuft als externer Kanal mit{" "}
+        <strong>75 % Anteil</strong> für dich. Gratis-Kurse schreiben direkt
+        ein (<code>{`{ "enrolled": true }`}</code>), bereits gekaufte melden{" "}
+        <code>{`{ "alreadyEnrolled": true }`}</code>. Optional:{" "}
+        <code>couponCode</code> (deine Kurs-Gutscheine werden serverseitig
+        geprüft und angewendet) und <code>locale</code>. Die Rücksprung-URLs
+        müssen <code>https</code> sein (<code>http</code> nur für
+        localhost); identische Anfragen liefern 30 Minuten lang dieselbe
+        Checkout-URL statt neuer Sessions.
+      </p>
+      <CodeBlock>{CHECKOUT_EXAMPLE}</CodeBlock>
+      <CodeBlock>{CHECKOUT_RESPONSE}</CodeBlock>
       <Callout>
         <p>
-          <strong>In Arbeit:</strong> Abruf der Kursinhalte für eingeschriebene
-          Nutzer:innen und ein vollständiger API-Checkout. Bis dahin läuft der
-          Kauf über den mitgelieferten Kauflink – deine Kund:innen landen auf
-          der sicheren LearnSphere-Kaufseite und der Verkauf wird dir mit 75 %
-          gutgeschrieben.
+          <strong>Kaufbestätigung:</strong> Verlass dich nicht auf die
+          Rückkehr zur success-URL (die kann ausbleiben). Prüfe nach dem Kauf{" "}
+          <code>/api/v1/enrollments</code> – die Einschreibung erscheint dort,
+          sobald Stripe die Zahlung bestätigt hat.
         </p>
       </Callout>
       <SectionH3>So schützt du deinen Key</SectionH3>
@@ -762,23 +829,69 @@ function EnglishDocs() {
       <CodeBlock>{CREATOR_EXAMPLE}</CodeBlock>
       <p>Without a valid key or active plan you get an error:</p>
       <CodeBlock>{ERROR_EXAMPLE}</CodeBlock>
+      <Callout>
+        <p>
+          <strong>Server-only:</strong> the creator API does not answer
+          browser requests (no CORS) – your key belongs on your server
+          exclusively. Read endpoints are limited to 120 requests/minute per
+          key, checkout to 20; on 429 the <code>Retry-After</code> header
+          tells you when to continue.
+        </p>
+      </Callout>
       <Endpoint path="/api/v1/courses" />
       <p>
         All of your published courses with prices, ratings, <code>url</code>{" "}
         (purchase link with <code>?via=api</code> so the sale is attributed to
-        your channel) and <code>embedUrl</code> for the widget.
+        your channel) and <code>embedUrl</code> for the widget. Optionally
+        paginated via <code>?page=1&amp;per=25</code> (max. 100) – a{" "}
+        <code>meta</code> block is added then.
       </p>
       <Endpoint path="/api/v1/courses/{slug}" />
       <p>
         Course detail including the full curriculum (sections and lessons with
         duration and preview flag) – for your own courses only.
       </p>
+      <Endpoint path="/api/v1/courses/{slug}/content" />
+      <p>
+        The full content of your course: sections, lessons and resolved
+        blocks (texts, signed video/file URLs, chapter marks, AI provenance
+        notes). Meant for server-side delivery to enrolled users – the signed
+        media URLs expire, so fetch them fresh per request instead of
+        caching. Translations via <code>?lang=en</code>.
+      </p>
+      <Endpoint path="/api/v1/enrollments?email={email}" />
+      <p>
+        A buyer&apos;s enrollments in <em>your</em> courses – this is how
+        your site decides who gets to see content: sign the user in on your
+        side, check their email here, deliver the course content on a match.
+        Optional <code>&amp;course={"{slug}"}</code> for a single course.
+      </p>
+      <CodeBlock>{ENROLLMENTS_RESPONSE}</CodeBlock>
+      <Endpoint method="POST" path="/api/v1/checkout" />
+      <p>
+        The full checkout for your own site: send the course slug, the
+        buyer&apos;s email and your return URLs – you get back a Stripe
+        checkout URL to redirect to. After payment the enrollment is created
+        automatically (an account is created from the email if needed – the
+        person is informed by email), and the sale counts as an external
+        channel with a <strong>75% share</strong> for you. Free courses
+        enroll directly (<code>{`{ "enrolled": true }`}</code>);
+        already-purchased ones respond with{" "}
+        <code>{`{ "alreadyEnrolled": true }`}</code>. Optional:{" "}
+        <code>couponCode</code> (your course coupons are validated and
+        applied server-side) and <code>locale</code>. Return URLs must be{" "}
+        <code>https</code> (<code>http</code> only for localhost); identical
+        requests return the same checkout URL for 30 minutes instead of new
+        sessions.
+      </p>
+      <CodeBlock>{CHECKOUT_EXAMPLE}</CodeBlock>
+      <CodeBlock>{CHECKOUT_RESPONSE}</CodeBlock>
       <Callout>
         <p>
-          <strong>In progress:</strong> fetching course content for enrolled
-          users and a full API checkout. Until then, purchases run through the
-          provided link – your customers land on the secure LearnSphere
-          checkout and the sale is credited to you at 75%.
+          <strong>Confirming the purchase:</strong> don&apos;t rely on the
+          return to your success URL (it may never happen). After the
+          purchase, poll <code>/api/v1/enrollments</code> – the enrollment
+          appears there as soon as Stripe confirms the payment.
         </p>
       </Callout>
       <SectionH3>Protecting your key</SectionH3>

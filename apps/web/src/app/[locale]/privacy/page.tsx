@@ -308,6 +308,14 @@ export default async function PrivacyPage({
           performance of the user contract (Art. 6(1)(b) GDPR). Account
           data is stored until you delete your account.
         </p>
+        <p>
+          If you purchase a course through the website of a course
+          provider who delivers their content via LearnSphere, we create
+          an account with the email address given at purchase (unless one
+          already exists) to handle access, invoicing and refund rights
+          (Art. 6(1)(b) GDPR). You will be informed by email and can take
+          over or delete the account at any time.
+        </p>
         <h3>Learning data and certificates</h3>
         <p>
           When you use courses, we process your enrollments, watch
@@ -727,6 +735,15 @@ export default async function PrivacyPage({
         Geheimnis für deine Authenticator-App (TOTP). Die Verarbeitung
         erfolgt zur Durchführung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b
         DSGVO). Kontodaten speichern wir, bis du dein Konto löschst.
+      </p>
+      <p>
+        Kaufst du einen Kurs über die Website eines Kursanbieters, der
+        seine Inhalte über LearnSphere bereitstellt, legen wir für die
+        Abwicklung (Kurszugang, Rechnung, Rückgaberecht) ein Konto mit der
+        beim Kauf angegebenen E-Mail-Adresse an, sofern noch keins
+        existiert (Art. 6 Abs. 1 lit. b DSGVO). Du wirst darüber per
+        E-Mail informiert und kannst das Konto jederzeit übernehmen oder
+        löschen lassen.
       </p>
       <h3>Lerndaten und Zertifikate</h3>
       <p>

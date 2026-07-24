@@ -1,5 +1,8 @@
 import type Stripe from "stripe";
+import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
+import { sendMail } from "@/lib/mail";
+import { buildEmail } from "@/lib/email-template";
 import {
   affiliateShareCents,
   creatorShareCents,
@@ -135,6 +138,128 @@ export async function fulfillCartCheckout(
 }
 
 /**
+ * Transparenz-Mail nach automatischer Konto-Anlage (DSGVO): Die Person
+ * erfährt, dass und warum ein Konto existiert, und wie sie es übernimmt
+ * (Passwort setzen) oder loswird. Mail-Fehler brechen nichts ab.
+ */
+async function sendAccountCreatedMail(
+  email: string,
+  locale: string
+): Promise<void> {
+  try {
+    const t = await getTranslations({ locale, namespace: "mail.apiAccount" });
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const resetPath =
+      locale === "en" ? "forgot-password" : "passwort-vergessen";
+    const mail = buildEmail({
+      locale,
+      preview: t("preview"),
+      heading: t("heading"),
+      paragraphs: [t("intro"), t("why")],
+      button: { label: t("button"), url: `${appUrl}/${locale}/${resetPath}` },
+      note: t("note"),
+    });
+    await sendMail({
+      to: email,
+      subject: t("subject"),
+      text: mail.text,
+      html: mail.html,
+    });
+  } catch (error) {
+    console.error("[api-checkout] Konto-Info-Mail fehlgeschlagen:", error);
+  }
+}
+
+/**
+ * Findet das Konto zur Käufer-E-Mail eines API-Checkouts oder legt es an.
+ * Neu angelegte Konten haben kein Passwort – der Login läuft dann über
+ * „Passwort vergessen" oder OAuth mit derselben Adresse. Bei der Anlage
+ * geht eine Transparenz-Mail an die Adresse.
+ */
+export async function findOrCreateBuyer(
+  email: string,
+  locale: string
+): Promise<string> {
+  const existing = await db.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const normalizedLocale = locale === "en" ? "en" : "de";
+  const user = await db.user.create({
+    data: {
+      email,
+      // Anzeigename aus dem Local-Part – die Person kann ihn später ändern
+      name: email.split("@")[0] || email,
+      locale: normalizedLocale,
+    },
+  });
+  await sendAccountCreatedMail(email, normalizedLocale);
+  return user.id;
+}
+
+/**
+ * Schaltet einen Kurskauf über die Creator-API frei (Headless-Checkout).
+ * Anders als beim Plattform-Checkout gibt es zum Kaufzeitpunkt evtl. noch
+ * kein Konto – es wird anhand der E-Mail gefunden oder angelegt.
+ * Idempotent über die Einschreibung.
+ */
+export async function fulfillApiCourseCheckout(
+  session: Stripe.Checkout.Session
+): Promise<void> {
+  const courseId = session.metadata?.courseId;
+  const email = (
+    session.metadata?.email ??
+    session.customer_details?.email ??
+    ""
+  ).toLowerCase();
+  if (!courseId || !email) return;
+  if (session.payment_status !== "paid") return;
+
+  const course = await db.course.findUnique({
+    where: { id: courseId },
+    select: { id: true, priceCents: true },
+  });
+  if (!course) return;
+
+  const salePrice = Number(session.metadata?.salePrice) || course.priceCents;
+  const userId = await findOrCreateBuyer(
+    email,
+    session.metadata?.locale ?? "de"
+  );
+
+  const existing = await db.enrollment.findUnique({
+    where: { userId_courseId: { userId, courseId } },
+  });
+  if (existing) return;
+
+  const couponCode = session.metadata?.couponCode || null;
+  await db.$transaction(async (tx) => {
+    await tx.enrollment.create({
+      data: {
+        userId,
+        courseId,
+        pricePaidCents: salePrice,
+        couponCode,
+        // Verkauf über die eigene Seite des Creators → 75-%-Anteil
+        salesChannel: "EXTERNAL",
+        creatorShareCents: creatorShareCents(salePrice, "EXTERNAL"),
+        // 30-Tage-Rückgabegarantie (bezahlter Kauf)
+        refundableUntil: refundDeadline(new Date()),
+        stripeSessionId: session.id,
+      },
+    });
+    if (couponCode) {
+      await tx.coupon.updateMany({
+        where: { code: couponCode, courses: { some: { courseId } } },
+        data: { redeemedCount: { increment: 1 } },
+      });
+    }
+  });
+}
+
+/**
  * Kehrt ein Checkout-Fulfillment um (volle Erstattung oder Chargeback):
  * Die Einschreibung wird entfernt – damit erlöschen Kurszugang, Zertifikat
  * (DB-Cascade) und die Creator-/Affiliate-Anteile, die aus der Enrollment-
@@ -144,6 +269,15 @@ export async function fulfillCartCheckout(
 export async function revokeCheckoutEnrollments(
   session: Stripe.Checkout.Session
 ): Promise<void> {
+  // API-Checkout: kein userId in den Metadaten (Konto entsteht erst beim
+  // Fulfillment) – die Einschreibung hängt an der Session-ID
+  if (session.metadata?.kind === "api_course") {
+    await db.enrollment.deleteMany({
+      where: { stripeSessionId: session.id },
+    });
+    return;
+  }
+
   const userId = session.metadata?.userId;
   if (!userId) return;
 

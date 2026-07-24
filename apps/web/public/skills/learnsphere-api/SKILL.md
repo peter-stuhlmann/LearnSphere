@@ -5,9 +5,9 @@ description: Fetch and display LearnSphere course data in a project. Covers the 
 
 # LearnSphere API
 
-Integrate LearnSphere course data. Two APIs are available today; both return
-JSON (UTF-8) over HTTPS and wrap results in `{ "data": … }`, errors in
-`{ "error": "code" }`. Full docs: `/en/api-docs` (or `/de/api-doku`) on the
+Integrate LearnSphere course data, deliver course content headless, and
+sell courses on your own site. All APIs return JSON (UTF-8) over HTTPS and
+wrap results in `{ "data": … }`, errors in `{ "error": "code" }`. Full docs: `/en/api-docs` (or `/de/api-doku`) on the
 LearnSphere host.
 
 Base URL:
@@ -75,14 +75,77 @@ listed in the shop. Sales via the returned `url` (contains `?via=api`) are
 credited to the creator's own channel (75% share) — always link with that
 URL, never strip the query.
 
+**Server-only:** the creator API sends no CORS headers — browser calls
+fail by design, because the key must never be in browser code. Rate
+limits per key: 120 requests/minute for reads, 20/minute for checkout;
+a 429 response carries `Retry-After` (seconds).
+
 ```
-GET {BASE}/api/v1/courses
+GET {BASE}/api/v1/courses            (optional ?page=1&per=25, max per=100)
 GET {BASE}/api/v1/courses/{slug}
 Authorization: Bearer ls_<64 hex chars>
 ```
 
 List items additionally include `listedInShop` and `embedUrl` (iframe
-widget). The detail endpoint returns the full curriculum metadata.
+widget). With pagination params a `meta` block is added. The detail
+endpoint returns the full curriculum metadata.
+
+### Course content (headless delivery)
+
+```
+GET {BASE}/api/v1/courses/{slug}/content?lang=<de|en>
+Authorization: Bearer ls_<64 hex chars>
+```
+
+The full content of the key owner's OWN course: `sections[]` → `lessons[]`
+→ `blocks[]` (`{ id, type, title, url, fileName, poster, content,
+durationSeconds, chapters, provenance }`). Media URLs for protected
+uploads are **signed and expire** — fetch them fresh per request, never
+cache or persist them. Serve content strictly server-side and only to
+users you have verified as enrolled (see next endpoint).
+
+### Enrollment check (content gating)
+
+```
+GET {BASE}/api/v1/enrollments?email=<buyer>&course=<slug>
+Authorization: Bearer ls_<64 hex chars>
+```
+
+Returns the buyer's enrollments in the key owner's courses:
+`{ "data": [{ "course": "<slug>", "enrolledAt": "ISO-8601",
+"completedAt": null }] }`. Empty `data` = not enrolled. Gate your content
+with this: authenticate the user on YOUR site, check their email here,
+deliver content on a match.
+
+### Checkout (sell on your own site)
+
+```
+POST {BASE}/api/v1/checkout
+Authorization: Bearer ls_<64 hex chars>
+Content-Type: application/json
+
+{ "course": "<slug>", "email": "<buyer email>",
+  "successUrl": "https://your-site/thanks",
+  "cancelUrl": "https://your-site/course", "locale": "de",
+  "couponCode": "OPTIONAL" }
+```
+
+Return URLs must be `https` (`http` only for localhost). `couponCode` is
+optional; the creator's course coupons are validated and applied
+server-side (invalid → 400 `coupon_invalid`).
+
+Responses: `{ "data": { "url": "<stripe checkout url>" } }` → redirect the
+buyer there; free courses (also free via coupon) enroll immediately
+(`{ "enrolled": true }`); already-bought courses return
+`{ "alreadyEnrolled": true }`. Identical requests return the same
+checkout URL for 30 minutes (idempotent). After payment, the enrollment
+is created automatically by webhook (a LearnSphere account is created
+from the email if none exists — the person is notified by email) and the
+sale is credited at the 75% external-channel share. Do NOT treat the
+redirect to `successUrl` as proof of payment — poll
+`/api/v1/enrollments` instead. Stripe replaces `{CHECKOUT_SESSION_ID}`
+in the `successUrl` (appended as `session_id` if you don't include the
+placeholder yourself).
 
 Server-side fetch example (Next.js route handler / Node):
 
@@ -102,10 +165,13 @@ const { data } = await res.json();
 
 | Status | `error` code        | What to do                                        |
 | ------ | ------------------- | ------------------------------------------------- |
+| 400    | `invalid_input` / `invalid_json` / `email_invalid` / `coupon_invalid` | Fix the request payload |
 | 401    | `unauthorized`      | Key missing/invalid/revoked — check env var       |
 | 403    | `api_plan_required` | Account has no active API plan — inform the user  |
 | 404    | `not_found`         | Course unpublished/removed — hide it gracefully   |
-| 429    | `rate_limited`      | Back off and retry after a short delay            |
+| 413    | `payload_too_large` | Checkout body over 10 KB — something is wrong     |
+| 429    | `rate_limited`      | Wait `Retry-After` seconds, then retry            |
+| 503    | `payments_unavailable` | Payments not configured — try again later      |
 
 Degrade gracefully: if the API is unreachable, render a fallback instead of
 crashing the page.

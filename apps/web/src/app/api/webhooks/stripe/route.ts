@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { db } from "@/lib/db";
 import { isStripeEnabled, stripe } from "@/lib/stripe";
 import {
+  fulfillApiCourseCheckout,
   fulfillApiSubscriptionCheckout,
   fulfillCartCheckout,
   fulfillCourseCheckout,
@@ -64,6 +65,8 @@ export async function POST(request: NextRequest) {
         await fulfillCartCheckout(session);
       } else if (session.metadata?.kind === "api_subscription") {
         await fulfillApiSubscriptionCheckout(session);
+      } else if (session.metadata?.kind === "api_course") {
+        await fulfillApiCourseCheckout(session);
       }
       break;
     }

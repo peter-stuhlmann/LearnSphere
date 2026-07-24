@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { API_CORS_HEADERS, authenticateApiRequest } from "@/lib/api-auth";
+import { authenticateApiRequest, retryAfterHeaders } from "@/lib/api-auth";
 import { courseLanguages } from "@elearning/core/course-i18n";
 
-export function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: API_CORS_HEADERS });
-}
+/*
+ * Bewusst KEIN CORS/OPTIONS: Die Creator-API gehört auf den Server des
+ * Integrators – der API-Key darf nie in Browser-Code stehen.
+ */
 
 /** GET /api/v1/courses/[slug] – Kursdetail inkl. Curriculum (nur Metadaten). */
 export async function GET(
@@ -16,7 +17,7 @@ export async function GET(
   if (!authResult.ok) {
     return NextResponse.json(
       { error: authResult.error },
-      { status: authResult.status, headers: API_CORS_HEADERS }
+      { status: authResult.status, headers: retryAfterHeaders(authResult.status) }
     );
   }
 
@@ -41,10 +42,7 @@ export async function GET(
   });
 
   if (!course || !course.published || course.creatorId !== authResult.userId) {
-    return NextResponse.json(
-      { error: "not_found" },
-      { status: 404, headers: API_CORS_HEADERS }
-    );
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -70,6 +68,5 @@ export async function GET(
         })),
       },
     },
-    { headers: API_CORS_HEADERS }
   );
 }

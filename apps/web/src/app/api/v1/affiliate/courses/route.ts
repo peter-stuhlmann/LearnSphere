@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { API_CORS_HEADERS } from "@/lib/api-auth";
+import { API_CORS_HEADERS, parseBearerApiKey } from "@/lib/api-auth";
 import { hashToken } from "@/lib/tokens";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
@@ -21,9 +21,8 @@ export function OPTIONS() {
  * eigenen Affiliate-Code (?aff=…) → 15 % Provision; ohne den Parameter nicht.
  */
 export async function GET(request: NextRequest) {
-  const header = request.headers.get("authorization") ?? "";
-  const match = header.match(/^Bearer\s+(ls_[0-9a-f]{64})$/i);
-  if (!match) {
+  const plainKey = parseBearerApiKey(request);
+  if (!plainKey) {
     return NextResponse.json(
       { error: "unauthorized" },
       { status: 401, headers: API_CORS_HEADERS }
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
   }
 
   const key = await db.apiKey.findUnique({
-    where: { keyHash: hashToken(match[1]) },
+    where: { keyHash: hashToken(plainKey) },
     select: {
       id: true,
       revokedAt: true,
@@ -54,7 +53,7 @@ export async function GET(request: NextRequest) {
   if (!(await checkRateLimit(`affiliate-api:${key.id}`, { limit: 60, windowMs: 60_000 }))) {
     return NextResponse.json(
       { error: "rate_limited" },
-      { status: 429, headers: API_CORS_HEADERS }
+      { status: 429, headers: { ...API_CORS_HEADERS, "Retry-After": "60" } }
     );
   }
 
