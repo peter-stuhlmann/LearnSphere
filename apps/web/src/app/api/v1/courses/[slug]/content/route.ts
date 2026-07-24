@@ -48,7 +48,13 @@ export async function GET(
             orderBy: { order: "asc" },
             include: { blocks: { orderBy: { order: "asc" } } },
           },
+          quiz: { select: { id: true, title: true, passPercent: true } },
         },
+      },
+      quizzes: {
+        where: { kind: "FINAL" },
+        select: { id: true, title: true, passPercent: true },
+        take: 1,
       },
     },
   });
@@ -82,6 +88,11 @@ export async function GET(
         language: course.language,
         languages: courseLanguages(course),
         requestedLanguage: locale,
+        // Prüfungs-Rahmen: Zulassung ab X % Sehanteil, Abschlussprüfung
+        // über /api/v1/quizzes/{id}, Fortschritt über /api/v1/lessons/…
+        requiredWatchPercent: course.requiredWatchPercent,
+        finalExamRequired: course.finalExamRequired,
+        finalQuiz: course.quizzes[0] ?? null,
         sections: course.sections.map((section) => ({
           id: section.id,
           title: translatedText(
@@ -90,6 +101,7 @@ export async function GET(
             "title",
             section.title
           ),
+          quiz: section.quiz,
           lessons: section.lessons.map((lesson) => ({
             id: lesson.id,
             title: translatedText(
