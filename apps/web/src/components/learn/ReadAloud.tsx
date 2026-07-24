@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import styled, { css, keyframes } from "styled-components";
 import { Select } from "@/components/ui/Select";
+import { ToolbarButton } from "@/components/ui/primitives";
 import type { TtsChunk } from "@/lib/tts";
 import { aiGeneratedProps } from "@/lib/ai-marking";
 
@@ -12,47 +13,6 @@ const Controls = styled.div`
   align-items: center;
   flex-wrap: wrap;
   gap: 0.45rem;
-`;
-
-const PlayerButton = styled.button<{ $active?: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.45rem 0.95rem;
-  border-radius: ${({ theme }) => theme.radii.pill};
-  font-size: 0.85rem;
-  border: 1px solid
-    ${({ theme, $active }) =>
-      $active ? "rgba(200, 255, 77, 0.45)" : theme.colors.border};
-  background: ${({ theme, $active }) =>
-    $active ? theme.colors.accentSoft : theme.colors.bgElevated};
-  color: ${({ theme, $active }) =>
-    $active ? theme.colors.accent : theme.colors.textMuted};
-  transition: color 140ms ease, border-color 140ms ease;
-
-  &:hover:not(:disabled) {
-    color: ${({ theme }) => theme.colors.accent};
-    border-color: ${({ theme }) => theme.colors.accent};
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.colors.accent};
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-  }
-
-  svg {
-    width: 13px;
-    height: 13px;
-    flex-shrink: 0;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-  }
 `;
 
 const bounce = keyframes`
@@ -100,11 +60,6 @@ const Equalizer = styled.span<{ $playing: boolean }>`
       animation: none;
     }
   }
-`;
-
-const RateSelectWrap = styled.div`
-  /* kompakte Pill in der Player-Zeile – Trigger-Größe an die Buttons angleichen */
-  font-size: 0.85rem;
 `;
 
 /* Karaoke-Panel: bricht in der Titelzeile in eine eigene volle Zeile um */
@@ -506,7 +461,7 @@ export function ReadAloud({
   return (
     <>
       <Controls>
-        <PlayerButton
+        <ToolbarButton
           type="button"
           $active={playing}
           aria-pressed={playing}
@@ -536,30 +491,29 @@ export function ReadAloud({
               : status === "paused"
                 ? t("readAloudResume")
                 : t("readAloud")}
-        </PlayerButton>
+        </ToolbarButton>
 
         {status === "playing" || status === "paused" ? (
-          <PlayerButton type="button" onClick={stop}>
+          <ToolbarButton type="button" onClick={stop}>
             <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>
               <rect x="3.5" y="3.5" width="9" height="9" rx="1" />
             </svg>
             {t("readAloudStop")}
-          </PlayerButton>
+          </ToolbarButton>
         ) : null}
 
-        <RateSelectWrap>
-          <Select
-            inline
-            pill
-            ariaLabel={t("readAloudSpeed")}
-            value={String(rate)}
-            options={TTS_RATES.map((value) => ({
-              value: String(value),
-              label: `${value}×`,
-            }))}
-            onChange={(value) => changeRate(Number(value))}
-          />
-        </RateSelectWrap>
+        <Select
+          inline
+          pill
+          compact
+          ariaLabel={t("readAloudSpeed")}
+          value={String(rate)}
+          options={TTS_RATES.map((value) => ({
+            value: String(value),
+            label: `${value}×`,
+          }))}
+          onChange={(value) => changeRate(Number(value))}
+        />
       </Controls>
 
       {showPanel ? (

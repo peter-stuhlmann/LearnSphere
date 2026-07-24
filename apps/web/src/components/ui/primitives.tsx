@@ -80,6 +80,53 @@ export const GhostButton = styled.button`
   }
 `;
 
+/**
+ * Kompakte Pill für Werkzeugleisten (z. B. Lern-Ansicht: Fokus, Vorlesen,
+ * Lesetempo). Bewusst kleiner und leiser als GhostButton – Werkzeuge neben
+ * dem Inhalt, keine Haupt-Aktionen. `$active` markiert einen Zustand
+ * (z. B. „liest gerade vor").
+ */
+export const ToolbarButton = styled.button<{ $active?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: ${({ theme }) => theme.radii.pill};
+  font-size: 0.85rem;
+  border: 1px solid
+    ${({ theme, $active }) =>
+      $active ? "rgba(200, 255, 77, 0.45)" : theme.colors.border};
+  background: ${({ theme, $active }) =>
+    $active ? theme.colors.accentSoft : theme.colors.bgElevated};
+  color: ${({ theme, $active }) =>
+    $active ? theme.colors.accent : theme.colors.textMuted};
+  transition: color 140ms ease, border-color 140ms ease;
+
+  &:hover:not(:disabled) {
+    color: ${({ theme }) => theme.colors.accent};
+    border-color: ${({ theme }) => theme.colors.accent};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+  }
+
+  svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
 export const DangerButton = styled.button`
   ${buttonBase}
   background: ${({ theme }) => theme.colors.dangerSoft};

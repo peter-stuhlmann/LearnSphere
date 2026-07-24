@@ -15,7 +15,11 @@ const Root = styled.div<{ $inline: boolean }>`
   width: ${({ $inline }) => ($inline ? "auto" : "100%")};
 `;
 
-const Trigger = styled.button<{ $pill: boolean; $inline: boolean }>`
+const Trigger = styled.button<{
+  $pill: boolean;
+  $inline: boolean;
+  $compact: boolean;
+}>`
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -26,13 +30,18 @@ const Trigger = styled.button<{ $pill: boolean; $inline: boolean }>`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme, $pill }) =>
     $pill ? theme.radii.pill : theme.radii.md};
-  padding: ${({ $pill }) => ($pill ? "0.6rem 1rem" : "0.85rem 1rem")};
-  font-size: 0.95rem;
-  color: ${({ theme }) => theme.colors.text};
-  transition: border-color 160ms ease;
+  padding: ${({ $pill, $compact }) =>
+    $compact ? "0.45rem 0.95rem" : $pill ? "0.6rem 1rem" : "0.85rem 1rem"};
+  font-size: ${({ $compact }) => ($compact ? "0.85rem" : "0.95rem")};
+  color: ${({ theme, $compact }) =>
+    $compact ? theme.colors.textMuted : theme.colors.text};
+  transition: border-color 160ms ease, color 160ms ease;
 
   &:hover {
-    border-color: ${({ theme }) => theme.colors.borderStrong};
+    border-color: ${({ theme, $compact }) =>
+      $compact ? theme.colors.accent : theme.colors.borderStrong};
+    color: ${({ theme, $compact }) =>
+      $compact ? theme.colors.accent : theme.colors.text};
   }
 
   &:focus-visible {
@@ -106,6 +115,8 @@ export interface SelectProps {
   pill?: boolean;
   /** eigene Breite statt voller Breite (inline in Toolbars) */
   inline?: boolean;
+  /** kompakte Trigger-Größe passend zu ToolbarButton (Werkzeugleisten) */
+  compact?: boolean;
 }
 
 /**
@@ -120,6 +131,7 @@ export function Select({
   ariaLabel,
   pill = false,
   inline = false,
+  compact = false,
 }: SelectProps) {
   const listboxId = useId();
   const [open, setOpen] = useState(false);
@@ -255,6 +267,7 @@ export function Select({
         }
         $pill={pill}
         $inline={inline}
+        $compact={compact}
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={onKeyDown}
       >

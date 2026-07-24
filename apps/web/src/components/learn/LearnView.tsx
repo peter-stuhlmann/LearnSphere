@@ -39,6 +39,7 @@ import {
   Container,
   GhostButton,
   Kicker,
+  ToolbarButton,
 } from "@/components/ui/primitives";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 
@@ -251,30 +252,13 @@ const ContentColumn = styled.div<{ $focus: boolean }>`
     `}
 `;
 
-const FocusExit = styled.button`
+/* Gleiche Optik wie die Werkzeugleiste, nur schwebend über dem Vollbild */
+const FocusExit = styled(ToolbarButton)`
   position: fixed;
   top: 0.9rem;
   right: 1rem;
   z-index: 90;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 1rem;
-  border-radius: ${({ theme }) => theme.radii.pill};
-  border: 1px solid ${({ theme }) => theme.colors.borderStrong};
   background: ${({ theme }) => theme.colors.surface};
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 0.85rem;
-
-  &:hover {
-    color: ${({ theme }) => theme.colors.text};
-    border-color: ${({ theme }) => theme.colors.accent};
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.colors.accent};
-    outline-offset: 2px;
-  }
 `;
 
 /* Menüpunkt „Abschlussprüfung & Zertifikat" ganz unten in der Kurs-Sidebar */
@@ -935,14 +919,14 @@ export function LearnView({
                     }}
                   >
                     {!focusMode ? (
-                      <GhostButton
+                      <ToolbarButton
                         type="button"
                         aria-pressed={focusMode}
                         onClick={() => setFocusMode(true)}
                         title={t("focusHint")}
                       >
                         ⛶ {t("focusMode")}
-                      </GhostButton>
+                      </ToolbarButton>
                     ) : null}
                     {active.blocks.some(
                       (b) => b.type === "TEXT" && b.content.trim()
