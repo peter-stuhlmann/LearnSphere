@@ -41,6 +41,14 @@ export default async function TermsPage({
           purchase you receive permanent access to the course content as long
           as the course is offered on the platform.
         </p>
+        <p>
+          Course content is protected by copyright. Access is granted to you
+          personally for your own learning. Publishing, sharing or making
+          course content publicly available – <strong>including excerpts</strong>,
+          regardless of medium – is prohibited; this applies equally to
+          content retrieved via the API. Violations may lead to withdrawal of
+          access; further claims of the rights holders remain unaffected.
+        </p>
         <h2>4. Exams and certificates</h2>
         <p>
           Admission to the final exam may require a minimum watch share set by
@@ -106,6 +114,15 @@ export default async function TermsPage({
         Bestellvorgang angezeigte Preis. Nach dem Kauf erhältst du dauerhaften
         Zugriff auf die Kursinhalte, solange der Kurs auf der Plattform
         angeboten wird.
+      </p>
+      <p>
+        Kursinhalte sind urheberrechtlich geschützt. Der Zugriff wird dir
+        persönlich für eigene Lernzwecke eingeräumt. Eine Veröffentlichung,
+        Weitergabe oder öffentliche Zugänglichmachung von Kursinhalten –{" "}
+        <strong>auch auszugsweise</strong> und unabhängig vom Medium – ist
+        untersagt; das gilt gleichermaßen für über die API abgerufene
+        Inhalte. Zuwiderhandlungen können zum Entzug des Zugangs führen;
+        weitergehende Ansprüche der Rechteinhaber bleiben unberührt.
       </p>
       <h2>4. Prüfungen und Zertifikate</h2>
       <p>

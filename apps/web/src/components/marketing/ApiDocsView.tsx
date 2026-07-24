@@ -540,15 +540,24 @@ function GermanDocs() {
         Kursdetail inklusive komplettem Curriculum (Abschnitte und Lektionen
         mit Dauer und Vorschau-Flag) – nur für deine eigenen Kurse.
       </p>
-      <Endpoint path="/api/v1/courses/{slug}/content" />
+      <Endpoint path="/api/v1/courses/{slug}/content?email={email}" />
       <p>
-        Kompletter Kursinhalt deines Kurses: Abschnitte, Lektionen und
-        aufgelöste Blöcke (Texte, signierte Video-/Datei-URLs, Kapitelmarken,
-        KI-Herkunftsangaben). Für die serverseitige Auslieferung an
-        eingeschriebene Nutzer:innen – die signierten Medien-URLs laufen ab,
-        also pro Abruf frisch holen statt cachen. Übersetzungen über{" "}
-        <code>?lang=en</code>.
+        Kursinhalt deines Kurses: Abschnitte, Lektionen und aufgelöste
+        Blöcke (Texte, signierte Video-/Datei-URLs, Kapitelmarken,
+        KI-Herkunftsangaben). Die <code>email</code> ist Pflicht und muss in
+        diesem Kurs eingeschrieben sein – Inhalte gibt es ausschließlich im
+        Kontext eines gültigen Kaufs, auch für dich als Betreiber (sonst
+        403). Die signierten Medien-URLs laufen ab, also pro Abruf frisch
+        holen statt cachen. Übersetzungen über <code>&amp;lang=en</code>.
       </p>
+      <Callout $tone="warn">
+        <p>
+          <strong>Veröffentlichung untersagt:</strong> Kursinhalte dürfen
+          laut AGB nicht veröffentlicht oder öffentlich zugänglich gemacht
+          werden – auch nicht auszugsweise. Liefere sie nur an die jeweils
+          eingeschriebene Person aus.
+        </p>
+      </Callout>
       <Endpoint path="/api/v1/enrollments?email={email}" />
       <p>
         Einschreibungen einer Käufer:in in <em>deinen</em> Kursen – damit
@@ -851,14 +860,23 @@ function EnglishDocs() {
         Course detail including the full curriculum (sections and lessons with
         duration and preview flag) – for your own courses only.
       </p>
-      <Endpoint path="/api/v1/courses/{slug}/content" />
+      <Endpoint path="/api/v1/courses/{slug}/content?email={email}" />
       <p>
-        The full content of your course: sections, lessons and resolved
-        blocks (texts, signed video/file URLs, chapter marks, AI provenance
-        notes). Meant for server-side delivery to enrolled users – the signed
-        media URLs expire, so fetch them fresh per request instead of
-        caching. Translations via <code>?lang=en</code>.
+        The content of your course: sections, lessons and resolved blocks
+        (texts, signed video/file URLs, chapter marks, AI provenance
+        notes). The <code>email</code> is required and must be enrolled in
+        this course – content is only ever delivered in the context of a
+        valid purchase, including for you as the site operator (otherwise
+        403). The signed media URLs expire, so fetch them fresh per request
+        instead of caching. Translations via <code>&amp;lang=en</code>.
       </p>
+      <Callout $tone="warn">
+        <p>
+          <strong>Publishing prohibited:</strong> per the terms of service,
+          course content must not be published or made publicly available –
+          not even as excerpts. Deliver it only to the enrolled person.
+        </p>
+      </Callout>
       <Endpoint path="/api/v1/enrollments?email={email}" />
       <p>
         A buyer&apos;s enrollments in <em>your</em> courses – this is how

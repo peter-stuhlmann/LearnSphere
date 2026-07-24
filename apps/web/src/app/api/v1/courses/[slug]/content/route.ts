@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { authenticateApiRequest, retryAfterHeaders } from "@/lib/api-auth";
+import { resolveEnrolledBuyer } from "../../../_lib/headless";
 import {
   courseLanguages,
   pickCourseLanguage,
@@ -16,14 +17,17 @@ import { mediaSignSecret, signedMediaUrl } from "@/lib/media-sign";
  */
 
 /**
- * GET /api/v1/courses/[slug]/content – kompletter Kursinhalt des EIGENEN
+ * GET /api/v1/courses/[slug]/content?email=… – Kursinhalt des EIGENEN
  * Kurses inkl. aufgelöster Blöcke und signierter Medien-URLs.
  *
- * Für Headless-Seiten: Der Integrator prüft die Berechtigung seiner
- * Nutzer:innen selbst (z. B. über /api/v1/enrollments) und rendert die
- * Inhalte serverseitig. Die Antwort gehört deshalb NIE ungeprüft in den
- * Browser – und die signierten Medien-URLs laufen ab, also pro Aufruf
- * frisch holen statt cachen.
+ * Inhalte gibt es AUSSCHLIESSLICH im Kontext eines gültigen Kaufs: Die
+ * angegebene E-Mail muss in diesem Kurs eingeschrieben sein – das gilt
+ * auch für den Betreiber der Integrator-Seite selbst. So gibt es keinen
+ * Sammel-Export ohne Einschreibung; die AGB untersagen zudem jede
+ * Veröffentlichung von Kursinhalten, auch auszugsweise.
+ *
+ * Die Antwort gehört NIE ungeprüft in den Browser – und die signierten
+ * Medien-URLs laufen ab, also pro Aufruf frisch holen statt cachen.
  */
 export async function GET(
   request: NextRequest,
@@ -60,6 +64,19 @@ export async function GET(
   });
   if (!course || !course.published || course.creatorId !== authResult.userId) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  // Kein Zugriff ohne verifizierten Kauf – auch nicht für den Betreiber
+  const buyer = await resolveEnrolledBuyer(
+    request.nextUrl.searchParams.get("email"),
+    course.id,
+    authResult.userId
+  );
+  if (!buyer.ok) {
+    return NextResponse.json(
+      { error: buyer.error },
+      { status: buyer.error === "email_invalid" ? 400 : 403 }
+    );
   }
 
   const locale = pickCourseLanguage(

@@ -93,16 +93,23 @@ endpoint returns the full curriculum metadata.
 ### Course content (headless delivery)
 
 ```
-GET {BASE}/api/v1/courses/{slug}/content?lang=<de|en>
+GET {BASE}/api/v1/courses/{slug}/content?email=<enrolled buyer>&lang=<de|en>
 Authorization: Bearer ls_<64 hex chars>
 ```
 
-The full content of the key owner's OWN course: `sections[]` → `lessons[]`
+The content of the key owner's OWN course: `sections[]` → `lessons[]`
 → `blocks[]` (`{ id, type, title, url, fileName, poster, content,
-durationSeconds, chapters, provenance }`). Media URLs for protected
-uploads are **signed and expire** — fetch them fresh per request, never
-cache or persist them. Serve content strictly server-side and only to
-users you have verified as enrolled (see next endpoint).
+durationSeconds, chapters, provenance }`). The `email` parameter is
+REQUIRED and must belong to a user enrolled in this course — content is
+only ever delivered in the context of a valid purchase, even for the
+site operator/key owner (otherwise 403 `not_enrolled`). Media URLs for
+protected uploads are **signed and expire** — fetch them fresh per
+request, never cache or persist them. Serve content strictly
+server-side and only to the enrolled person.
+
+**Legal**: the LearnSphere terms prohibit publishing or re-publishing
+course content, including excerpts, in any medium. Never render course
+content on public pages; never store it beyond the request.
 
 ### Enrollment check (content gating)
 

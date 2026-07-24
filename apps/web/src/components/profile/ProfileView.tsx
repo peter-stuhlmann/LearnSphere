@@ -153,7 +153,7 @@ const ModeGrid = styled.div`
   margin-top: 1rem;
 `;
 
-const ModeCard = styled(Link)<{ $tone: "accent" | "violet" }>`
+const ModeCard = styled(Link)<{ $tone: "accent" | "violet" | "partner" }>`
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -163,9 +163,17 @@ const ModeCard = styled(Link)<{ $tone: "accent" | "violet" }>`
   color: ${({ theme }) => theme.colors.text};
   border: 1px solid
     ${({ $tone }) =>
-      $tone === "violet" ? "rgba(139,124,255,0.45)" : "rgba(200,255,77,0.45)"};
+      $tone === "violet"
+        ? "rgba(139,124,255,0.45)"
+        : $tone === "partner"
+          ? "rgba(77,216,255,0.45)"
+          : "rgba(200,255,77,0.45)"};
   background: ${({ theme, $tone }) =>
-    $tone === "violet" ? theme.colors.violetSoft : theme.colors.accentSoft};
+    $tone === "violet"
+      ? theme.colors.violetSoft
+      : $tone === "partner"
+        ? theme.colors.partnerSoft
+        : theme.colors.accentSoft};
   transition: transform 150ms ease;
 
   &:hover {
@@ -185,7 +193,11 @@ const ModeCard = styled(Link)<{ $tone: "accent" | "violet" }>`
     font-size: 1.1rem;
     white-space: nowrap;
     color: ${({ theme, $tone }) =>
-      $tone === "violet" ? theme.colors.violet : theme.colors.accent};
+      $tone === "violet"
+        ? theme.colors.violet
+        : $tone === "partner"
+          ? theme.colors.partner
+          : theme.colors.accent};
   }
 
   span {
@@ -197,7 +209,11 @@ const ModeCard = styled(Link)<{ $tone: "accent" | "violet" }>`
     flex-shrink: 0;
     font-size: 1.1rem;
     color: ${({ theme, $tone }) =>
-      $tone === "violet" ? theme.colors.violet : theme.colors.accent};
+      $tone === "violet"
+        ? theme.colors.violet
+        : $tone === "partner"
+          ? theme.colors.partner
+          : theme.colors.accent};
   }
 `;
 
@@ -422,6 +438,15 @@ export function ProfileView({ profile, billing }: ProfileViewProps) {
                   <div className="text">
                     <strong>{t("creatorCard")}</strong>
                     <span>{t("creatorCardText")}</span>
+                  </div>
+                  <span className="arrow" aria-hidden>
+                    →
+                  </span>
+                </ModeCard>
+                <ModeCard href="/affiliate" $tone="partner">
+                  <div className="text">
+                    <strong>{t("partnerCard")}</strong>
+                    <span>{t("partnerCardText")}</span>
                   </div>
                   <span className="arrow" aria-hidden>
                     →
