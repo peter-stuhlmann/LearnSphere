@@ -36,7 +36,7 @@ const RESERVED_LABELS = new Set([
 ]);
 
 function normalizeHost(raw: string): string {
-  return raw.split(":")[0]?.trim().toLowerCase() ?? "";
+  return raw.split(":")[0].trim().toLowerCase();
 }
 
 /** Host der Hauptanwendung (learnsphere.one) aus NEXT_PUBLIC_APP_URL. */
