@@ -37,6 +37,11 @@ describe("validateSeatCount", () => {
 });
 
 describe("businessVolumeDiscountRate", () => {
+  it("gibt unterhalb der ersten Staffel keinen Rabatt", () => {
+    expect(businessVolumeDiscountRate(1)).toBe(0);
+    expect(businessVolumeDiscountRate(2)).toBe(0);
+  });
+
   it("staffelt den Rabatt nach Seat-Anzahl", () => {
     expect(businessVolumeDiscountRate(3)).toBe(0.1);
     expect(businessVolumeDiscountRate(9)).toBe(0.1);
