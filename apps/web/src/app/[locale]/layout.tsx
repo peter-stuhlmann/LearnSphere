@@ -9,6 +9,11 @@ import { routing } from "@/i18n/routing";
 import { Providers } from "@/app/providers";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { TenantHeader } from "@/components/tenant/TenantHeader";
+import { TenantFooter } from "@/components/tenant/TenantFooter";
+import { getRequestWorkspace } from "@/lib/services/workspace-service";
+import { NoScriptNotice } from "@/components/layout/NoScriptNotice";
+import { CartSync } from "@/components/cart/CartSync";
 import { PageTransition } from "@/components/layout/PageTransition";
 import { UnsavedChangesGuard } from "@/components/ui/UnsavedChangesGuard";
 import { ViewTransitionBridge } from "@/components/navigation/ViewTransitionBridge";
@@ -42,6 +47,18 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  // Auf einem Whitelabel-Mandanten-Host darf „LearnSphere" nirgends auftauchen –
+  // auch nicht im Tab-Titel: Default und Template tragen die Marke des Portals.
+  const workspace = await getRequestWorkspace();
+  if (workspace) {
+    return {
+      title: {
+        default: workspace.brandName,
+        template: `%s · ${workspace.brandName}`,
+      },
+      robots: { index: false, follow: false },
+    };
+  }
   const t = await getTranslations({ locale, namespace: "landing" });
   return {
     title: {
@@ -65,7 +82,11 @@ export default async function LocaleLayout({
   }
   setRequestLocale(locale);
 
-  const [messages, session] = await Promise.all([getMessages(), auth()]);
+  const [messages, session, workspace] = await Promise.all([
+    getMessages(),
+    auth(),
+    getRequestWorkspace(),
+  ]);
 
   // Name/Avatar frisch aus der DB, damit Profil-Änderungen sofort greifen
   const freshUser = session?.user?.id
@@ -84,19 +105,34 @@ export default async function LocaleLayout({
       <body>
         <NextIntlClientProvider messages={messages}>
           <Providers>
-            <Header
-              user={
-                freshUser
-                  ? {
-                      name: freshUser.name,
-                      image: freshUser.image,
-                      role: freshUser.role,
-                    }
-                  : null
-              }
-            />
+            {workspace ? (
+              <TenantHeader
+                brandName={workspace.brandName}
+                brandColor={workspace.brandColor}
+                loggedIn={Boolean(freshUser)}
+              />
+            ) : (
+              <Header
+                user={
+                  freshUser
+                    ? {
+                        name: freshUser.name,
+                        image: freshUser.image,
+                        role: freshUser.role,
+                      }
+                    : null
+                }
+              />
+            )}
+            <NoScriptNotice locale={locale} />
             <PageTransition>{children}</PageTransition>
-            <Footer />
+            {workspace ? (
+              <TenantFooter brandName={workspace.brandName} />
+            ) : (
+              <Footer />
+            )}
+            {/* eingeloggt: localStorage-Korb mit dem DB-Korb synchronisieren */}
+            {session?.user?.id ? <CartSync /> : null}
             <UnsavedChangesGuard />
             <ViewTransitionBridge />
             <CookieConsent />

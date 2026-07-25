@@ -17,6 +17,27 @@ async function requireAdmin(): Promise<{ id: string } | null> {
 }
 
 /**
+ * Whitelabel-Portal sperren/entsperren. Suspendierte Portale gehen für
+ * Subdomain UND Kundendomain sofort offline (Middleware liefert 404, der
+ * TLS-Ask-Endpoint verweigert neue Zertifikate).
+ */
+export async function setWorkspaceStatus(input: {
+  workspaceId: string;
+  status: "ACTIVE" | "SUSPENDED";
+}): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: "unauthorized" };
+
+  await db.businessWorkspace.update({
+    where: { id: input.workspaceId },
+    data: { status: input.status },
+  });
+
+  revalidatePath("/[locale]/admin/workspaces", "page");
+  return { ok: true };
+}
+
+/**
  * Manuelle Prüfung eines geflaggten Uploads: freigeben oder endgültig
  * sperren. Beim Sperren werden Kurse, die das Medium enthalten, sofort
  * auf Entwurf zurückgesetzt (das Publish-Gate verhindert Re-Publish).

@@ -5,6 +5,7 @@ import { isStripeEnabled, stripe } from "@/lib/stripe";
 import {
   fulfillApiCourseCheckout,
   fulfillApiSubscriptionCheckout,
+  fulfillBusinessLicenseCheckout,
   fulfillCartCheckout,
   fulfillCourseCheckout,
   revokeCheckoutEnrollments,
@@ -67,6 +68,8 @@ export async function POST(request: NextRequest) {
         await fulfillApiSubscriptionCheckout(session);
       } else if (session.metadata?.kind === "api_course") {
         await fulfillApiCourseCheckout(session);
+      } else if (session.metadata?.kind === "business_license") {
+        await fulfillBusinessLicenseCheckout(session);
       }
       break;
     }

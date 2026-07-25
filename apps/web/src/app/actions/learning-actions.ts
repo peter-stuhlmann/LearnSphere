@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import * as progressService from "@/lib/services/progress-service";
+import * as favoriteService from "@/lib/services/favorite-service";
 import { submitQuizForUser } from "@/lib/services/quiz-service";
 import { applyCoupon, normalizeCouponCode, validateCoupon } from "@elearning/core/coupon";
 import {
@@ -210,6 +211,15 @@ export async function submitQuiz(input: {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "unauthorized" };
   return submitQuizForUser(session.user.id, input);
+}
+
+/** Lektion als Favorit markieren bzw. Markierung entfernen. */
+export async function toggleLessonFavorite(
+  lessonId: string
+): Promise<ActionResult & { favorite?: boolean }> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: "unauthorized" };
+  return favoriteService.toggleLessonFavorite(session.user.id, lessonId);
 }
 
 /**

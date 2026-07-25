@@ -76,6 +76,7 @@ function toDto(row: {
 /** Fragen generieren und (je Sprache) als neuen Stand speichern. */
 async function generateAndStore(
   lessonId: string,
+  courseId: string,
   lang: string,
   studyText: string,
   contentHash: string,
@@ -110,6 +111,7 @@ async function generateAndStore(
     systemChars: Math.max(0, prompt.length - studyChars),
     userChars: studyChars,
     userId: triggeredBy,
+    courseId,
   });
   const questions = parseSelfTestResponse(
     data.choices?.[0]?.message?.content ?? ""
@@ -191,6 +193,7 @@ export async function fetchSelfTest(input: {
   try {
     return await generateAndStore(
       lesson.id,
+      course.id,
       lang,
       studyText,
       contentHash,
@@ -293,6 +296,7 @@ export async function regenerateSelfTest(input: {
   try {
     return await generateAndStore(
       owner.lesson.id,
+      owner.lesson.section.course.id,
       lang,
       studyText,
       selfTestContentHash(studyText, lang),

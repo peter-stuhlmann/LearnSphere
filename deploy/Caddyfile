@@ -1,0 +1,55 @@
+# =============================================================================
+# LearnSphere – Caddy Reverse-Proxy (Hostinger VPS)
+#
+# Terminiert TLS und leitet an die Next.js-App (Node, Port 3000) weiter.
+# Automatisiert BEIDE Whitelabel-Fälle:
+#   1. Wildcard-Subdomains  *.learnsphere.one   → EIN Wildcard-Zertifikat
+#   2. Beliebige Kundendomains                  → On-Demand-TLS, abgesichert
+#      über den "ask"-Endpoint der App (nur bekannte Mandanten-Hosts).
+#
+# Ein neuer Mandant braucht damit KEINE Server-/DNS-Änderung – nur einen
+# DB-Eintrag (Subdomain sofort, Kundendomain nach DNS-Verify des Kunden).
+# =============================================================================
+
+{
+	email admin@learnsphere.one
+
+	# On-Demand-TLS: Caddy fragt vor jeder Zertifikatsausstellung die App,
+	# ob der Host bekannt ist. Ohne diese Sperre könnte jeder Fremd-Host
+	# Zertifikate auslösen (Let's-Encrypt-Rate-Limits / DoS).
+	on_demand_tls {
+		ask http://127.0.0.1:3000/api/internal/tls-check
+		interval 2m
+		burst 5
+	}
+}
+
+# --- 1) Hauptanwendung + Wildcard-Subdomains ---------------------------------
+# Das Wildcard-Zertifikat *.learnsphere.one deckt ALLE Mandanten-Subdomains ab
+# und wird per DNS-01 ausgestellt (dazu unten den passenden DNS-Provider für
+# learnsphere.one einsetzen; Caddy-DNS-Plugin nötig, z. B. Cloudflare).
+learnsphere.one, *.learnsphere.one {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		resolvers 1.1.1.1
+	}
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000 {
+		header_up X-Forwarded-Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+# --- 2) Beliebige Kundendomains (voll anonymes Whitelabel) -------------------
+# Kein fester Hostname → Caddy nutzt On-Demand-TLS. Der ask-Endpoint oben
+# lässt nur aktive, verifizierte Mandanten-Domains durch.
+:443 {
+	tls {
+		on_demand
+	}
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000 {
+		header_up X-Forwarded-Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}

@@ -13,6 +13,10 @@ import {
   type ContentProvenance,
 } from "@elearning/core/provenance";
 import { resumePosition } from "@elearning/core/media-position";
+import {
+  buildHtmlBlockSrcDoc,
+  htmlBlockSandbox,
+} from "@elearning/core/html-block";
 import type { Chapter } from "@elearning/core/chapters";
 import { AudioPlayer } from "./AudioPlayer";
 import { KaraokeTranscript } from "./KaraokeTranscript";
@@ -63,7 +67,8 @@ const HtmlFrame = styled.iframe`
   min-height: 420px;
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.radii.md};
-  background: #fff;
+  /* dunkler Standard wie die Plattform; Creator kann per CSS Weiß setzen */
+  background: ${({ theme }) => theme.colors.bg};
 `;
 
 export interface RenderableBlock {
@@ -74,6 +79,8 @@ export interface RenderableBlock {
   fileName: string;
   content: string;
   css: string;
+  /** HTML-Blöcke: optionales JavaScript (läuft sandboxed, wenn nicht leer) */
+  script?: string;
   durationSeconds: number;
   transcriptDe?: string;
   transcriptEn?: string;
@@ -221,10 +228,11 @@ export interface MediaCallbacks {
 }
 
 function htmlSrcDoc(block: RenderableBlock): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>
-    body { font-family: system-ui, sans-serif; margin: 16px; }
-    ${block.css}
-  </style></head><body>${block.content}</body></html>`;
+  return buildHtmlBlockSrcDoc({
+    html: block.content,
+    css: block.css,
+    script: block.script ?? "",
+  });
 }
 
 /**
@@ -367,7 +375,7 @@ function LessonBlock({
       {block.type === "HTML" ? (
         <div>
           <HtmlFrame
-            sandbox=""
+            sandbox={htmlBlockSandbox(block.script ?? "")}
             srcDoc={htmlSrcDoc(block)}
             title={block.title || "HTML"}
           />

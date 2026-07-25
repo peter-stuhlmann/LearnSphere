@@ -15,10 +15,16 @@ import {
   Card,
   Container,
   DangerButton,
+  GhostButton,
   Kicker,
   Muted,
   SectionTitle,
 } from "@/components/ui/primitives";
+import {
+  CourseCard,
+  CourseGrid,
+  type CourseCardCourse,
+} from "@/components/catalog/CourseCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatTile, TileGrid } from "@/components/charts/StatTile";
 import { CoverPlaceholder } from "@/components/ui/CoverPlaceholder";
@@ -183,6 +189,18 @@ const RefundLink = styled.button`
   }
 `;
 
+/* Leerer Lernbereich: Hinweis, Startempfehlungen und Katalog-Link */
+const EmptyState = styled.div`
+  margin-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+`;
+
+const RecommendedTitle = styled.h2`
+  font-size: 1.35rem;
+`;
+
 const ReasonInput = styled.textarea`
   width: 100%;
   min-height: 90px;
@@ -235,10 +253,13 @@ export function MyLearningView({
   items,
   stats,
   greeting,
+  recommendations,
 }: {
   items: MyLearningItem[];
   stats: MyLearningStats;
   greeting: MyLearningGreeting;
+  /** Startempfehlungen für den leeren Lernbereich (beliebteste Shop-Kurse) */
+  recommendations: CourseCardCourse[];
 }) {
   const tNav = useTranslations("nav");
   const t = useTranslations("learn");
@@ -319,7 +340,31 @@ export function MyLearningView({
         ) : null}
 
         {items.length === 0 ? (
-          <Muted style={{ marginTop: "2rem" }}>{tCatalog("empty")}</Muted>
+          <EmptyState>
+            <Muted>{t("emptyText")}</Muted>
+            {recommendations.length > 0 ? (
+              <section
+                aria-labelledby="recommended-title"
+                style={{ width: "100%" }}
+              >
+                <RecommendedTitle id="recommended-title">
+                  {t("recommendedTitle")}
+                </RecommendedTitle>
+                <CourseGrid>
+                  {recommendations.map((course, i) => (
+                    <CourseCard key={course.slug} course={course} index={i} />
+                  ))}
+                </CourseGrid>
+              </section>
+            ) : (
+              <Muted>{tCatalog("empty")}</Muted>
+            )}
+            <div>
+              <GhostButton as={Link} href="/courses">
+                {t("browseCatalog")}
+              </GhostButton>
+            </div>
+          </EmptyState>
         ) : (
           <Grid>
             {items.map((item) => {

@@ -6,23 +6,44 @@ import {
   AFFILIATE_WINDOW_DAYS,
   isValidAffiliateCode,
 } from "@elearning/core/affiliate";
+import { appHostname, lookupWorkspaceByHost } from "@/lib/tenant";
 
 const intl = createIntlMiddleware(routing);
+
+/**
+ * Bereichs-Wurzeln (lokalisierte erste Pfad-Segmente), die auf einem
+ * Whitelabel-Mandanten-Host NICHT erreichbar sein dürfen: Das Portal ist
+ * reiner Lernbereich – Creator/Business/Partner/Admin bleiben aus, und nichts
+ * darf die Herkunft LearnSphere verraten (z. B. fremde Storefronts unter /c).
+ */
+const TENANT_BLOCKED_AREAS = new Set([
+  "creator",
+  "business",
+  "affiliate",
+  "partnerprogramm",
+  "admin",
+  "c",
+  "for-creators",
+  "fuer-creator",
+  "api-docs",
+  "api-doku",
+  "pricing",
+  "preise",
+  "roadmap",
+]);
+
+/** Erstes inhaltliches Segment nach dem optionalen Locale-Präfix. */
+function areaSegment(pathname: string): string | undefined {
+  const parts = pathname.split("/").filter(Boolean);
+  const locales = routing.locales as readonly string[];
+  return locales.includes(parts[0] ?? "") ? parts[1] : parts[0];
+}
 
 /** Whitelabel: eigene Domains werden auf die Creator-Storefront gemappt. */
 const domainCache = new Map<
   string,
   { handle: string | null; expires: number }
 >();
-
-function appHostname(): string {
-  try {
-    return new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000")
-      .hostname;
-  } catch {
-    return "localhost";
-  }
-}
 
 async function whitelabelHandle(host: string): Promise<string | null> {
   const cached = domainCache.get(host);
@@ -49,6 +70,24 @@ export default async function proxy(request: NextRequest) {
     request.headers.get("host")?.split(":")[0]?.toLowerCase() ?? "";
 
   if (host && host !== appHostname() && host !== "localhost") {
+    // 1) Business-Whitelabel-Mandant? (Subdomain oder verifizierte Kundendomain)
+    const workspace = await lookupWorkspaceByHost(host);
+    if (workspace) {
+      // Suspendierte Mandanten sind komplett offline
+      if (workspace.status !== "ACTIVE") {
+        return new NextResponse(null, { status: 404 });
+      }
+      // Reiner Lernbereich: gesperrte Bereichs-Wurzeln → 404
+      const area = areaSegment(request.nextUrl.pathname);
+      if (area && TENANT_BLOCKED_AREAS.has(area)) {
+        return new NextResponse(null, { status: 404 });
+      }
+      // Sonst normal weiter (intl-Routing). Branding/scoped Katalog lesen die
+      // Server-Components selbst aus dem Host (lookupWorkspaceByHost, gecacht).
+      return intl(request);
+    }
+
+    // 2) Sonst: bestehende Creator-Storefront-Whitelabel-Logik
     const handle = await whitelabelHandle(host);
     if (handle && request.nextUrl.pathname === "/") {
       const url = request.nextUrl.clone();

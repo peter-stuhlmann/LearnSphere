@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeRichText } from "./sanitize";
+import { sanitizeEmailRichText, sanitizeRichText } from "./sanitize";
 
 describe("sanitizeRichText", () => {
   it("keeps allowed formatting tags", () => {
@@ -56,5 +56,28 @@ describe("sanitizeRichText", () => {
 
   it("keeps img out of rich text", () => {
     expect(sanitizeRichText('<img src="x.png">Text')).toBe("Text");
+  });
+});
+
+describe("sanitizeEmailRichText", () => {
+  it("keeps email block placeholders with their data attributes", () => {
+    const block =
+      '<div data-type="course-grid" data-columns="2" data-courses="[]"></div>';
+    expect(sanitizeEmailRichText(block)).toBe(block);
+  });
+
+  it("strips foreign attributes and scripts from block divs", () => {
+    const hostile = sanitizeEmailRichText(
+      '<div data-type="cta-button" onclick="x()" style="color:red" data-label="Go" data-url="https://x.test"></div><script>x()</script>'
+    );
+    expect(hostile).not.toContain("onclick");
+    expect(hostile).not.toContain("style");
+    expect(hostile).not.toContain("script");
+    expect(hostile).toContain('data-label="Go"');
+  });
+
+  it("still behaves like the base sanitizer for normal rich text", () => {
+    expect(sanitizeEmailRichText("<h1>Titel</h1>")).toBe("Titel");
+    expect(sanitizeEmailRichText('<p onclick="a">Hi</p>')).toBe("<p>Hi</p>");
   });
 });

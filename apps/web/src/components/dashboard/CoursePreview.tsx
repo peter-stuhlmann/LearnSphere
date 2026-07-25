@@ -4,7 +4,10 @@ import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import styled from "styled-components";
 import { formatDuration, formatPrice } from "@elearning/core/format";
-import { languageDisplayName } from "@elearning/core/course-i18n";
+import {
+  CourseLanguages,
+  type CourseLanguageMeta,
+} from "@/components/catalog/CourseLanguages";
 import { sanitizeRichText } from "@/lib/sanitize";
 import { RichText } from "@/components/ui/RichText";
 
@@ -71,44 +74,6 @@ const Meta = styled.p`
   margin-top: 0.6rem;
   font-size: 0.82rem;
   color: ${({ theme }) => theme.colors.textFaint};
-`;
-
-/* Kurssprachen als Chips – gespiegelt von der Kursseite, nur kompakter */
-const LangRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.6rem;
-`;
-
-const LangChip = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.22rem 0.6rem;
-  border-radius: ${({ theme }) => theme.radii.pill};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.bgElevated};
-  font-size: 0.72rem;
-  color: ${({ theme }) => theme.colors.textMuted};
-
-  svg {
-    width: 12px;
-    height: 12px;
-    color: ${({ theme }) => theme.colors.violet};
-  }
-`;
-
-const LangOriginal = styled.em`
-  font-style: normal;
-  font-family: ${({ theme }) => theme.fonts.mono};
-  font-size: 0.55rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.08rem 0.35rem;
-  border-radius: ${({ theme }) => theme.radii.pill};
-  background: ${({ theme }) => theme.colors.violetSoft};
-  color: ${({ theme }) => theme.colors.violet};
 `;
 
 const HeroImage = styled.div`
@@ -251,6 +216,8 @@ export interface PreviewSettings {
   requiredWatchPercent: number;
   language: string;
   extraLanguages: string[];
+  /** Kurs ist über LearnSphere Business (Team-Lizenzen) buchbar */
+  businessEnabled: boolean;
 }
 
 export interface PreviewSection {
@@ -268,17 +235,19 @@ export interface PreviewSection {
 export function CoursePreview({
   settings,
   sections,
+  languages,
   creatorName,
 }: {
   settings: PreviewSettings;
   sections: PreviewSection[];
+  /** Kurssprachen inkl. Übersetzungs-Herkunft, Basissprache zuerst */
+  languages: CourseLanguageMeta[];
   creatorName: string;
 }) {
   const t = useTranslations("course");
   const tCatalog = useTranslations("catalog");
   const locale = useLocale();
 
-  const languages = [settings.language, ...settings.extraLanguages];
   const lessonCount = sections.reduce((sum, s) => sum + s.lessons.length, 0);
 
   return (
@@ -299,27 +268,7 @@ export function CoursePreview({
             {t("sections", { count: sections.length })} ·{" "}
             {t("lessons", { count: lessonCount })}
           </Meta>
-          <LangRow aria-label={t("courseLanguages")}>
-            {languages.map((lang) => (
-              <LangChip key={lang}>
-                <svg
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                  aria-hidden
-                >
-                  <circle cx="8" cy="8" r="6.2" />
-                  <ellipse cx="8" cy="8" rx="2.8" ry="6.2" />
-                  <path d="M2 8 H14 M2.8 5 H13.2 M2.8 11 H13.2" />
-                </svg>
-                {languageDisplayName(lang, locale)}
-                {lang === settings.language ? (
-                  <LangOriginal>{t("originalLanguage")}</LangOriginal>
-                ) : null}
-              </LangChip>
-            ))}
-          </LangRow>
+          <CourseLanguages languages={languages} />
 
           {settings.coverImage ? (
             <HeroImage>
@@ -378,6 +327,9 @@ export function CoursePreview({
               percent: settings.requiredWatchPercent,
             })}
           </Perk>
+          {settings.businessEnabled ? (
+            <Perk>{t("businessAvailable")}</Perk>
+          ) : null}
           <FakeButton aria-hidden>
             {settings.priceCents === 0
               ? t("enrollFree")

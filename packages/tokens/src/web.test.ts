@@ -25,6 +25,8 @@ describe("web theme", () => {
         violetSoft: "rgba(139, 124, 255, 0.14)",
         partner: "#4DD8FF",
         partnerSoft: "rgba(77, 216, 255, 0.14)",
+        business: "#FFB84D",
+        businessSoft: "rgba(255, 184, 77, 0.14)",
         danger: "#FF6B6B",
         dangerSoft: "rgba(255, 107, 107, 0.12)",
         success: "#4DFFA6",

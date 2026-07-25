@@ -42,6 +42,10 @@ export default async function ProfilePage({
         image: user!.image,
         creatorBio: user!.creatorBio ?? "",
       }}
+      payout={{
+        holder: user!.payoutHolder ?? "",
+        iban: user!.payoutIban ?? "",
+      }}
       billing={
         user!.billingAddress
           ? {

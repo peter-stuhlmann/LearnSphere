@@ -30,6 +30,9 @@ export async function savePayoutAccount(input: {
     },
   });
 
+  // Auszahlungsdaten werden im Profil gepflegt und auf der Vertriebsseite
+  // (maskiert, für die Auszahlungsanforderung) gespiegelt.
+  revalidatePath("/[locale]/profile", "page");
   revalidatePath("/[locale]/creator/distribution", "page");
   return { ok: true };
 }

@@ -7,8 +7,41 @@
  */
 
 type DocumentWithVT = Document & {
-  startViewTransition?: (update: () => Promise<void>) => unknown;
+  startViewTransition?: (update: () => void | Promise<void>) => unknown;
 };
+
+/**
+ * Zustands-Toggle (ohne Navigation) als View Transition: gleiche DOM-Knoten,
+ * der Browser morpht Elemente mit gleichem view-transition-name von der
+ * alten zur neuen Lage. `update` muss den DOM synchron ändern (bei React-
+ * State: in flushSync wickeln). Die Klasse `vt-toggle` auf <html> schaltet
+ * die Seitenwechsel-Animation des Seitenrests ab (nur benannte Gruppen
+ * animieren). Fallback: sofort umschalten; `onFinished` läuft immer.
+ */
+export function withViewTransition(
+  update: () => void,
+  onFinished?: () => void
+): void {
+  const doc = document as DocumentWithVT;
+  const reduced = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
+  if (!doc.startViewTransition || reduced) {
+    update();
+    onFinished?.();
+    return;
+  }
+  doc.documentElement.classList.add("vt-toggle");
+  const transition = doc.startViewTransition(update) as {
+    finished?: Promise<void>;
+  } | null;
+  const finish = () => {
+    doc.documentElement.classList.remove("vt-toggle");
+    onFinished?.();
+  };
+  if (transition?.finished) void transition.finished.finally(finish);
+  else finish();
+}
 
 /** Auflöser der laufenden Transition – wird beim Routenwechsel bedient. */
 let settle: (() => void) | null = null;

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  blockTranslationProvenance,
   COURSE_LANGUAGES,
+  courseLanguageProvenance,
   courseLanguages,
   isCourseLanguage,
   languageDisplayName,
@@ -12,6 +14,7 @@ import {
   pickCourseLanguage,
   resolveBlock,
   resolveCourseText,
+  rollupLanguageProvenance,
   serializeExtraLanguages,
   translatedText,
 } from "./course-i18n";
@@ -323,6 +326,66 @@ describe("draft parsers (DB-Json → Editor-Drafts)", () => {
       parseBlockTranslations({ en: { content: "x", provenance: "ROBOT" } }).en
         ?.provenance
     ).toBe("HUMAN");
+  });
+});
+
+describe("blockTranslationProvenance", () => {
+  it("returns null when the language has no translated content", () => {
+    expect(blockTranslationProvenance(null, "en")).toBeNull();
+    expect(blockTranslationProvenance({ en: { title: "x" } }, "en")).toBeNull();
+    expect(
+      blockTranslationProvenance({ en: { content: "  " } }, "en")
+    ).toBeNull();
+  });
+
+  it("reads the provenance of translated content (default HUMAN)", () => {
+    expect(
+      blockTranslationProvenance({ en: { content: "Hi" } }, "en")
+    ).toBe("HUMAN");
+    expect(
+      blockTranslationProvenance(
+        { en: { content: "Hi", provenance: "AI" } },
+        "en"
+      )
+    ).toBe("AI");
+    expect(
+      blockTranslationProvenance(
+        { en: { content: "Hi", provenance: "NONSENSE" } },
+        "en"
+      )
+    ).toBe("HUMAN");
+  });
+});
+
+describe("rollupLanguageProvenance", () => {
+  it("stays 'auto' without any signal or when everything is pure AI", () => {
+    expect(rollupLanguageProvenance([])).toBe("auto");
+    expect(rollupLanguageProvenance(["AI", "AI"])).toBe("auto");
+  });
+
+  it("becomes 'optimized' as soon as a human touched a translation", () => {
+    expect(rollupLanguageProvenance(["AI", "AI_REVIEWED"])).toBe("optimized");
+    expect(rollupLanguageProvenance(["HUMAN"])).toBe("optimized");
+    expect(rollupLanguageProvenance(["AI_EDITED"])).toBe("optimized");
+  });
+});
+
+describe("courseLanguageProvenance", () => {
+  it("marks the base language and classifies extras by block provenance", () => {
+    const blocks = [
+      { en: { content: "auto", provenance: "AI" }, fr: { content: "opt" } },
+      { en: { content: "auto2", provenance: "AI" } },
+    ];
+    expect(
+      courseLanguageProvenance(["de", "en", "fr"], "de", blocks)
+    ).toEqual({ de: "base", en: "auto", fr: "optimized" });
+  });
+
+  it("treats a language without any translated block as 'auto'", () => {
+    expect(courseLanguageProvenance(["de", "en"], "de", [])).toEqual({
+      de: "base",
+      en: "auto",
+    });
   });
 });
 

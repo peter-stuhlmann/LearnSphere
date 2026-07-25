@@ -16,6 +16,7 @@ import {
 } from "@/lib/recovery-codes";
 import { checkPwned } from "pwd-validator-react/hibp";
 import { passwordSchema, registerSchema } from "@elearning/core/validation";
+import { getRequestWorkspace } from "@/lib/services/workspace-service";
 
 export interface ActionResult {
   ok: boolean;
@@ -96,6 +97,23 @@ export async function registerUser(input: {
   const parsed = registerSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "invalid" };
+  }
+
+  // Whitelabel-Portal: Registrierung ist auf eingeladene Team-Adressen
+  // beschränkt. Nur wer vom Portal-Betreiber als Mitglied hinterlegt wurde,
+  // darf sich anlegen – sonst bleibt das Portal für Fremde geschlossen.
+  const workspace = await getRequestWorkspace();
+  if (workspace) {
+    const invite = await db.businessMember.findFirst({
+      where: {
+        email: parsed.data.email,
+        license: { ownerId: workspace.ownerId },
+      },
+      select: { id: true },
+    });
+    if (!invite) {
+      return { ok: false, error: "not_invited" };
+    }
   }
 
   // Passwörter aus bekannten Datenlecks ablehnen (HIBP, k-Anonymität:

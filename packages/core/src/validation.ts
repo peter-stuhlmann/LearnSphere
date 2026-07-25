@@ -48,7 +48,9 @@ const courseTranslationSchema = z.object({
 });
 
 export const courseSchema = z.object({
-  title: z.string().trim().min(3, "title_too_short").max(120),
+  /// Beim Speichern kein Pflichtfeld (Entwurf darf unvollständig sein); die
+  /// Titel-Prüfung greift erst beim Veröffentlichen (checkCoursePublish).
+  title: z.string().trim().max(120).default(""),
   subtitle: z.string().trim().max(200).optional().or(z.literal("")),
   description: z.string().trim().max(10000).optional().or(z.literal("")),
   language: z.enum(SUPPORTED_LANGUAGES),
@@ -69,6 +71,8 @@ export const courseSchema = z.object({
   finalExamRequired: z.boolean(),
   /// KI-Selbsttests ("Teste dich") in den Lektionen
   selfTestsEnabled: z.boolean().default(true),
+  /// Für LearnSphere Business (Team-Lizenzen) verfügbar
+  businessEnabled: z.boolean().default(true),
   listedInShop: z.boolean().default(true),
   /// Warteliste: "Demnächst"-Seite mit E-Mail-Eintragung, solange der Kurs
   /// unveröffentlicht ist; bei Veröffentlichung wird benachrichtigt
@@ -301,6 +305,66 @@ export const storefrontSchema = z.object({
 });
 
 export type StorefrontInput = z.input<typeof storefrontSchema>;
+
+/**
+ * Subdomain-Labels, die nie als Workspace-Slug vergeben werden dürfen –
+ * Infrastruktur/Marketing sowie die eigene Marke. Muss die reservierten
+ * Labels der Host-Auflösung (lib/tenant) mit abdecken.
+ */
+export const WORKSPACE_RESERVED_SLUGS = new Set([
+  "www",
+  "app",
+  "api",
+  "admin",
+  "mail",
+  "smtp",
+  "static",
+  "assets",
+  "cdn",
+  "embed",
+  "uploads",
+  "learnsphere",
+  "support",
+  "status",
+  "help",
+  "blog",
+  "docs",
+]);
+
+/** Business-Whitelabel-Portal: Subdomain-Slug + Branding. */
+export const workspaceSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    // DNS-Label: 3–40 Zeichen, a–z/0–9/-, kein führender/abschließender Bindestrich
+    .regex(/^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/, "slug_invalid")
+    .refine((value) => !WORKSPACE_RESERVED_SLUGS.has(value), {
+      message: "slug_reserved",
+    }),
+  brandName: z.string().trim().min(2, "brand_name_too_short").max(80),
+  brandColor: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/, "color_invalid")
+    .optional()
+    .or(z.literal("")),
+  emailFromName: z.string().trim().max(80).optional().or(z.literal("")),
+});
+
+export type WorkspaceInput = z.input<typeof workspaceSchema>;
+
+/** Eigene Kundendomain für das Whitelabel-Portal (vor DNS-Verifikation). */
+export const workspaceDomainSchema = z.object({
+  customDomain: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(
+      /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/,
+      "domain_invalid"
+    ),
+});
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type CourseInput = z.infer<typeof courseSchema>;

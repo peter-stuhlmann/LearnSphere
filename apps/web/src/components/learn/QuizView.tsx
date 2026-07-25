@@ -183,6 +183,39 @@ const BackLink = styled(Link)`
   text-decoration: none;
 `;
 
+/* Zulassungs-Kriterien: je Regel ein grüner Haken (erfüllt) oder rotes Kreuz */
+const CriteriaList = styled.ul`
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 560px;
+`;
+
+const Criterion = styled.li<{ $met: boolean }>`
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.98rem;
+  color: ${({ theme }) => theme.colors.text};
+
+  &::before {
+    content: ${({ $met }) => ($met ? '"✅"' : '"❌"')};
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+
+  small {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.82rem;
+    color: ${({ theme, $met }) =>
+      $met ? theme.colors.success : theme.colors.textMuted};
+  }
+`;
+
 const timerPulse = keyframes`
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.45); }
   50% { box-shadow: 0 0 0 8px rgba(255, 107, 107, 0); }
@@ -341,8 +374,15 @@ export interface AttemptState {
   nextAttemptAt?: string | null;
   /** Ende der 30-Tage-Rückgabegarantie (nur bei blocked === "guarantee") */
   guaranteeUntil?: string | null;
-  /** nötige Sehquote (nur bei blocked === "not_eligible") */
+  /** Zulassungs-Kriterien (nur bei blocked === "not_eligible") */
   requiredWatchPercent?: number;
+  /** aktuelle Sehquote in % */
+  watchPercent?: number;
+  /** Sehquote erfüllt? */
+  watchOk?: boolean;
+  /** Zwischenprüfungen: bestanden / gesamt */
+  sectionExamsPassed?: number;
+  sectionExamsTotal?: number;
   usedAttempts: number;
   maxAttempts: number | null;
 }
@@ -806,15 +846,67 @@ export function QuizView({
     );
   }
 
+  // Noch nicht zugelassen: Kriterien einzeln als Checkliste (✅ erfüllt / ❌ offen)
+  if (attemptState.blocked === "not_eligible") {
+    const examsTotal = attemptState.sectionExamsTotal ?? 0;
+    const examsPassed = attemptState.sectionExamsPassed ?? 0;
+    return (
+      <Wrap id="main">
+        <Container>
+          <Kicker>{quiz.courseTitle}</Kicker>
+          <SectionTitle as="h1">
+            {t("title", { title: quiz.title })}
+          </SectionTitle>
+          <Muted style={{ marginTop: "1rem", maxWidth: "560px" }}>
+            {t("notEligibleHeading")}
+          </Muted>
+          <CriteriaList>
+            <Criterion $met={attemptState.watchOk ?? false}>
+              <div>
+                {t("criterionWatch", {
+                  percent: attemptState.requiredWatchPercent ?? 0,
+                })}
+                <small>
+                  {t("criterionWatchCurrent", {
+                    current: attemptState.watchPercent ?? 0,
+                  })}
+                </small>
+              </div>
+            </Criterion>
+            {examsTotal > 0 ? (
+              <Criterion $met={examsPassed >= examsTotal}>
+                <div>
+                  {t("criterionExams")}
+                  <small>
+                    {t("criterionExamsCount", {
+                      passed: examsPassed,
+                      total: examsTotal,
+                    })}
+                  </small>
+                </div>
+              </Criterion>
+            ) : null}
+          </CriteriaList>
+          <ActionRow style={{ justifyContent: "flex-start", marginTop: "1.5rem" }}>
+            <BackLink
+              href={{
+                pathname: "/learn/[slug]",
+                params: { slug: quiz.courseSlug },
+              }}
+            >
+              {t("backToCourse")}
+            </BackLink>
+          </ActionRow>
+        </Container>
+      </Wrap>
+    );
+  }
+
   if (attemptState.blocked) {
     const blockedMessage =
       attemptState.blocked === "already_passed"
         ? t("blockedAlreadyPassed")
-        : attemptState.blocked === "not_eligible"
-          ? t("notEligiblePage", {
-              percent: attemptState.requiredWatchPercent ?? 0,
-            })
-          : attemptState.blocked === "attempts_exhausted"
+        : attemptState.blocked === "attempts_exhausted"
           ? t("blockedExhausted")
           : t("blockedCooldown", {
               date: attemptState.nextAttemptAt

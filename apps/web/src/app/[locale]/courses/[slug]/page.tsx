@@ -11,6 +11,7 @@ import {
   NO_RATING,
 } from "@/lib/rating-server";
 import {
+  courseLanguageProvenance,
   courseLanguages,
   pickCourseLanguage,
   resolveBlock,
@@ -122,8 +123,14 @@ export default async function CourseDetailPage({
     notFound();
   }
 
-  // Einschreibung, Vorschau-Blöcke und Bewertungen sind unabhängig → parallel
-  const [enrollment, previewBlocks, ratings, creatorRating] =
+  // Mehrsprachige Kurse: Herkunft je Zusatzsprache aus den übersetzten
+  // Text-/HTML-Blöcken ableiten. Einsprachige Kurse (Normalfall) sparen sich
+  // die Abfrage komplett.
+  const hasExtraLanguages = courseLanguages(course).length > 1;
+
+  // Einschreibung, Vorschau-Blöcke, Bewertungen und Sprach-Herkunft sind
+  // unabhängig → parallel
+  const [enrollment, previewBlocks, ratings, creatorRating, translationBlocks] =
     await Promise.all([
       session?.user?.id
         ? db.enrollment.findUnique({
@@ -143,6 +150,15 @@ export default async function CourseDetailPage({
       }),
       loadRatingStats([course.id]),
       loadCreatorRating(course.creatorId),
+      hasExtraLanguages
+        ? db.lessonBlock.findMany({
+            where: {
+              lesson: { section: { courseId: course.id } },
+              type: { in: ["TEXT", "HTML"] },
+            },
+            select: { translations: true },
+          })
+        : Promise.resolve([]),
     ]);
 
   const blocksByLesson = new Map<string, typeof previewBlocks>();
@@ -183,6 +199,13 @@ export default async function CourseDetailPage({
   const contentLang = pickCourseLanguage(languages, locale);
   const texts = resolveCourseText(course, contentLang);
 
+  // Herkunft je Sprache (Basissprache "base", Zusatzsprachen auto/optimized)
+  const provenanceByLang = courseLanguageProvenance(
+    languages,
+    course.language,
+    translationBlocks.map((block) => block.translations)
+  );
+
   return (
     <CourseDetailView
       course={{
@@ -193,11 +216,15 @@ export default async function CourseDetailPage({
         description: texts.description ?? "",
         coverImage: course.coverImage,
         language: course.language,
-        languages,
+        languages: languages.map((code) => ({
+          code,
+          provenance: provenanceByLang[code],
+        })),
         priceCents: course.priceCents,
         currency: course.currency,
         requiredWatchPercent: course.requiredWatchPercent,
         finalExamRequired: course.finalExamRequired,
+        businessEnabled: course.businessEnabled,
         creatorName:
           course.creator.storefrontName ?? course.creator.name ?? "Creator",
         creatorImage: course.creator.image,
@@ -234,6 +261,7 @@ export default async function CourseDetailPage({
                 fileName: resolved.fileName ?? "",
                 content: resolved.content ?? "",
                 css: b.css ?? "",
+                script: b.script ?? "",
                 durationSeconds: resolved.durationSeconds,
                 transcriptDe: b.transcriptDe ?? "",
                 transcriptEn: b.transcriptEn ?? "",

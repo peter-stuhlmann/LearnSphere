@@ -135,7 +135,6 @@ const CategoryChip = styled.button<{ $active: boolean }>`
 
 interface CatalogCourse extends CourseCardCourse {
   creatorName: string;
-  lessonCount: number;
   category: string | null;
   tags: string[];
 }

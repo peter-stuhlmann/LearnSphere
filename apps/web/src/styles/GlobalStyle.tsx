@@ -156,6 +156,25 @@ export const GlobalStyle = createGlobalStyle`
     ::view-transition-new(root) {
       animation: vt-page-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
     }
+
+    /* Fokus-Modus im Lernbereich: Die Inhalts-Spalte (learn-content) morpht
+       als zusammenhängender Block – etwas ruhiger als der Seitenwechsel */
+    ::view-transition-group(learn-content) {
+      animation-duration: 320ms;
+      animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Zustands-Toggles (withViewTransition setzt .vt-toggle): Der Seitenrest
+       schaltet sofort um, nur benannte Gruppen animieren – sonst spielte
+       jeder Toggle die volle Seitenwechsel-Animation ab */
+    :root.vt-toggle::view-transition-old(root) {
+      animation: none;
+      opacity: 0;
+    }
+
+    :root.vt-toggle::view-transition-new(root) {
+      animation: none;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

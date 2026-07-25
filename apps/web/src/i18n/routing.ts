@@ -22,6 +22,7 @@ export const routing = defineRouting({
     },
     "/profile": { de: "/profil", en: "/profile" },
     "/settings": { de: "/einstellungen", en: "/settings" },
+    "/billing": { de: "/rechnungen", en: "/billing" },
     "/login": { de: "/anmelden", en: "/login" },
     "/register": { de: "/registrieren", en: "/register" },
     "/forgot-password": {
@@ -40,6 +41,7 @@ export const routing = defineRouting({
     "/for-creators": { de: "/fuer-creator", en: "/for-creators" },
     "/api-docs": { de: "/api-doku", en: "/api-docs" },
     "/affiliate": { de: "/partnerprogramm", en: "/affiliate" },
+    "/business": "/business",
     "/roadmap": "/roadmap",
     "/imprint": { de: "/impressum", en: "/imprint" },
     "/privacy": { de: "/datenschutz", en: "/privacy" },
@@ -53,6 +55,7 @@ export const routing = defineRouting({
       en: "/creator/distribution",
     },
     "/creator/courses": { de: "/creator/kurse", en: "/creator/courses" },
+    "/creator/emails": { de: "/creator/e-mails", en: "/creator/emails" },
     "/creator/courses/[id]": {
       de: "/creator/kurse/[id]",
       en: "/creator/courses/[id]",
@@ -79,6 +82,10 @@ export const routing = defineRouting({
       de: "/verifizieren/[serial]",
       en: "/verify/[serial]",
     },
+    "/emails/unsubscribe": {
+      de: "/e-mails/abbestellen",
+      en: "/emails/unsubscribe",
+    },
     "/newsletter/confirm": "/newsletter/confirm",
     "/newsletter/unsubscribe": "/newsletter/unsubscribe",
     "/admin": "/admin",
@@ -87,6 +94,7 @@ export const routing = defineRouting({
     "/admin/users": { de: "/admin/nutzer", en: "/admin/users" },
     "/admin/payouts": { de: "/admin/auszahlungen", en: "/admin/payouts" },
     "/admin/ai": { de: "/admin/ki", en: "/admin/ai" },
+    "/admin/workspaces": { de: "/admin/portale", en: "/admin/workspaces" },
   },
 });
 

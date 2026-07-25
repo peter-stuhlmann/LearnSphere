@@ -173,17 +173,24 @@ interface AdminAiUsageViewProps {
   customRange: { from: string; to: string };
   /** spätester wählbarer Tag */
   today: string;
-  filters: { activity: string | null; model: string | null; user: string | null };
+  filters: {
+    activity: string | null;
+    model: string | null;
+    user: string | null;
+    course: string | null;
+  };
   options: {
     activities: string[];
     models: string[];
     users: { id: string; label: string }[];
+    courses: { id: string; label: string }[];
   };
   totals: UsageTotals;
   daily: Record<Metric, StackedSeries>;
   byActivity: UsageGroup[];
   byModel: UsageGroup[];
   byUser: LabeledGroup[];
+  byCourse: LabeledGroup[];
 }
 
 /** Gestapelte Tagesbalken (SVG) – je Aktivität eine Farbe. */
@@ -303,6 +310,7 @@ export function AdminAiUsageView({
   byActivity,
   byModel,
   byUser,
+  byCourse,
 }: AdminAiUsageViewProps) {
   const t = useTranslations("admin");
   const locale = useLocale();
@@ -325,6 +333,7 @@ export function AdminAiUsageView({
       activity: string;
       model: string;
       user: string;
+      course: string;
     }>
   ) {
     const merged = {
@@ -332,6 +341,7 @@ export function AdminAiUsageView({
       activity: filters.activity ?? "",
       model: filters.model ?? "",
       user: filters.user ?? "",
+      course: filters.course ?? "",
       ...next,
     };
     const query: Record<string, string> = {};
@@ -346,6 +356,7 @@ export function AdminAiUsageView({
     if (merged.activity) query.activity = merged.activity;
     if (merged.model) query.model = merged.model;
     if (merged.user) query.user = merged.user;
+    if (merged.course) query.course = merged.course;
     router.replace({ pathname: "/admin/ai", query });
   }
 
@@ -449,6 +460,17 @@ export function AdminAiUsageView({
             ...options.users.map((u) => ({ value: u.id, label: u.label })),
           ]}
           onChange={(user) => apply({ user })}
+        />
+        <Select
+          inline
+          pill
+          ariaLabel={t("aiFilterCourse")}
+          value={filters.course ?? ""}
+          options={[
+            { value: "", label: t("aiAllCourses") },
+            ...options.courses.map((c) => ({ value: c.id, label: c.label })),
+          ]}
+          onChange={(course) => apply({ course })}
         />
       </FilterBar>
 
@@ -595,9 +617,18 @@ export function AdminAiUsageView({
             emptyLabel={t("aiEmpty")}
             items={topGroupsWithRest(byUser, 10, t("aiOtherUsers")).map(
               (group) => ({
-                label:
-                  (group as LabeledGroup).label ??
-                  (group.key === t("aiOtherUsers") ? group.key : group.key),
+                label: `${(group as LabeledGroup).label ?? group.key} (${group.totals.calls}×)`,
+                value: breakdownValue(group),
+                display: breakdownDisplay(group),
+              })
+            )}
+          />
+          <HBarList
+            title={t("aiByCourse")}
+            emptyLabel={t("aiEmpty")}
+            items={topGroupsWithRest(byCourse, 10, t("aiOtherCourses")).map(
+              (group) => ({
+                label: `${(group as LabeledGroup).label ?? group.key} (${group.totals.calls}×)`,
                 value: breakdownValue(group),
                 display: breakdownDisplay(group),
               })

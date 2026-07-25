@@ -9,6 +9,15 @@ import StarterKit from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extensions";
 import Mention from "@tiptap/extension-mention";
 import { ensureHtml } from "@/lib/richtext";
+import {
+  buildSlashItems,
+  CourseGridNode,
+  CtaButtonNode,
+  ImageGridNode,
+  createSlashExtension,
+  type EmailBlockCourse,
+  type SlashItem,
+} from "./RichTextEmailBlocks";
 
 export interface MentionItem {
   id: string;
@@ -367,6 +376,11 @@ interface RichTextEditorProps {
   /** "Mit KI verbessern" im Bubble-Menü: bekommt den markierten Text,
       liefert die verbesserte Fassung (null = Fehler, Auswahl bleibt) */
   onAiImprove?: (selectedText: string) => Promise<string | null>;
+  /** E-Mail-Blöcke (Kurs-Cards, Bild-Grid, CTA) samt Slash-Menü ("/") –
+      nur für den Creator-Mail-Editor */
+  emailBlocks?: {
+    searchCourses: (query: string) => Promise<EmailBlockCourse[]>;
+  };
 }
 
 /**
@@ -384,6 +398,7 @@ export function RichTextEditor({
   marksOnly = false,
   fixedHeight = false,
   onAiImprove,
+  emailBlocks,
 }: RichTextEditorProps) {
   const t = useTranslations("rte");
   const [improving, setImproving] = useState(false);
@@ -394,6 +409,24 @@ export function RichTextEditor({
   useEffect(() => {
     mentionsRef.current = mentions ?? [];
   }, [mentions]);
+
+  // Slash-Menü und Kurssuche laufen wie die Mentions über Refs, damit die
+  // Extensions nicht bei jeder Render-Runde neu erzeugt werden müssen
+  const searchCoursesRef = useRef(emailBlocks?.searchCourses);
+  const slashItemsRef = useRef<SlashItem[]>([]);
+  useEffect(() => {
+    searchCoursesRef.current = emailBlocks?.searchCourses;
+  }, [emailBlocks?.searchCourses]);
+  useEffect(() => {
+    slashItemsRef.current = buildSlashItems({
+      courseCards: t("slashCourseCards"),
+      courseCardsHint: t("slashCourseCardsHint"),
+      image: t("slashImage"),
+      imageHint: t("slashImageHint"),
+      cta: t("slashCta"),
+      ctaHint: t("slashCtaHint"),
+    });
+  }, [t]);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -432,6 +465,19 @@ export function RichTextEditor({
               // eslint-disable-next-line react-hooks/refs -- der Getter läuft nur zur Event-Zeit (Tippen von "@"), nie im Render
               suggestion: createMentionSuggestion(() => mentionsRef.current),
             }),
+          ]
+        : []),
+      ...(emailBlocks
+        ? [
+            // eslint-disable-next-line react-hooks/refs -- die Ref wird nur zur Event-Zeit (Suche im Block) gelesen, nie im Render
+            CourseGridNode.configure({
+              searchCourses: (query: string) =>
+                searchCoursesRef.current?.(query) ?? Promise.resolve([]),
+            }),
+            ImageGridNode,
+            CtaButtonNode,
+            // eslint-disable-next-line react-hooks/refs -- läuft nur zur Event-Zeit (Tippen von "/"), nie im Render
+            createSlashExtension(() => slashItemsRef.current),
           ]
         : []),
     ],

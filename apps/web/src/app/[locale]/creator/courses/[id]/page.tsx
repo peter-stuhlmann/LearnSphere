@@ -83,6 +83,7 @@ export default async function CourseEditorPage({
         requiredWatchPercent: course.requiredWatchPercent,
         finalExamRequired: course.finalExamRequired,
         selfTestsEnabled: course.selfTestsEnabled,
+        businessEnabled: course.businessEnabled,
         bookingEnabled: course.bookingEnabled,
         bookingConnected: Boolean(
           creatorBooking?.bookingCalendarId?.trim() &&
@@ -112,6 +113,7 @@ export default async function CourseEditorPage({
               fileName: b.fileName ?? "",
               content: b.content ?? "",
               css: b.css ?? "",
+              script: b.script ?? "",
               durationSeconds: b.durationSeconds,
               transcriptDe: b.transcriptDe ?? "",
               transcriptEn: b.transcriptEn ?? "",

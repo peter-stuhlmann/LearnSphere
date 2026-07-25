@@ -7,6 +7,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import styled from "styled-components";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -59,12 +60,12 @@ const Chevron = styled.span<{ $open: boolean }>`
   transform: rotate(${({ $open }) => ($open ? "180deg" : "0deg")});
 `;
 
+/* In einen Portal an <body> gerendert und per fixed positioniert: so bricht
+   das Popover aus Karten mit backdrop-filter/transform (eigener Stacking-
+   Context) aus, die es sonst hinter nachfolgende Karten schieben würden. */
 const Listbox = styled(motion.ul)`
-  position: absolute;
-  z-index: 40;
-  top: calc(100% + 0.4rem);
-  left: 0;
-  min-width: 100%;
+  position: fixed;
+  z-index: 1000;
   max-height: 280px;
   overflow-y: auto;
   margin: 0;
@@ -143,20 +144,57 @@ export function Select({
 
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const listboxRef = useRef<HTMLUListElement>(null);
   const optionRefs = useRef<(HTMLLIElement | null)[]>([]);
   const typeahead = useRef({ buffer: "", timer: 0 });
+
+  // Fixed-Position des Popovers (aus dem Trigger-Rect); im Portal an <body>
+  const [coords, setCoords] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  // Portal erst nach dem Mount (SSR hat kein document; vermeidet Hydration-Mismatch)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   const selected = options[selectedIndex];
 
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      // Popover liegt im Portal außerhalb von Root – separat mitprüfen
+      if (
+        !rootRef.current?.contains(target) &&
+        !listboxRef.current?.contains(target)
+      ) {
         setOpen(false);
       }
     }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
+
+  // Popover an den Trigger koppeln: bei Scroll/Resize neu ausrichten
+  useEffect(() => {
+    if (!open) return;
+    function reposition() {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setCoords({ top: r.bottom + 6, left: r.left, width: r.width });
+    }
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
   }, [open]);
 
   // aktive Option im Popover sichtbar halten
@@ -167,6 +205,11 @@ export function Select({
   }, [open, activeIndex]);
 
   function openList() {
+    const el = triggerRef.current;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setCoords({ top: r.bottom + 6, left: r.left, width: r.width });
+    }
     setActiveIndex(selectedIndex);
     setOpen(true);
   }
@@ -276,37 +319,49 @@ export function Select({
           ▼
         </Chevron>
       </Trigger>
-      <AnimatePresence>
-        {open ? (
-          <Listbox
-            id={listboxId}
-            role="listbox"
-            aria-label={ariaLabel}
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.14 }}
-          >
-            {options.map((option, i) => (
-              <Option
-                key={option.value}
-                ref={(el) => {
-                  optionRefs.current[i] = el;
-                }}
-                id={`${listboxId}-${i}`}
-                role="option"
-                aria-selected={option.value === value}
-                $active={i === activeIndex}
-                $selected={option.value === value}
-                onPointerMove={() => setActiveIndex(i)}
-                onClick={() => commit(i)}
-              >
-                {option.label}
-              </Option>
-            ))}
-          </Listbox>
-        ) : null}
-      </AnimatePresence>
+      {mounted
+        ? createPortal(
+            <AnimatePresence>
+              {open && coords ? (
+                <Listbox
+                  key="listbox"
+                  ref={listboxRef}
+                  id={listboxId}
+                  role="listbox"
+                  aria-label={ariaLabel}
+                  style={{
+                    top: coords.top,
+                    left: coords.left,
+                    width: coords.width,
+                  }}
+                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                  transition={{ duration: 0.14 }}
+                >
+                  {options.map((option, i) => (
+                    <Option
+                      key={option.value}
+                      ref={(el) => {
+                        optionRefs.current[i] = el;
+                      }}
+                      id={`${listboxId}-${i}`}
+                      role="option"
+                      aria-selected={option.value === value}
+                      $active={i === activeIndex}
+                      $selected={option.value === value}
+                      onPointerMove={() => setActiveIndex(i)}
+                      onClick={() => commit(i)}
+                    >
+                      {option.label}
+                    </Option>
+                  ))}
+                </Listbox>
+              ) : null}
+            </AnimatePresence>,
+            document.body
+          )
+        : null}
     </Root>
   );
 }

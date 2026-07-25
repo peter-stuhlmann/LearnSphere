@@ -12,6 +12,8 @@ import {
 } from "@elearning/core/streak";
 import { getActivityDays } from "@/lib/services/activity-service";
 import { getReviewQueue } from "@/lib/services/flashcard-service";
+import { getRecommendedCourses } from "@/lib/recommended-courses";
+import { claimBusinessMemberships } from "@/lib/services/business-service";
 import { MyLearningView } from "@/components/learn/MyLearningView";
 
 export async function generateMetadata({
@@ -33,6 +35,12 @@ export default async function MyLearningPage({
   const session = await auth();
   if (!session?.user?.id) {
     redirect({ href: "/login", locale });
+  }
+
+  // Offene Business-Einladungen dieser Adresse einlösen (Team-Lizenzen):
+  // muss VOR dem Laden der Einschreibungen laufen
+  if (session!.user.email) {
+    await claimBusinessMemberships(session!.user.id, session!.user.email);
   }
 
   // Einschreibungen, Aktivitätstage (Streak) und fällige Karteikarten
@@ -74,6 +82,11 @@ export default async function MyLearningPage({
     getReviewQueue(session!.user.id),
   ]);
 
+  // Leerer Lernbereich: die beliebtesten Shop-Kurse als Startempfehlung,
+  // damit Neulinge nicht vor einer leeren Seite stehen
+  const recommendations =
+    enrollments.length > 0 ? [] : await getRecommendedCourses(locale);
+
   const totalWatchedSeconds = enrollments.reduce(
     (sum, e) =>
       sum + e.lessonProgress.reduce((s, p) => s + p.watchedSeconds, 0),
@@ -103,6 +116,7 @@ export default async function MyLearningPage({
 
   return (
     <MyLearningView
+      recommendations={recommendations}
       greeting={{
         userName: session!.user.name ?? null,
         streak: computeStreak(activityDays, today),

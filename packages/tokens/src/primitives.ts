@@ -22,6 +22,9 @@ export const colors = {
   /* Partnerprogramm-Bereich (drittes Areal neben Lernen/Studio) */
   partner: "#4DD8FF",
   partnerSoft: "rgba(77, 216, 255, 0.14)",
+  /* LearnSphere Business (viertes Areal: Team-Lizenzen) */
+  business: "#FFB84D",
+  businessSoft: "rgba(255, 184, 77, 0.14)",
   danger: "#FF6B6B",
   dangerSoft: "rgba(255, 107, 107, 0.12)",
   success: "#4DFFA6",

@@ -72,6 +72,11 @@ export function subscribeCart(listener: () => void): () => void {
   };
 }
 
+/** Korb komplett ersetzen – CartSync spiegelt so den DB-Stand herein. */
+export function replaceCart(items: CartItem[]): void {
+  write(items);
+}
+
 export function addToCart(item: CartItem): void {
   const items = getCartItems();
   if (items.some((existing) => existing.courseId === item.courseId)) return;
@@ -84,4 +89,21 @@ export function removeFromCart(courseId: string): void {
 
 export function clearCart(): void {
   write([]);
+}
+
+/* "Nur lokal leeren" (Logout): Der DB-Korb des Users soll den Logout
+   überleben – CartSync erkennt diese Markierung und pusht kein Löschen. */
+let localOnlyClear = false;
+
+export function clearCartLocalOnly(): void {
+  localOnlyClear = true;
+  try {
+    write([]);
+  } finally {
+    localOnlyClear = false;
+  }
+}
+
+export function isLocalOnlyClear(): boolean {
+  return localOnlyClear;
 }

@@ -28,6 +28,7 @@ export const COURSE_CATEGORIES = [
   { id: "science-tech", de: "Wissenschaft & Technik", en: "Science & Technology" },
   { id: "law-taxes", de: "Recht & Steuern", en: "Law & Taxes" },
   { id: "lifestyle", de: "Lifestyle & Hobby", en: "Lifestyle & Hobbies" },
+  { id: "other", de: "Sonstiges", en: "Other" },
 ] as const;
 
 export type CourseCategoryId = (typeof COURSE_CATEGORIES)[number]["id"];

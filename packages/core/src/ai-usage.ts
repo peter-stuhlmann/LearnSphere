@@ -69,6 +69,7 @@ export interface AiUsageRow {
   outputTokens: number;
   audioSeconds: number;
   userId?: string | null;
+  courseId?: string | null;
 }
 
 /** Geschätzte Kosten eines Aufrufs in USD; unbekannte Modelle zählen 0. */

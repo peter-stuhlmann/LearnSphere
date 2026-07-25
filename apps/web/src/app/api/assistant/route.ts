@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
      vollständig aus der Datenbank: Sie ist klein und muss jede Frage
      begleiten, damit der Assistent den ganzen Kurs überblickt. */
   const [queryEmbedding, candidates, summaryRows, history] = await Promise.all([
-    embedQuery(message),
+    embedQuery(message, access.course.id),
     loadCourseChunks(access.course.id, lang),
     db.knowledgeSummary.findMany({
       where: { courseId: access.course.id, lang },

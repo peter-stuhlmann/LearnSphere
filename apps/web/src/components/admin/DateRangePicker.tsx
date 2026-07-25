@@ -60,11 +60,11 @@ const Trigger = styled.button<{ $active: boolean }>`
   }
 `;
 
-const Popover = styled.div`
+const Popover = styled.div<{ $align: "left" | "right" }>`
   position: absolute;
   z-index: 40;
   top: calc(100% + 0.5rem);
-  left: 0;
+  ${({ $align }) => ($align === "right" ? "right: 0;" : "left: 0;")}
   padding: 1rem;
   border-radius: ${({ theme }) => theme.radii.lg};
   border: 1px solid ${({ theme }) => theme.colors.border};
@@ -79,6 +79,7 @@ const Popover = styled.div`
   /* Auf schmalen Displays darf das Feld nicht aus dem Bild ragen */
   @media (max-width: 560px) {
     left: 50%;
+    right: auto;
     transform: translateX(-50%);
   }
 `;
@@ -245,6 +246,7 @@ export function DateRangePicker({
   active,
   maxDay,
   onApply,
+  align = "left",
 }: {
   /** aktuell gewählter Beginn (ISO-Tag) */
   from: string;
@@ -254,6 +256,8 @@ export function DateRangePicker({
   /** spätester wählbarer Tag (ISO) – in der Zukunft gibt es keine Daten */
   maxDay: string;
   onApply: (range: { from: string; to: string }) => void;
+  /** Ausrichtung des Popovers – "right", wenn der Auslöser rechts sitzt */
+  align?: "left" | "right";
 }) {
   const t = useTranslations("admin");
   const locale = useLocale();
@@ -354,7 +358,7 @@ export function DateRangePicker({
       </Trigger>
 
       {open ? (
-        <Popover role="dialog" aria-label={t("aiRangeCustom")}>
+        <Popover role="dialog" aria-label={t("aiRangeCustom")} $align={align}>
           <Head>
             <NavButton
               type="button"

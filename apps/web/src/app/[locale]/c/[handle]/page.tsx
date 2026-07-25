@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { loadRatingStats } from "@/lib/rating-server";
 import { parseTags } from "@elearning/core/tags";
@@ -61,10 +62,26 @@ export default async function StorefrontPage({
       coverImage: true,
       category: true,
       tags: true,
-      sections: { select: { _count: { select: { lessons: true } } } },
+      _count: { select: { enrollments: true } },
     },
   });
   const ratings = await loadRatingStats(courses.map((c) => c.id));
+
+  // Bereits belegte Kurse zeigen auf der Karte "Eingeschrieben" statt Preis
+  const session = await auth();
+  const enrolledIds = new Set(
+    session?.user?.id
+      ? (
+          await db.enrollment.findMany({
+            where: {
+              userId: session.user.id,
+              courseId: { in: courses.map((c) => c.id) },
+            },
+            select: { courseId: true },
+          })
+        ).map((e) => e.courseId)
+      : []
+  );
 
   return (
     <StorefrontView
@@ -90,8 +107,9 @@ export default async function StorefrontPage({
           coverImage: c.coverImage,
           category: c.category,
           tags: parseTags(c.tags),
-          sectionCount: c.sections.length,
+          enrolledCount: c._count.enrollments,
           avgRating: ratings.get(c.id)?.average ?? null,
+          enrolled: enrolledIds.has(c.id),
         };
       })}
     />

@@ -1,4 +1,12 @@
-export const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2 MB (Datei-Auswahl)
+/**
+ * Harte Obergrenze für die Datei-Auswahl (intern). Bewusst NICHT nach außen
+ * kommuniziert: Dem Nutzer wird 2 MB als Richtwert angezeigt (siehe
+ * `avatarHint`), damit Bilder klein bleiben – akzeptiert werden aber bis 5 MB.
+ */
+export const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB (intern, nicht angezeigt)
+
+/** Richtwert, der dem Nutzer angezeigt wird (nur Hinweistext, keine Prüfung). */
+export const RECOMMENDED_AVATAR_BYTES = 2 * 1024 * 1024; // 2 MB
 
 /**
  * Obergrenze fürs gespeicherte Bild: Der Client verkleinert vor dem Upload

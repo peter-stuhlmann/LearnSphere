@@ -73,6 +73,7 @@ const TABS = [
   { href: "/admin/courses", key: "navCourses" },
   { href: "/admin/users", key: "navUsers" },
   { href: "/admin/payouts", key: "navPayouts" },
+  { href: "/admin/workspaces", key: "navWorkspaces" },
   { href: "/admin/ai", key: "navAi" },
 ] as const;
 

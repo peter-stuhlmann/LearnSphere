@@ -586,10 +586,9 @@ describe("courseSchema", () => {
     expect(courseSchema.safeParse(valid).success).toBe(true);
   });
 
-  it("rejects a too short title", () => {
-    expect(courseSchema.safeParse({ ...valid, title: "ab" }).success).toBe(
-      false
-    );
+  it("erlaubt einen leeren Titel (kein Pflichtfeld beim Speichern)", () => {
+    // Die Titel-Prüfung greift erst beim Veröffentlichen (checkCoursePublish)
+    expect(courseSchema.safeParse({ ...valid, title: "" }).success).toBe(true);
   });
 
   it("rejects negative prices", () => {

@@ -135,6 +135,8 @@ export const lessonBlockSchema = z.discriminatedUnion("type", [
     type: z.literal("HTML"),
     content: z.string().trim().min(1, "content_required").max(100_000),
     css: z.string().trim().max(100_000).optional().or(z.literal("")),
+    /// optionales JavaScript des Blocks; läuft nur sandboxed
+    script: z.string().trim().max(50_000).optional().or(z.literal("")),
     provenance: z.enum(CONTENT_PROVENANCES).default("HUMAN"),
   }),
 ]);

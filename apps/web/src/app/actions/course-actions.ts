@@ -23,7 +23,13 @@ import {
   type LessonInput,
 } from "@elearning/core/blocks";
 import { sanitizeRichText } from "@/lib/sanitize";
-import { serializeTags } from "@elearning/core/tags";
+import { parseTags, serializeTags } from "@elearning/core/tags";
+import {
+  checkCoursePublish,
+  examHasValidQuestion,
+  type PublishBlocker,
+  type PublishWarning,
+} from "@elearning/core/course-publish";
 import {
   isModerationEnabled,
   moderateEditorialText,
@@ -204,6 +210,7 @@ export async function updateCourse(
       requiredWatchPercent: parsed.data.requiredWatchPercent,
       finalExamRequired: parsed.data.finalExamRequired,
       selfTestsEnabled: parsed.data.selfTestsEnabled,
+      businessEnabled: parsed.data.businessEnabled,
       listedInShop: parsed.data.listedInShop,
       waitlistEnabled: parsed.data.waitlistEnabled,
       category: parsed.data.category,
@@ -249,10 +256,19 @@ export async function updateCertificateTheme(
   return { ok: true };
 }
 
+/** Veröffentlichen-Ergebnis: Blocker verhindern es, Warnungen nur, wenn nicht
+ *  bestätigt. Beides listet der Editor dem Creator auf. */
+export type PublishResult = ActionResult & {
+  blockers?: PublishBlocker[];
+  warnings?: PublishWarning[];
+};
+
 export async function setCoursePublished(
   courseId: string,
-  published: boolean
-): Promise<ActionResult> {
+  published: boolean,
+  /** Warnungen (Bild/Untertitel/Tags) bewusst in Kauf genommen? */
+  acknowledgeWarnings = false
+): Promise<PublishResult> {
   const user = await requireUser();
   if (!user) return { ok: false, error: "unauthorized" };
   const course = await requireOwnedCourse(courseId, user.id);
@@ -262,6 +278,51 @@ export async function setCoursePublished(
     // Vom Admin gesperrte Kurse dürfen nicht veröffentlicht werden
     if (course.flaggedAt) {
       return { ok: false, error: "course_flagged" };
+    }
+
+    // Inhaltliche Reife prüfen: Blocker verhindern, Warnungen sind optional.
+    let hasValidFinalExam = false;
+    if (course.finalExamRequired) {
+      const finalQuiz = await db.quiz.findFirst({
+        where: { courseId, kind: "FINAL" },
+        select: {
+          questions: {
+            select: {
+              kind: true,
+              expectedAnswer: true,
+              aiGraded: true,
+              options: { select: { isCorrect: true } },
+            },
+          },
+        },
+      });
+      hasValidFinalExam = finalQuiz
+        ? examHasValidQuestion(
+            finalQuiz.questions.map((q) => ({
+              kind: q.kind,
+              correctOptionCount: q.options.filter((o) => o.isCorrect).length,
+              expectedAnswer: q.expectedAnswer,
+              aiGraded: q.aiGraded,
+            }))
+          )
+        : false;
+    }
+
+    const check = checkCoursePublish({
+      title: course.title,
+      description: course.description ?? "",
+      category: course.category,
+      finalExamRequired: course.finalExamRequired,
+      hasValidFinalExam,
+      coverImage: course.coverImage,
+      subtitle: course.subtitle,
+      tagCount: parseTags(course.tags).length,
+    });
+    if (check.blockers.length > 0) {
+      return { ok: false, error: "publish_incomplete", blockers: check.blockers };
+    }
+    if (check.warnings.length > 0 && !acknowledgeWarnings) {
+      return { ok: false, error: "publish_warnings", warnings: check.warnings };
     }
 
     // Publish-Gate der Inhaltsprüfung: geflaggte/gesperrte Medien blocken,
@@ -711,6 +772,7 @@ function blockCreateData(blocks: LessonInput["blocks"]) {
           ? block.content
           : null,
     css: block.type === "HTML" ? block.css || null : null,
+    script: block.type === "HTML" ? block.script || null : null,
     // Herkunfts-Kennzeichnung (Fußnote für Lernende) – nur Text-Inhalte
     provenance:
       block.type === "TEXT" || block.type === "HTML"

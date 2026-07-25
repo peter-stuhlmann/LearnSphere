@@ -51,14 +51,16 @@ export default async function AdminAiUsagePage({
     params.activity && isAiActivity(params.activity) ? params.activity : null;
   const model = (params.model ?? "").slice(0, 100) || null;
   const userId = (params.user ?? "").slice(0, 50) || null;
+  const courseId = (params.course ?? "").slice(0, 50) || null;
 
-  const rows: (AiUsageRow & { userId: string | null })[] =
+  const rows: (AiUsageRow & { userId: string | null; courseId: string | null })[] =
     await db.aiUsage.findMany({
       where: {
         createdAt: timeWindow,
         ...(activity ? { activity } : {}),
         ...(model ? { model } : {}),
         ...(userId ? { userId } : {}),
+        ...(courseId ? { courseId } : {}),
       },
       select: {
         createdAt: true,
@@ -70,30 +72,47 @@ export default async function AdminAiUsagePage({
         outputTokens: true,
         audioSeconds: true,
         userId: true,
+        courseId: true,
       },
       orderBy: { createdAt: "asc" },
     });
 
   // Filter-Optionen aus dem GESAMTEN Zeitraum (nicht vom aktiven Filter
   // eingeschränkt), damit man Filter wieder wechseln kann
-  const [activityGroups, modelGroups, userGroups] = await Promise.all([
-    db.aiUsage.groupBy({
-      by: ["activity"],
-      where: { createdAt: timeWindow },
-    }),
-    db.aiUsage.groupBy({ by: ["model"], where: { createdAt: timeWindow } }),
-    db.aiUsage.groupBy({ by: ["userId"], where: { createdAt: timeWindow } }),
-  ]);
+  const [activityGroups, modelGroups, userGroups, courseGroups] =
+    await Promise.all([
+      db.aiUsage.groupBy({
+        by: ["activity"],
+        where: { createdAt: timeWindow },
+      }),
+      db.aiUsage.groupBy({ by: ["model"], where: { createdAt: timeWindow } }),
+      db.aiUsage.groupBy({ by: ["userId"], where: { createdAt: timeWindow } }),
+      db.aiUsage.groupBy({
+        by: ["courseId"],
+        where: { createdAt: timeWindow },
+      }),
+    ]);
   const optionUserIds = userGroups.flatMap((g) => g.userId ?? []);
-  const users = optionUserIds.length
-    ? await db.user.findMany({
-        where: { id: { in: optionUserIds } },
-        select: { id: true, name: true, email: true, role: true },
-      })
-    : [];
+  const optionCourseIds = courseGroups.flatMap((g) => g.courseId ?? []);
+  const [users, courses] = await Promise.all([
+    optionUserIds.length
+      ? db.user.findMany({
+          where: { id: { in: optionUserIds } },
+          select: { id: true, name: true, email: true, role: true },
+        })
+      : [],
+    optionCourseIds.length
+      ? db.course.findMany({
+          where: { id: { in: optionCourseIds } },
+          select: { id: true, title: true },
+        })
+      : [],
+  ]);
   const userLabel = new Map(
     users.map((u) => [u.id, u.name || u.email] as const)
   );
+  // gelöschte Kurse haben keinen Titel mehr – die ID bleibt als Label lesbar
+  const courseLabel = new Map(courses.map((c) => [c.id, c.title] as const));
 
   // Tagesreihen je Messgröße, gestapelt nach Aktivität
   const daily = {
@@ -115,18 +134,25 @@ export default async function AdminAiUsagePage({
     rows.filter((r) => r.userId),
     (r) => r.userId as string
   );
+  const byCourseRaw = groupUsage(
+    rows.filter((r) => r.courseId),
+    (r) => r.courseId as string
+  );
 
   return (
     <AdminAiUsageView
       range={range.preset}
       customRange={{ from: toIsoDay(range.from), to: toIsoDay(range.to) }}
       today={toIsoDay(now)}
-      filters={{ activity, model, user: userId }}
+      filters={{ activity, model, user: userId, course: courseId }}
       options={{
         activities: activityGroups.map((g) => g.activity).sort(),
         models: modelGroups.map((g) => g.model).sort(),
         users: optionUserIds
           .map((id) => ({ id, label: userLabel.get(id) ?? id }))
+          .sort((a, b) => a.label.localeCompare(b.label)),
+        courses: optionCourseIds
+          .map((id) => ({ id, label: courseLabel.get(id) ?? id }))
           .sort((a, b) => a.label.localeCompare(b.label)),
       }}
       totals={totalsFor(rows)}
@@ -136,6 +162,10 @@ export default async function AdminAiUsagePage({
       byUser={byUserRaw.map((group) => ({
         ...group,
         label: userLabel.get(group.key) ?? group.key,
+      }))}
+      byCourse={byCourseRaw.map((group) => ({
+        ...group,
+        label: courseLabel.get(group.key) ?? group.key,
       }))}
     />
   );

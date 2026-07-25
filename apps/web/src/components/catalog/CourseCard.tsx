@@ -132,11 +132,14 @@ export interface CourseCardCourse {
   priceCents: number;
   currency: string;
   coverImage: string | null;
-  sectionCount: number;
+  /** Anzahl eingeschriebener Teilnehmer:innen */
+  enrolledCount: number;
   category?: string | null;
   tags?: string[];
   creatorName?: string | null;
   avgRating?: number | null;
+  /** eingeschrieben → statt Preis erscheint ein Badge */
+  enrolled?: boolean;
 }
 
 export function CourseCard({
@@ -151,7 +154,6 @@ export function CourseCard({
   index?: number;
 }) {
   const t = useTranslations("catalog");
-  const tCourse = useTranslations("course");
   const locale = useLocale();
   const tags = course.tags ?? [];
 
@@ -203,14 +205,20 @@ export function CourseCard({
           <Badge $tone="violet">{categoryLabel(course.category, locale)}</Badge>
         ) : null}
         <Badge $tone="violet">
-          {tCourse("sections", { count: course.sectionCount })}
+          {t("enrolledCount", { count: course.enrolledCount })}
         </Badge>
         {course.avgRating != null ? (
           <Badge $tone="accent">★ {course.avgRating}</Badge>
         ) : null}
-        <Price $brand={brandColor}>
-          {formatPrice(course.priceCents, course.currency, locale)}
-        </Price>
+        {course.enrolled ? (
+          <Badge $tone="success" style={{ marginLeft: "auto" }}>
+            ✓ {t("enrolledBadge")}
+          </Badge>
+        ) : (
+          <Price $brand={brandColor}>
+            {formatPrice(course.priceCents, course.currency, locale)}
+          </Price>
+        )}
       </MetaRow>
     </Card>
   );

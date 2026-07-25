@@ -4,12 +4,15 @@ import Image from "next/image";
 import {
   useCallback,
   useEffect,
+  useId,
+  useMemo,
   useRef,
   useState,
   useTransition,
   type ComponentProps,
   type DragEvent,
   type FormEvent,
+  type ReactNode,
 } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import styled from "styled-components";
@@ -34,6 +37,7 @@ import {
 } from "@/app/actions/course-actions";
 import {
   COURSE_LANGUAGES,
+  courseLanguageProvenance,
   type CourseTranslationDraft,
 } from "@elearning/core/course-i18n";
 import {
@@ -52,6 +56,11 @@ import { Select } from "@/components/ui/Select";
 import { TagInput } from "@/components/ui/TagInput";
 import { ImageCropper } from "@/components/ui/ImageCropper";
 import { COURSE_CATEGORIES } from "@elearning/core/categories";
+import type {
+  PublishBlocker,
+  PublishWarning,
+} from "@elearning/core/course-publish";
+import { PublishCheckDialog } from "./PublishCheckDialog";
 import { RichTextEditor } from "@/components/ui/RichTextEditorLazy";
 import { useUnsavedMarker } from "@/components/ui/UnsavedChangesGuard";
 import { useThrottledValue } from "@/lib/useThrottledValue";
@@ -384,6 +393,133 @@ const CheckboxHint = styled.p`
   color: ${({ theme }) => theme.colors.accent};
 `;
 
+/* Checkbox-Zeile mit danebenstehendem Info-Icon */
+const InfoRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const InfoTip = styled.span`
+  position: relative;
+  display: inline-flex;
+`;
+
+const InfoTrigger = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: ${({ theme }) => theme.radii.pill};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover,
+  &[aria-expanded="true"] {
+    color: ${({ theme }) => theme.colors.business};
+    border-color: ${({ theme }) => theme.colors.business};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.business};
+    outline-offset: 2px;
+  }
+`;
+
+const InfoPopover = styled.div`
+  position: absolute;
+  z-index: 30;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 17rem;
+  max-width: 78vw;
+  padding: 0.75rem 0.9rem;
+  border-radius: ${({ theme }) => theme.radii.md};
+  border: 1px solid ${({ theme }) => theme.colors.borderStrong};
+  background: ${({ theme }) => theme.colors.bgElevated};
+  box-shadow: ${({ theme }) => theme.shadows.card};
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.55;
+  text-align: left;
+  white-space: normal;
+
+  /* Sprechblasen-Pfeil nach unten zum Icon */
+  &::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: ${({ theme }) => theme.colors.bgElevated};
+  }
+`;
+
+/**
+ * Barrierefreier Info-Tooltip: Button mit „i“-Icon, per Klick/Enter geöffnet.
+ * Schließt bei Escape und Klick außerhalb; per aria-controls/role="tooltip"
+ * mit dem Popover verknüpft.
+ */
+function InfoTooltip({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const wrapRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <InfoTip ref={wrapRef}>
+      <InfoTrigger
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span aria-hidden="true">i</span>
+      </InfoTrigger>
+      {open ? (
+        <InfoPopover id={id} role="tooltip">
+          {children}
+        </InfoPopover>
+      ) : null}
+    </InfoTip>
+  );
+}
+
 const LangChipRow = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -701,6 +837,8 @@ interface EditorCourse {
   requiredWatchPercent: number;
   finalExamRequired: boolean;
   selfTestsEnabled: boolean;
+  /** Für LearnSphere Business (Team-Lizenzen, 35 % je Seat) verfügbar */
+  businessEnabled: boolean;
   /** Live-Termine (termine.lol): Checkbox "Termine anbieten" */
   bookingEnabled: boolean;
   /** Kurs ist per Connect-Flow mit termine.lol verbunden (Key bleibt serverseitig) */
@@ -829,6 +967,7 @@ function settingsFromCourse(course: EditorCourse) {
     requiredWatchPercent: course.requiredWatchPercent,
     finalExamRequired: course.finalExamRequired,
     selfTestsEnabled: course.selfTestsEnabled,
+    businessEnabled: course.businessEnabled,
     listedInShop: course.listedInShop,
     waitlistEnabled: course.waitlistEnabled,
     category: course.category ?? "",
@@ -856,6 +995,7 @@ function serializeSettings(s: ReturnType<typeof settingsFromCourse>): string {
     requiredWatchPercent: Number(s.requiredWatchPercent),
     finalExamRequired: s.finalExamRequired,
     selfTestsEnabled: s.selfTestsEnabled,
+    businessEnabled: s.businessEnabled,
     listedInShop: s.listedInShop,
     waitlistEnabled: s.waitlistEnabled,
     category: s.category,
@@ -1052,6 +1192,11 @@ export function CourseEditor({
      gleichzeitig scheitern); durchblätterbar in der Speicherleiste */
   const [errors, setErrors] = useState<EditorError[]>([]);
   const [errorIndex, setErrorIndex] = useState(0);
+  // Veröffentlichen-Prüfung: Blocker (verhindern) oder Warnungen (optional)
+  const [publishCheck, setPublishCheck] = useState<{
+    blockers: PublishBlocker[];
+    warnings: PublishWarning[];
+  } | null>(null);
 
   const shownErrorIndex = Math.min(errorIndex, Math.max(errors.length - 1, 0));
   const activeError = errors[shownErrorIndex] ?? null;
@@ -1487,6 +1632,32 @@ export function CourseEditor({
   // Live-Vorschau: folgt den Formularfeldern mit 600 ms Drosselung
   const previewSettings = useThrottledValue(settings, 600);
 
+  // Sprach-Herkunft für die Vorschau: aus den übersetzten Text-/HTML-Blöcken
+  // ableiten (BlockDraft.translations passt strukturell auf das DB-JSON).
+  const previewLanguages = useMemo(() => {
+    const languages = [
+      previewSettings.language,
+      ...previewSettings.extraLanguages,
+    ];
+    const blockTranslations = course.sections.flatMap((section) =>
+      section.lessons.flatMap((lesson) =>
+        lesson.blocks
+          .filter((block) => block.type === "TEXT" || block.type === "HTML")
+          .map((block) => block.translations)
+      )
+    );
+    const provenance = courseLanguageProvenance(
+      languages,
+      previewSettings.language,
+      blockTranslations
+    );
+    return languages.map((code) => ({ code, provenance: provenance[code] }));
+  }, [
+    previewSettings.language,
+    previewSettings.extraLanguages,
+    course.sections,
+  ]);
+
   // Fehlercode → lesbarer Text (angezeigt in der fixierten Speicherleiste)
   function errorMessage(code: string, reason?: string): string {
     if (code === "content_flagged")
@@ -1536,6 +1707,35 @@ export function CourseEditor({
     });
   }
 
+  /**
+   * Veröffentlichen mit Reife-Prüfung: Blocker öffnen den Dialog (nicht
+   * veröffentlicht), Warnungen ebenfalls – aber „Trotzdem veröffentlichen"
+   * ruft erneut mit acknowledge=true auf. Zurücknehmen läuft direkt über run().
+   */
+  function attemptPublish(acknowledge: boolean) {
+    setErrors([]);
+    setNotice(null);
+    startTransition(async () => {
+      const result = await setCoursePublished(course.id, true, acknowledge);
+      if (result.ok) {
+        setPublishCheck(null);
+        setNotice(t("published"));
+        router.refresh();
+        return;
+      }
+      if (result.error === "publish_incomplete") {
+        setPublishCheck({ blockers: result.blockers ?? [], warnings: [] });
+        return;
+      }
+      if (result.error === "publish_warnings") {
+        setPublishCheck({ blockers: [], warnings: result.warnings ?? [] });
+        return;
+      }
+      // andere Fehler (gesperrt, Moderation) normal in der Leiste anzeigen
+      setErrors([{ text: errorMessage(result.error ?? "generic") }]);
+    });
+  }
+
   function onSaveSettings(event: FormEvent) {
     event.preventDefault();
     // Ohne Änderungen gibt es nichts zu speichern – kein Request
@@ -1575,9 +1775,13 @@ export function CourseEditor({
             </Badge>
             <GhostButton
               disabled={pending}
-              onClick={() =>
-                run(() => setCoursePublished(course.id, !course.published))
-              }
+              onClick={() => {
+                if (course.published) {
+                  run(() => setCoursePublished(course.id, false));
+                } else {
+                  attemptPublish(false);
+                }
+              }}
             >
               {course.published ? t("unpublish") : t("publish")}
             </GhostButton>
@@ -2033,42 +2237,52 @@ export function CourseEditor({
                 />
                 {t("finalExamRequired")}
               </CheckboxRow>
-              <CheckboxRow>
-                <input
-                  type="checkbox"
-                  checked={settings.selfTestsEnabled}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      selfTestsEnabled: e.target.checked,
-                    })
-                  }
-                />
-                {t("selfTestsEnabled")}
-              </CheckboxRow>
-              <CheckboxRow>
-                <input
-                  type="checkbox"
-                  checked={settings.listedInShop}
-                  aria-describedby={
-                    shopLockHint ? "listed-in-shop-hint" : undefined
-                  }
-                  onChange={(e) => {
-                    if (!e.target.checked && settings.priceCents === 0) {
-                      // neues Objekt erzwingt den Re-Render, der die Checkbox angehakt lässt
-                      setShopLockHint(true);
-                      setSettings({ ...settings, listedInShop: true });
-                      return;
+              <InfoRow>
+                <CheckboxRow>
+                  <input
+                    type="checkbox"
+                    checked={settings.businessEnabled}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        businessEnabled: e.target.checked,
+                      })
                     }
-                    setShopLockHint(false);
-                    setSettings({
-                      ...settings,
-                      listedInShop: e.target.checked,
-                    });
-                  }}
-                />
-                {t("listedInShop")}
-              </CheckboxRow>
+                  />
+                  {t("businessEnabled")}
+                </CheckboxRow>
+                <InfoTooltip label={t("businessEnabledInfoLabel")}>
+                  {t("businessEnabledHint")}
+                </InfoTooltip>
+              </InfoRow>
+              <InfoRow>
+                <CheckboxRow>
+                  <input
+                    type="checkbox"
+                    checked={settings.listedInShop}
+                    aria-describedby={
+                      shopLockHint ? "listed-in-shop-hint" : undefined
+                    }
+                    onChange={(e) => {
+                      if (!e.target.checked && settings.priceCents === 0) {
+                        // neues Objekt erzwingt den Re-Render, der die Checkbox angehakt lässt
+                        setShopLockHint(true);
+                        setSettings({ ...settings, listedInShop: true });
+                        return;
+                      }
+                      setShopLockHint(false);
+                      setSettings({
+                        ...settings,
+                        listedInShop: e.target.checked,
+                      });
+                    }}
+                  />
+                  {t("listedInShop")}
+                </CheckboxRow>
+                <InfoTooltip label={t("listedInShopInfoLabel")}>
+                  {t("listedInShopHint")}
+                </InfoTooltip>
+              </InfoRow>
               {shopLockHint ? (
                 <CheckboxHint id="listed-in-shop-hint" role="status">
                   {t("listedInShopFreeHint")}
@@ -2536,16 +2750,29 @@ export function CourseEditor({
             }}
           >
             <Kicker id="live-preview-title">{t("livePreview")}</Kicker>
-            <ViewLiveLink
-              href={{
-                pathname: "/courses/[slug]",
-                params: { slug: course.slug },
-              }}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {t("viewLivePage")} ↗
-            </ViewLiveLink>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+              <ViewLiveLink
+                href={{
+                  pathname: "/learn/[slug]",
+                  params: { slug: course.slug },
+                  query: { preview: "1" },
+                }}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("viewAsStudent")} ↗
+              </ViewLiveLink>
+              <ViewLiveLink
+                href={{
+                  pathname: "/courses/[slug]",
+                  params: { slug: course.slug },
+                }}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("viewLivePage")} ↗
+              </ViewLiveLink>
+            </div>
           </div>
           <Muted style={{ margin: "0.4rem 0 1rem", fontSize: "0.9rem" }}>
             {t("livePreviewHint")}
@@ -2560,7 +2787,9 @@ export function CourseEditor({
               requiredWatchPercent: previewSettings.requiredWatchPercent,
               language: previewSettings.language,
               extraLanguages: previewSettings.extraLanguages,
+              businessEnabled: previewSettings.businessEnabled,
             }}
+            languages={previewLanguages}
             creatorName={creatorName}
             sections={course.sections.map((s) => ({
               id: s.id,
@@ -2595,6 +2824,14 @@ export function CourseEditor({
           onClose={() => setSelfTestLesson(null)}
         />
       ) : null}
+
+      <PublishCheckDialog
+        open={publishCheck !== null}
+        blockers={publishCheck?.blockers ?? []}
+        warnings={publishCheck?.warnings ?? []}
+        onPublishAnyway={() => attemptPublish(true)}
+        onClose={() => setPublishCheck(null)}
+      />
 
       <SaveBar>
         <SaveBarInner>

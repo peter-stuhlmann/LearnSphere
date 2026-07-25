@@ -17,9 +17,9 @@ const Overlay = styled(motion.div)`
   backdrop-filter: blur(6px);
 `;
 
-const Dialog = styled(motion.div)`
+const Dialog = styled(motion.div)<{ $maxWidth: number }>`
   width: 100%;
-  max-width: 560px;
+  max-width: ${({ $maxWidth }) => $maxWidth}px;
   max-height: min(85dvh, 720px);
   display: flex;
   flex-direction: column;
@@ -84,6 +84,7 @@ export function Modal({
   closeLabel,
   onClose,
   children,
+  size = "default",
 }: {
   open: boolean;
   title: string;
@@ -91,6 +92,8 @@ export function Modal({
   closeLabel: string;
   onClose: () => void;
   children: ReactNode;
+  /** "wide" für breite Inhalte wie Video-Vorschauen (sonst 560 px) */
+  size?: "default" | "wide";
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -118,6 +121,7 @@ export function Modal({
             }}
           >
             <Dialog
+              $maxWidth={size === "wide" ? 900 : 560}
               role="dialog"
               aria-modal="true"
               aria-labelledby="modal-title"

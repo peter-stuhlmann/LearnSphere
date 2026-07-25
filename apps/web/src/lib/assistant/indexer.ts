@@ -125,7 +125,10 @@ async function reindexIfStale(courseId: string): Promise<void> {
   // nur die neuen/geänderten Chunks einbetten (Batches à 100)
   for (let i = 0; i < toCreate.length; i += 100) {
     const batch = toCreate.slice(i, i + 100);
-    const embeddings = await embedTexts(batch.map((chunk) => chunk.text));
+    const embeddings = await embedTexts(
+      batch.map((chunk) => chunk.text),
+      courseId
+    );
     await db.knowledgeChunk.createMany({
       data: batch.map((chunk, j) => ({
         courseId,
@@ -346,12 +349,18 @@ export async function loadCourseChunks(
 }
 
 /** Frage-Embedding für das Retrieval. */
-export async function embedQuery(text: string): Promise<number[]> {
-  const [embedding] = await embedTexts([text]);
+export async function embedQuery(
+  text: string,
+  courseId?: string
+): Promise<number[]> {
+  const [embedding] = await embedTexts([text], courseId);
   return embedding;
 }
 
-async function embedTexts(texts: string[]): Promise<number[][]> {
+async function embedTexts(
+  texts: string[],
+  courseId?: string
+): Promise<number[][]> {
   const response = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: {
@@ -373,6 +382,7 @@ async function embedTexts(texts: string[]): Promise<number[][]> {
     model: EMBEDDING_MODEL,
     inputTokens: data.usage?.prompt_tokens,
     userChars: texts.reduce((sum, text) => sum + text.length, 0),
+    courseId,
   });
   return data.data
     .sort((a, b) => a.index - b.index)

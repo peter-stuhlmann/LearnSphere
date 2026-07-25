@@ -9,6 +9,7 @@ import {
   useTransition,
 } from "react";
 import dynamic from "next/dynamic";
+import { flushSync } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import styled, { css, keyframes } from "styled-components";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -16,6 +17,7 @@ import { courseWatchPercent } from "@elearning/core/progress";
 import {
   markLessonVisited,
   resetLessonProgress,
+  toggleLessonFavorite,
   updateLessonProgress,
 } from "@/app/actions/learning-actions";
 import { recordWatchBuckets } from "@/app/actions/heatmap-actions";
@@ -26,6 +28,7 @@ import {
   resolveBlock,
   translatedText,
 } from "@elearning/core/course-i18n";
+import { withViewTransition } from "@/components/navigation/view-transition";
 import { BlockRenderer, type RenderableBlock } from "./BlockRenderer";
 import { ReadAloud } from "./ReadAloud";
 import { AssistantDock } from "./AssistantDock";
@@ -45,6 +48,35 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 
 const Wrap = styled.main`
   padding: 2.5rem 0 2rem;
+`;
+
+/* Vorschau-Hinweis für den Creator: „so sehen es Teilnehmer" */
+const PreviewBanner = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: ${({ theme }) => theme.radii.md};
+  border: 1px solid ${({ theme }) => theme.colors.violet};
+  background: ${({ theme }) => theme.colors.violetSoft};
+  font-size: 0.88rem;
+
+  strong {
+    color: ${({ theme }) => theme.colors.violet};
+  }
+
+  span.hint {
+    color: ${({ theme }) => theme.colors.textMuted};
+  }
+
+  a {
+    margin-left: auto;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.violet};
+    text-underline-offset: 3px;
+  }
 `;
 
 const TopBar = styled.div`
@@ -171,7 +203,7 @@ const Check = styled.span<{ $done: boolean }>`
     `}
 `;
 
-const QuizRow = styled(Link)`
+const quizRowCss = css`
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -185,6 +217,14 @@ const QuizRow = styled(Link)`
   &:hover {
     background: ${({ theme }) => theme.colors.surface};
   }
+`;
+
+const QuizRow = styled(Link)`
+  ${quizRowCss}
+`;
+/* Vorschau: statische, nicht anklickbare Variante */
+const QuizRowStatic = styled.div`
+  ${quizRowCss}
 `;
 
 /* Drip Content: Hinweiszeile unter dem Titel eines gesperrten Abschnitts */
@@ -213,8 +253,33 @@ const Stage = styled.section`
 
   h2 {
     font-size: 1.4rem;
-    margin-bottom: 1rem;
   }
+`;
+
+/* Kopfzeile der Lektion: Titel links, Werkzeuge (Fokus, Vorlesen) rechts.
+   Der Abstand zum Inhalt liegt hier – ein margin am h2 käme im Flex-Layout
+   nie unterhalb der Zeile an. */
+const LessonHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+`;
+
+const LessonTools = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+`;
+
+/* Stern neben favorisierten Lektionen in der Sidebar */
+const FavoriteStar = styled.span`
+  font-size: 0.8rem;
+  color: ${({ theme }) => theme.colors.accent};
+  flex-shrink: 0;
 `;
 
 /**
@@ -222,7 +287,17 @@ const Stage = styled.section`
  * Seite (gleiche DOM-Knoten – laufende Videos werden nicht neu gemountet),
  * mit Ambient-Glow hinter dem Inhalt. Esc oder ✕ beendet.
  */
-const ContentColumn = styled.div<{ $focus: boolean }>`
+const ContentColumn = styled.div<{ $focus: boolean; $vt: boolean }>`
+  /* Fokus-Toggle als View Transition: über diesen Namen morpht die Spalte
+     (samt laufendem Video) von der alten zur neuen Lage statt umzuspringen.
+     Nur während des Toggles gesetzt, damit normale Seitenwechsel die Spalte
+     nicht aus der Seiten-Animation ausklammern. */
+  ${({ $vt }) =>
+    $vt &&
+    css`
+      view-transition-name: learn-content;
+    `}
+
   ${({ $focus, theme }) =>
     $focus &&
     css`
@@ -262,7 +337,7 @@ const FocusExit = styled(ToolbarButton)`
 `;
 
 /* Menüpunkt „Abschlussprüfung & Zertifikat" ganz unten in der Kurs-Sidebar */
-const ExamNavRow = styled(Link)`
+const examRowCss = css`
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -285,6 +360,14 @@ const ExamNavRow = styled(Link)`
   }
 `;
 
+const ExamNavRow = styled(Link)`
+  ${examRowCss}
+`;
+/* Vorschau: statische, nicht anklickbare Variante */
+const ExamNavRowStatic = styled.div`
+  ${examRowCss}
+`;
+
 interface LearnLesson {
   id: string;
   title: string;
@@ -292,6 +375,8 @@ interface LearnLesson {
   durationSeconds: number;
   watchedSeconds: number;
   completed: boolean;
+  /** vom Lernenden als Favorit markiert (Stern) */
+  favorite: boolean;
   /** letzte Abspielposition je Medienblock (Fortsetzen an der Stelle) */
   positions: Record<string, number>;
   /** genug Lernstoff für "Teste dich"? (je Sprache, serverseitig geprüft) */
@@ -446,6 +531,8 @@ function resolveCourseForLocale(
 interface LearnViewProps {
   course: LearnCourse;
   courseId: string;
+  /** Creator-Vorschau: echte Lernansicht, aber ohne Fortschritt zu speichern */
+  previewMode?: boolean;
   /** zuletzt geöffnete Lektion – dort geht es weiter (null = Kursanfang) */
   lastLessonId: string | null;
   watchPercent: number;
@@ -457,9 +544,40 @@ interface LearnViewProps {
 }
 
 /* Three.js nur laden, wenn die Lernansicht wirklich gerendert wird */
+/* Platzhalter mit exakt der Grundfläche der Lernreise (Höhe + margin-bottom),
+   damit das clientseitig geladene 3D-Fenster beim Erscheinen nichts verschiebt.
+   Spiegelt Rahmen/Radius/Hintergrund; ein dezentes Pulsieren zeigt „lädt". */
+const journeyPulse = keyframes`
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.85; }
+`;
+
+const JourneyReserve = styled.div`
+  height: 300px;
+  margin-bottom: 1.5rem;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.radii.lg};
+  background:
+    radial-gradient(
+      ellipse 80% 130% at 85% -20%,
+      rgba(139, 124, 255, 0.16),
+      transparent 65%
+    ),
+    ${({ theme }) => theme.colors.bgDeep};
+  animation: ${journeyPulse} 1.6s ease-in-out infinite;
+
+  @media (min-width: ${({ theme }) => theme.breakpoints.lg}) {
+    height: 360px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
 const JourneyPath3D = dynamic(
   () => import("./JourneyPath3D").then((m) => m.JourneyPath3D),
-  { ssr: false }
+  { ssr: false, loading: () => <JourneyReserve aria-hidden /> }
 );
 
 const PROGRESS_SAVE_INTERVAL_MS = 10_000;
@@ -482,6 +600,7 @@ function shouldSaveNow(lastSavedRef: { current: number }): boolean {
 export function LearnView({
   course,
   courseId,
+  previewMode = false,
   lastLessonId,
   watchPercent,
   examEligible,
@@ -541,11 +660,15 @@ export function LearnView({
   );
   const active = unlockedLessons.find((l) => l.id === activeId) ?? null;
 
+  // Beim Lektionswechsel oben beginnen (nicht auf alter Scrollposition bleiben)
+  const contentRef = useRef<HTMLDivElement>(null);
+  const scrolledFromId = useRef(activeId);
+
   // Jede geöffnete Lektion als letzte Position speichern (fire-and-forget;
   // beim Wiederherstellen schreibt das nur denselben Wert erneut)
   useEffect(() => {
-    if (activeId) void markLessonVisited(activeId);
-  }, [activeId]);
+    if (activeId && !previewMode) void markLessonVisited(activeId);
+  }, [activeId, previewMode]);
 
   const lastSavedRef = useRef(0);
   // Sehfortschritt je Medienblock (Maximum je Block, Summe = Lektionsstand)
@@ -576,6 +699,7 @@ export function LearnView({
 
   /** Heatmap-Zähler melden (fire-and-forget, niemals blockierend). */
   function flushWatchBuckets() {
+    if (previewMode) return;
     for (const [blockId, pending] of pendingBucketsRef.current) {
       if (pending.size === 0) continue;
       const buckets = [...pending];
@@ -600,6 +724,7 @@ export function LearnView({
   }
 
   function saveProgress(lessonId: string, seconds: number, force = false) {
+    if (previewMode) return;
     // nur in dieser Sitzung berührte Blöcke mitschicken (Server merged)
     const positions =
       positionsRef.current.size > 0
@@ -618,6 +743,7 @@ export function LearnView({
 
   /** "Erledigt" abwählen – zum erneuten Durcharbeiten der Lektion */
   function resetProgress(lessonId: string) {
+    if (previewMode) return;
     startTransition(async () => {
       await resetLessonProgress(lessonId);
       // Client-Tracking verwerfen, sonst speichert der nächste Tick
@@ -688,13 +814,79 @@ export function LearnView({
     ? active.blocks.some((b) => b.type === "VIDEO" || b.type === "AUDIO")
     : false;
 
+  // Favoriten: optimistisch umschalten, bei Server-Fehler zurückrollen
+  const [favorites, setFavorites] = useState<Set<string>>(
+    () =>
+      new Set(
+        course.sections
+          .flatMap((s) => s.lessons)
+          .filter((l) => l.favorite)
+          .map((l) => l.id)
+      )
+  );
+  function onToggleFavorite(lessonId: string) {
+    const next = !favorites.has(lessonId);
+    setFavorites((prev) => {
+      const set = new Set(prev);
+      if (next) set.add(lessonId);
+      else set.delete(lessonId);
+      return set;
+    });
+    // Vorschau: Favoriten nur lokal spiegeln, nichts speichern
+    if (previewMode) return;
+    void toggleLessonFavorite(lessonId).then((result) => {
+      if (!result.ok) {
+        setFavorites((prev) => {
+          const set = new Set(prev);
+          if (next) set.delete(lessonId);
+          else set.add(lessonId);
+          return set;
+        });
+      }
+    });
+  }
+
   // Fokus-Modus: Inhalt als Vollbild-Ebene, Esc beendet, Seite dahinter
   // scrollt nicht mit
   const [focusMode, setFocusMode] = useState(false);
+  // während des Toggles trägt die Spalte ihren view-transition-name
+  const [vtActive, setVtActive] = useState(false);
+  // Umschalten als View Transition: flushSync stellt sicher, dass der neue
+  // Zustand im DOM steht, bevor der Browser den jeweiligen Frame aufnimmt
+  const toggleFocus = (next: boolean) => {
+    flushSync(() => setVtActive(true));
+    withViewTransition(
+      () => flushSync(() => setFocusMode(next)),
+      () => setVtActive(false)
+    );
+  };
+  // Nur bei echtem Lektionswechsel nach oben scrollen – nicht beim Fokus-Toggle
+  // (der morpht die Spalte per View Transition an Ort und Stelle).
+  useEffect(() => {
+    if (scrolledFromId.current === activeId) return;
+    scrolledFromId.current = activeId;
+    const el = contentRef.current;
+    if (!el) return;
+    const behavior: ScrollBehavior = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches
+      ? "auto"
+      : "smooth";
+    if (focusMode) {
+      // Fokus-Modus: die Inhaltsspalte ist selbst der Scroll-Container
+      el.scrollTo({ top: 0, behavior });
+    } else {
+      // Normal: Fenster scrollen (scrollIntoView greift hier nicht zuverlässig
+      // durch die Overflow-Vorfahren) – Lektionsanfang unter den Sticky-Header.
+      const top = el.getBoundingClientRect().top + window.scrollY - 90;
+      window.scrollTo({ top: Math.max(0, top), behavior });
+    }
+  }, [activeId, focusMode]);
+
   useEffect(() => {
     if (!focusMode) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setFocusMode(false);
+      if (event.key === "Escape") toggleFocus(false);
     };
     window.addEventListener("keydown", onKey);
     const previousOverflow = document.body.style.overflow;
@@ -708,6 +900,20 @@ export function LearnView({
   return (
     <Wrap id="main">
       <Container>
+        {previewMode ? (
+          <PreviewBanner role="status">
+            <strong>👁 {t("previewTitle")}</strong>
+            <span className="hint">{t("previewHint")}</span>
+            <Link
+              href={{
+                pathname: "/creator/courses/[id]",
+                params: { id: courseId },
+              }}
+            >
+              {t("previewExit")} ↗
+            </Link>
+          </PreviewBanner>
+        ) : null}
         <TopBar>
           <div>
             <Kicker>{viewCourse.title}</Kicker>
@@ -812,6 +1018,9 @@ export function LearnView({
                       {lesson.completed ? "✓" : ""}
                     </Check>
                     <span style={{ flex: 1 }}>{lesson.title}</span>
+                    {favorites.has(lesson.id) ? (
+                      <FavoriteStar title={t("favorite")}>★</FavoriteStar>
+                    ) : null}
                     {lesson.durationSeconds > 0 ? (
                       <span style={{ fontSize: "0.75rem", opacity: 0.6 }}>
                         {formatDuration(lesson.durationSeconds)}
@@ -820,19 +1029,30 @@ export function LearnView({
                   </LessonButton>
                 ))}
                 {section.quiz && !section.locked ? (
-                  <QuizRow
-                    href={{
-                      pathname: "/learn/[slug]/quiz/[quizId]",
-                      params: { slug: course.slug, quizId: section.quiz.id },
-                    }}
-                  >
-                    <span>✦ {t("sectionQuiz")}</span>
-                    <Badge $tone={section.quiz.passed ? "success" : "muted"}>
-                      {section.quiz.passed
-                        ? t("quizPassed")
-                        : t("quizNotPassed")}
-                    </Badge>
-                  </QuizRow>
+                  previewMode ? (
+                    <QuizRowStatic
+                      aria-disabled="true"
+                      title={t("previewInteractiveHint")}
+                      style={{ opacity: 0.6 }}
+                    >
+                      <span>✦ {t("sectionQuiz")}</span>
+                      <Badge $tone="muted">{t("previewLabel")}</Badge>
+                    </QuizRowStatic>
+                  ) : (
+                    <QuizRow
+                      href={{
+                        pathname: "/learn/[slug]/quiz/[quizId]",
+                        params: { slug: course.slug, quizId: section.quiz.id },
+                      }}
+                    >
+                      <span>✦ {t("sectionQuiz")}</span>
+                      <Badge $tone={section.quiz.passed ? "success" : "muted"}>
+                        {section.quiz.passed
+                          ? t("quizPassed")
+                          : t("quizNotPassed")}
+                      </Badge>
+                    </QuizRow>
+                  )
                 ) : null}
               </div>
             ))}
@@ -840,29 +1060,40 @@ export function LearnView({
             {/* Abschlussprüfung + Zertifikat: Menüpunkt ganz unten – die
                 Prüfungsseite zeigt Ergebnis, Zertifikat bzw. die Prüfung */}
             {course.finalExamRequired && course.finalQuiz ? (
-              <ExamNavRow
-                href={{
-                  pathname: "/learn/[slug]/quiz/[quizId]",
-                  params: { slug: course.slug, quizId: course.finalQuiz.id },
-                }}
-              >
-                <span>🎓 {t("examSectionTitle")}</span>
-                <Badge
-                  $tone={
-                    certificateSerial
-                      ? "success"
-                      : examEligible
-                        ? "accent"
-                        : "muted"
-                  }
+              previewMode ? (
+                <ExamNavRowStatic
+                  aria-disabled="true"
+                  title={t("previewInteractiveHint")}
+                  style={{ opacity: 0.6 }}
                 >
-                  {certificateSerial
-                    ? t("examPassedBadge")
-                    : examEligible
-                      ? t("examUnlocked")
-                      : t("examLocked")}
-                </Badge>
-              </ExamNavRow>
+                  <span>🎓 {t("examSectionTitle")}</span>
+                  <Badge $tone="muted">{t("previewLabel")}</Badge>
+                </ExamNavRowStatic>
+              ) : (
+                <ExamNavRow
+                  href={{
+                    pathname: "/learn/[slug]/quiz/[quizId]",
+                    params: { slug: course.slug, quizId: course.finalQuiz.id },
+                  }}
+                >
+                  <span>🎓 {t("examSectionTitle")}</span>
+                  <Badge
+                    $tone={
+                      certificateSerial
+                        ? "success"
+                        : examEligible
+                          ? "accent"
+                          : "muted"
+                    }
+                  >
+                    {certificateSerial
+                      ? t("examPassedBadge")
+                      : examEligible
+                        ? t("examUnlocked")
+                        : t("examLocked")}
+                  </Badge>
+                </ExamNavRow>
+              )
             ) : null}
           </Sidebar>
 
@@ -888,11 +1119,11 @@ export function LearnView({
           {course.bookingEnabled ? <BookingCard courseId={courseId} /> : null}
           </SidebarColumn>
 
-          <ContentColumn $focus={focusMode}>
+          <ContentColumn ref={contentRef} $focus={focusMode} $vt={vtActive}>
             {focusMode ? (
               <FocusExit
                 type="button"
-                onClick={() => setFocusMode(false)}
+                onClick={() => toggleFocus(false)}
                 aria-label={t("focusExit")}
               >
                 ✕ {t("focusExit")}
@@ -900,29 +1131,27 @@ export function LearnView({
             ) : null}
             {active ? (
               <Stage aria-live="polite">
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    flexWrap: "wrap",
-                    gap: "0.75rem",
-                  }}
-                >
+                <LessonHeader>
                   <h2>{active.title}</h2>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                      flexWrap: "wrap",
-                    }}
-                  >
+                  <LessonTools>
+                    <ToolbarButton
+                      type="button"
+                      $active={favorites.has(active.id)}
+                      aria-pressed={favorites.has(active.id)}
+                      onClick={() => onToggleFavorite(active.id)}
+                      title={
+                        favorites.has(active.id)
+                          ? t("favoriteRemove")
+                          : t("favoriteAdd")
+                      }
+                    >
+                      {favorites.has(active.id) ? "★" : "☆"} {t("favorite")}
+                    </ToolbarButton>
                     {!focusMode ? (
                       <ToolbarButton
                         type="button"
                         aria-pressed={focusMode}
-                        onClick={() => setFocusMode(true)}
+                        onClick={() => toggleFocus(true)}
                         title={t("focusHint")}
                       >
                         ⛶ {t("focusMode")}
@@ -933,8 +1162,8 @@ export function LearnView({
                     ) ? (
                       <ReadAloud lessonId={active.id} lang={contentLang} />
                     ) : null}
-                  </div>
-                </div>
+                  </LessonTools>
+                </LessonHeader>
 
                 <div key={active.id}>
                   <BlockRenderer

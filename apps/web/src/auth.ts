@@ -32,10 +32,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
   cookies: {
-    // Eigener Cookie-Name, damit Sessions anderer localhost-Apps
-    // (Standardname "authjs.session-token") nicht kollidieren.
+    // Markenneutraler Cookie-Name (kein „learnsphere"), damit Whitelabel-
+    // Portale die Herkunft nicht über den Cookie verraten – und damit Sessions
+    // anderer localhost-Apps (Standardname "authjs.session-token") nicht
+    // kollidieren. Host-only (kein Domain=) → keine Session leakt zwischen
+    // Mandanten oder zur Hauptanwendung.
     sessionToken: {
-      name: `${useSecureCookies ? "__Secure-" : ""}learnsphere.session-token`,
+      name: `${useSecureCookies ? "__Secure-" : ""}portal.session-token`,
       options: {
         httpOnly: true,
         sameSite: "lax",

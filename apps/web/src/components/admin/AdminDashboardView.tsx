@@ -29,6 +29,14 @@ const Stat = styled(Card)`
   }
 `;
 
+const SectionTitle = styled.h2`
+  margin: 1.8rem 0 0.8rem;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: ${({ theme }) => theme.colors.textFaint};
+`;
+
 const AlertCard = styled(Card)<{ $tone: "warn" | "ok" }>`
   margin-top: 1.5rem;
   padding: 1.2rem 1.4rem;
@@ -51,11 +59,32 @@ export interface AdminStats {
   revenueCents: number;
   flaggedMediaCount: number;
   pendingMediaCount: number;
+  businessLicenseCount: number;
+  businessSeatCount: number;
+  businessRevenueCents: number;
+  businessLearnsphereCents: number;
 }
 
 export function AdminDashboardView({ stats }: { stats: AdminStats }) {
   const t = useTranslations("admin");
   const locale = useLocale();
+
+  // Business-Einnahmen bewusst getrennt von den Kurskauf-Kennzahlen
+  const businessCards: { label: string; value: string }[] = [
+    {
+      label: t("statBusinessLicenses"),
+      value: String(stats.businessLicenseCount),
+    },
+    { label: t("statBusinessSeats"), value: String(stats.businessSeatCount) },
+    {
+      label: t("statBusinessRevenue"),
+      value: formatPrice(stats.businessRevenueCents, "EUR", locale),
+    },
+    {
+      label: t("statBusinessShare"),
+      value: formatPrice(stats.businessLearnsphereCents, "EUR", locale),
+    },
+  ];
 
   const cards: { label: string; value: string }[] = [
     { label: t("statUsers"), value: String(stats.userCount) },
@@ -76,6 +105,16 @@ export function AdminDashboardView({ stats }: { stats: AdminStats }) {
     <>
       <Grid>
         {cards.map((card) => (
+          <Stat key={card.label}>
+            <p>{card.label}</p>
+            <p>{card.value}</p>
+          </Stat>
+        ))}
+      </Grid>
+
+      <SectionTitle>{t("businessSectionTitle")}</SectionTitle>
+      <Grid>
+        {businessCards.map((card) => (
           <Stat key={card.label}>
             <p>{card.label}</p>
             <p>{card.value}</p>

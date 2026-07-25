@@ -9,6 +9,11 @@ import { formatPrice } from "@elearning/core/format";
 import { startCartCheckout } from "@/app/actions/billing-actions";
 import { CoverPlaceholder } from "@/components/ui/CoverPlaceholder";
 import {
+  CourseCard,
+  CourseGrid,
+  type CourseCardCourse,
+} from "@/components/catalog/CourseCard";
+import {
   Card,
   Container,
   GhostButton,
@@ -72,6 +77,21 @@ const Price = styled.span`
   white-space: nowrap;
 `;
 
+/* Leerer Warenkorb: Überschrift über den Kurs-Vorschlägen */
+const RecommendedTitle = styled.h2`
+  font-size: 1.35rem;
+`;
+
+/* Vertrauens-Hinweise unter der Summenleiste – identische Schrift, nur das
+   führende Emoji unterscheidet sich */
+const TrustNote = styled.p`
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
 const TotalBar = styled(Card)`
   margin-top: 1.25rem;
   padding: 1.1rem 1.3rem;
@@ -92,10 +112,13 @@ export function CartView({
   loggedIn,
   enrolledCourseIds,
   purchased,
+  recommendations,
 }: {
   loggedIn: boolean;
   enrolledCourseIds: string[];
   purchased: boolean;
+  /** Vorschläge für den leeren Warenkorb (beliebteste Shop-Kurse) */
+  recommendations: CourseCardCourse[];
 }) {
   const t = useTranslations("cart");
   const locale = useLocale();
@@ -107,6 +130,15 @@ export function CartView({
   );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Der Korb lebt im localStorage – serverseitig ist er immer "leer".
+  // Den Leer-Zustand (samt Empfehlungen) erst nach der Hydration zeigen,
+  // sonst blitzt er bei gefülltem Korb als Layout-Shift auf.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   // Nach erfolgreichem Kauf (oder Demo-Kauf) den Warenkorb leeren
   useEffect(() => {
@@ -162,10 +194,25 @@ export function CartView({
           </Card>
         ) : null}
 
-        {items.length === 0 && !purchased ? (
+        {hydrated && items.length === 0 && !purchased ? (
           <>
             <Muted style={{ marginTop: "1.5rem" }}>{t("empty")}</Muted>
-            <div style={{ marginTop: "1rem" }}>
+            {recommendations.length > 0 ? (
+              <section
+                aria-labelledby="cart-recommended-title"
+                style={{ marginTop: "2rem" }}
+              >
+                <RecommendedTitle id="cart-recommended-title">
+                  {t("recommendedTitle")}
+                </RecommendedTitle>
+                <CourseGrid>
+                  {recommendations.map((course, i) => (
+                    <CourseCard key={course.slug} course={course} index={i} />
+                  ))}
+                </CourseGrid>
+              </section>
+            ) : null}
+            <div style={{ marginTop: "1.5rem" }}>
               <GhostButton as={Link} href="/courses">
                 {t("browseCourses")}
               </GhostButton>
@@ -235,6 +282,14 @@ export function CartView({
                 </PrimaryButton>
               )}
             </TotalBar>
+            <TrustNote style={{ marginTop: "0.8rem" }}>
+              <span aria-hidden="true">🛡️</span>
+              {t("moneyBack")}
+            </TrustNote>
+            <TrustNote style={{ marginTop: "0.4rem" }}>
+              <span aria-hidden="true">🎓</span>
+              {t("certificateHold")}
+            </TrustNote>
             {error ? (
               <Muted role="alert" style={{ marginTop: "0.6rem", color: "#FF7A7A" }}>
                 {t(`errors.${error}` as never)}

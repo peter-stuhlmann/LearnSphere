@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { auth } from "@/auth";
 import { loadRatingStats } from "@/lib/rating-server";
 import {
   courseLanguages,
@@ -6,6 +7,11 @@ import {
   resolveCourseText,
 } from "@elearning/core/course-i18n";
 import { LandingHome } from "@/components/landing/LandingHome";
+import {
+  getRequestWorkspace,
+  loadTenantCatalog,
+} from "@/lib/services/workspace-service";
+import { TenantPortalHome } from "@/components/tenant/TenantPortalHome";
 
 export default async function HomePage({
   params,
@@ -13,6 +19,26 @@ export default async function HomePage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+
+  // Auf einem Whitelabel-Mandanten-Host ist die Startseite das Portal (Katalog
+  // der lizenzierten Kurse) – nicht die LearnSphere-Landingpage.
+  const workspace = await getRequestWorkspace();
+  if (workspace) {
+    const session = await auth();
+    const courses = await loadTenantCatalog(
+      workspace.ownerId,
+      locale,
+      session?.user?.id ?? null
+    );
+    return (
+      <TenantPortalHome
+        brandName={workspace.brandName}
+        brandColor={workspace.brandColor}
+        courses={courses}
+      />
+    );
+  }
+
   const [courseCount, learnerCount, featuredCourses] = await Promise.all([
     db.course.count({ where: { published: true, listedInShop: true } }),
     db.user.count(),

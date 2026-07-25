@@ -184,6 +184,61 @@ export const Badge = styled.span<{ $tone?: "accent" | "violet" | "success" | "mu
   }}
 `;
 
+/**
+ * Gemeinsame Feld-Optik für Text-Inputs und Textareas. Bisher wurde diese in
+ * ~18 Stellen lokal per styled.input/textarea nachgebaut – hier zentral.
+ * `$invalid` färbt den Rahmen rot (für Formularfehler).
+ */
+const fieldBase = css`
+  width: 100%;
+  background: ${({ theme }) => theme.colors.bgElevated};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.radii.md};
+  padding: 0.85rem 1rem;
+  color: ${({ theme }) => theme.colors.text};
+  font: inherit;
+  transition: border-color 150ms ease;
+
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.textFaint};
+  }
+
+  &:hover:not(:disabled) {
+    border-color: ${({ theme }) => theme.colors.borderStrong};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 0;
+    border-color: transparent;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+export const Input = styled.input<{ $invalid?: boolean }>`
+  ${fieldBase}
+  ${({ theme, $invalid }) =>
+    $invalid &&
+    css`
+      border-color: ${theme.colors.danger};
+    `}
+`;
+
+export const Textarea = styled.textarea<{ $invalid?: boolean }>`
+  ${fieldBase}
+  min-height: 120px;
+  resize: vertical;
+  ${({ theme, $invalid }) =>
+    $invalid &&
+    css`
+      border-color: ${theme.colors.danger};
+    `}
+`;
+
 export const VisuallyHidden = styled.span`
   position: absolute;
   width: 1px;

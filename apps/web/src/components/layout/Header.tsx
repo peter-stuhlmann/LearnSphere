@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import {
+  clearCartLocalOnly,
   getCartItems,
   getCartServerSnapshot,
   subscribeCart,
@@ -39,8 +40,8 @@ const SkipLink = styled.a`
   }
 `;
 
-/** Die drei Bereiche der Plattform mit eigener Farbwelt. */
-type AreaMode = "learner" | "studio" | "partner";
+/** Die vier Bereiche der Plattform mit eigener Farbwelt. */
+type AreaMode = "learner" | "studio" | "partner" | "business";
 
 const Bar = styled.header<{ $mode: AreaMode }>`
   position: sticky;
@@ -62,11 +63,17 @@ const Bar = styled.header<{ $mode: AreaMode }>`
             border-bottom: 1px solid rgba(77, 216, 255, 0.45);
             box-shadow: 0 8px 40px rgba(77, 216, 255, 0.12);
           `
-        : css`
-            background: rgba(20, 28, 12, 0.85);
-            border-bottom: 1px solid rgba(200, 255, 77, 0.45);
-            box-shadow: 0 8px 40px rgba(200, 255, 77, 0.12);
-          `}
+        : $mode === "business"
+          ? css`
+              background: rgba(43, 30, 11, 0.85);
+              border-bottom: 1px solid rgba(255, 184, 77, 0.45);
+              box-shadow: 0 8px 40px rgba(255, 184, 77, 0.12);
+            `
+          : css`
+              background: rgba(20, 28, 12, 0.85);
+              border-bottom: 1px solid rgba(200, 255, 77, 0.45);
+              box-shadow: 0 8px 40px rgba(200, 255, 77, 0.12);
+            `}
 `;
 
 const Inner = styled.div`
@@ -100,7 +107,9 @@ const Brand = styled(Link)<{ $mode: AreaMode }>`
         ? theme.colors.violet
         : $mode === "partner"
           ? theme.colors.partner
-          : theme.colors.accent};
+          : $mode === "business"
+            ? theme.colors.business
+            : theme.colors.accent};
     transition: color 300ms ease;
   }
 `;
@@ -128,11 +137,17 @@ const AreaBadge = styled.span<{ $mode: AreaMode }>`
           color: ${theme.colors.partner};
           border: 1px solid rgba(77, 216, 255, 0.4);
         `
-      : css`
-          background: ${theme.colors.violetSoft};
-          color: ${theme.colors.violet};
-          border: 1px solid rgba(139, 124, 255, 0.4);
-        `}
+      : $mode === "business"
+        ? css`
+            background: ${theme.colors.businessSoft};
+            color: ${theme.colors.business};
+            border: 1px solid rgba(255, 184, 77, 0.4);
+          `
+        : css`
+            background: ${theme.colors.violetSoft};
+            color: ${theme.colors.violet};
+            border: 1px solid rgba(139, 124, 255, 0.4);
+          `}
 `;
 
 const Nav = styled.nav<{ $open: boolean }>`
@@ -319,7 +334,9 @@ const AreaDot = styled.span<{ $area: AreaMode }>`
       ? theme.colors.violet
       : $area === "partner"
         ? theme.colors.partner
-        : theme.colors.accent};
+        : $area === "business"
+          ? theme.colors.business
+          : theme.colors.accent};
 `;
 
 const AreaCheck = styled.span`
@@ -351,7 +368,9 @@ const AvatarButton = styled.button<{ $mode: AreaMode; $open: boolean }>`
         ? theme.colors.violet
         : $mode === "partner"
           ? theme.colors.partner
-          : theme.colors.accent};
+          : $mode === "business"
+            ? theme.colors.business
+            : theme.colors.accent};
   background: ${({ theme }) => theme.colors.bgElevated};
   color: ${({ theme }) => theme.colors.text};
   transition: box-shadow 150ms ease;
@@ -364,7 +383,9 @@ const AvatarButton = styled.button<{ $mode: AreaMode; $open: boolean }>`
               ? theme.colors.violetSoft
               : $mode === "partner"
                 ? theme.colors.partnerSoft
-                : theme.colors.accentSoft};
+                : $mode === "business"
+                  ? theme.colors.businessSoft
+                  : theme.colors.accentSoft};
         `
       : ""}
 
@@ -474,7 +495,7 @@ interface HeaderProps {
   user: { name: string | null; image: string | null; role: string } | null;
 }
 
-/** Bereich aus dem Pfad ableiten: Studio, Partnerprogramm oder Lernbereich. */
+/** Bereich aus dem Pfad ableiten: Studio, Partner, Business oder Lernen. */
 function areaForPath(pathname: string): AreaMode {
   if (pathname === "/creator" || pathname.startsWith("/creator/")) {
     return "studio";
@@ -487,6 +508,9 @@ function areaForPath(pathname: string): AreaMode {
     pathname.startsWith("/partnerprogramm/")
   ) {
     return "partner";
+  }
+  if (pathname === "/business" || pathname.startsWith("/business/")) {
+    return "business";
   }
   return "learner";
 }
@@ -532,17 +556,23 @@ function AvatarMenu({
 
   useDismiss(wrapRef, open, close);
 
-  // Live-Erkennung der Öffnungsrichtung: beim Öffnen UND bei jeder
-  // Größenänderung des Viewports neu messen, nicht nur beim Seitenladen.
+  // Öffnungsrichtung: VOR dem Öffnen synchron messen (sonst malt der
+  // erste Frame rechtsbündig und springt sichtbar um); bei Viewport-
+  // Größenänderungen während das Menü offen ist erneut messen.
   const updateDirection = useCallback(() => {
     const rect = wrapRef.current?.getBoundingClientRect();
     if (!rect) return;
     setAlignLeft(rect.left + AVATAR_MENU_WIDTH > window.innerWidth - 8);
   }, []);
 
+  const toggleOpen = useCallback(() => {
+    // Messung und Öffnen im selben React-Batch → korrekt ab dem 1. Frame
+    updateDirection();
+    setOpen((value) => !value);
+  }, [updateDirection]);
+
   useEffect(() => {
     if (!open) return;
-    updateDirection();
     window.addEventListener("resize", updateDirection);
     return () => window.removeEventListener("resize", updateDirection);
   }, [open, updateDirection]);
@@ -558,7 +588,7 @@ function AvatarMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t("accountMenu")}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
       >
         {user.image ? (
           // eslint-disable-next-line @next/next/no-img-element -- Data-URL-Avatar
@@ -609,12 +639,26 @@ function AvatarMenu({
             {t("affiliateArea")}
             {mode === "partner" ? <AreaCheck aria-hidden>✓</AreaCheck> : null}
           </AreaLink>
+          <AreaLink
+            href="/business"
+            role="menuitem"
+            $active={mode === "business"}
+            aria-current={mode === "business" ? "true" : undefined}
+            onClick={close}
+          >
+            <AreaDot $area="business" aria-hidden />
+            {t("businessArea")}
+            {mode === "business" ? <AreaCheck aria-hidden>✓</AreaCheck> : null}
+          </AreaLink>
           <DropdownDivider aria-hidden />
           <DropdownLink href="/profile" role="menuitem" onClick={close}>
             {t("profile")}
           </DropdownLink>
           <DropdownLink href="/settings" role="menuitem" onClick={close}>
             {t("settings")}
+          </DropdownLink>
+          <DropdownLink href="/billing" role="menuitem" onClick={close}>
+            {t("billing")}
           </DropdownLink>
           {user.role === "ADMIN" ? (
             <DropdownLink href="/admin" role="menuitem" onClick={close}>
@@ -638,6 +682,10 @@ function AvatarMenu({
             $danger
             onClick={() => {
               close();
+              // gespiegelten DB-Korb nicht für den nächsten Nutzer dieses
+              // Geräts liegen lassen (CartSync würde ihn sonst dort einmergen);
+              // nur lokal leeren – der DB-Korb überlebt den Logout
+              clearCartLocalOnly();
               logout(locale);
             }}
           >
@@ -728,15 +776,17 @@ const CartCount = styled.span`
   position: absolute;
   top: -5px;
   right: -5px;
-  min-width: 17px;
-  height: 17px;
+  min-width: 18px;
+  height: 18px;
   padding-inline: 4px;
   border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.66rem;
+  display: grid;
+  place-items: center;
+  /* eine Ziffer sauber zentrieren: enges Line-Box statt Font-Metrik-Versatz */
+  line-height: 1;
+  font-size: 0.68rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   background: ${({ theme }) => theme.colors.accent};
   color: ${({ theme }) => theme.colors.onAccent};
 `;
@@ -826,9 +876,11 @@ export function Header({ user }: HeaderProps) {
               ? "/creator"
               : mode === "partner"
                 ? "/affiliate"
-                : user
-                  ? "/my-learning"
-                  : "/"
+                : mode === "business"
+                  ? "/business"
+                  : user
+                    ? "/my-learning"
+                    : "/"
           }
           $mode={mode}
           onClick={close}
@@ -839,7 +891,11 @@ export function Header({ user }: HeaderProps) {
           </span>
           {mode !== "learner" ? (
             <AreaBadge $mode={mode}>
-              {studio ? t("studioBadge") : t("partnerBadge")}
+              {studio
+                ? t("studioBadge")
+                : mode === "business"
+                  ? t("businessBadge")
+                  : t("partnerBadge")}
             </AreaBadge>
           ) : null}
         </Brand>
@@ -854,11 +910,18 @@ export function Header({ user }: HeaderProps) {
                 <NavLink href="/creator/courses" onClick={close}>
                   {t("myCourses")}
                 </NavLink>
+                <NavLink href="/creator/emails" onClick={close}>
+                  {t("creatorEmails")}
+                </NavLink>
                 <DistributionSubmenu onNavigate={close} />
               </>
             ) : mode === "partner" && user ? (
               <NavLink href="/affiliate" onClick={close}>
                 {t("affiliateOverview")}
+              </NavLink>
+            ) : mode === "business" && user ? (
+              <NavLink href="/business" onClick={close}>
+                {t("businessOverview")}
               </NavLink>
             ) : user ? (
               <>

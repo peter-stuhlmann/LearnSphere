@@ -2,6 +2,7 @@
 
 import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 import styled from "styled-components";
+import { Input } from "@/components/ui/primitives";
 
 const Wrapper = styled.div`
   display: flex;
@@ -13,31 +14,6 @@ const Label = styled.label`
   font-size: 0.85rem;
   font-weight: 600;
   color: ${({ theme }) => theme.colors.textMuted};
-`;
-
-const StyledInput = styled.input<{ $invalid?: boolean }>`
-  background: ${({ theme }) => theme.colors.bgElevated};
-  border: 1px solid
-    ${({ theme, $invalid }) =>
-      $invalid ? theme.colors.danger : theme.colors.border};
-  border-radius: ${({ theme }) => theme.radii.md};
-  padding: 0.85rem 1rem;
-  width: 100%;
-  transition: border-color 150ms ease;
-
-  &::placeholder {
-    color: ${({ theme }) => theme.colors.textFaint};
-  }
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.borderStrong};
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.colors.accent};
-    outline-offset: 0;
-    border-color: transparent;
-  }
 `;
 
 const Hint = styled.p`
@@ -85,7 +61,7 @@ export function Field({ label, hint, error, trailing, ...rest }: FieldProps) {
     <Wrapper>
       <Label htmlFor={id}>{label}</Label>
       <InputRow $hasTrailing={Boolean(trailing)}>
-        <StyledInput
+        <Input
           id={id}
           $invalid={Boolean(error)}
           aria-invalid={error ? true : undefined}

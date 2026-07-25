@@ -144,9 +144,11 @@ export default async function QuizPage({
   // Zulassung zur Abschlussprüfung: Sehquote + bestandene Zwischenprüfungen
   // (gleiche Regel wie beim Submit in quiz-service)
   let notEligible = false;
+  let watchPercentValue = 0;
+  let sectionQuizzesPassed: boolean[] = [];
   if (quiz.kind === "FINAL" && !showPersistedResult) {
     const lessons = quiz.course.sections.flatMap((s) => s.lessons);
-    const watchPercent = courseWatchPercent(
+    watchPercentValue = courseWatchPercent(
       lessons.map((lesson) => ({
         durationSeconds: lesson.durationSeconds,
         watchedSeconds:
@@ -154,7 +156,7 @@ export default async function QuizPage({
             ?.watchedSeconds ?? 0,
       }))
     );
-    const sectionQuizzesPassed = quiz.course.sections
+    sectionQuizzesPassed = quiz.course.sections
       .filter((s) => s.quiz)
       .map((s) =>
         enrollment!.quizAttempts.some(
@@ -162,7 +164,7 @@ export default async function QuizPage({
         )
       );
     notEligible = !isEligibleForExam({
-      watchPercent,
+      watchPercent: watchPercentValue,
       requiredWatchPercent: quiz.course.requiredWatchPercent,
       sectionQuizzesPassed,
     });
@@ -179,6 +181,10 @@ export default async function QuizPage({
       ? {
           blocked: "not_eligible",
           requiredWatchPercent: quiz.course.requiredWatchPercent,
+          watchPercent: Math.round(watchPercentValue),
+          watchOk: watchPercentValue >= quiz.course.requiredWatchPercent,
+          sectionExamsTotal: sectionQuizzesPassed.length,
+          sectionExamsPassed: sectionQuizzesPassed.filter(Boolean).length,
           usedAttempts: attempts.length,
           maxAttempts: quiz.maxAttempts,
         }

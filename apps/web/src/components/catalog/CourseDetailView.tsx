@@ -13,9 +13,12 @@ import {
   getCartServerSnapshot,
   subscribeCart,
 } from "@/components/cart/cartStore";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
-import { languageDisplayName } from "@elearning/core/course-i18n";
+import {
+  CourseLanguages,
+  type CourseLanguageMeta,
+} from "@/components/catalog/CourseLanguages";
 import styled from "styled-components";
 import { Link, useRouter } from "@/i18n/navigation";
 import { TransitionLink } from "@/components/navigation/TransitionLink";
@@ -28,6 +31,7 @@ import {
   type RenderableBlock,
 } from "@/components/learn/BlockRenderer";
 import { RichText } from "@/components/ui/RichText";
+import { Modal } from "@/components/ui/Modal";
 import {
   Badge,
   Card,
@@ -125,43 +129,6 @@ function Stars({ average, label }: { average: number; label: string }) {
 }
 
 /* Kurssprachen ausgeschrieben als dezente Chips statt Kürzel im Kicker */
-const LangRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 0.75rem;
-`;
-
-const LangChip = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.28rem 0.7rem;
-  border-radius: ${({ theme }) => theme.radii.pill};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.bgElevated};
-  font-size: 0.78rem;
-  color: ${({ theme }) => theme.colors.textMuted};
-
-  svg {
-    width: 13px;
-    height: 13px;
-    color: ${({ theme }) => theme.colors.violet};
-  }
-`;
-
-const LangOriginal = styled.em`
-  font-style: normal;
-  font-family: ${({ theme }) => theme.fonts.mono};
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.1rem 0.4rem;
-  border-radius: ${({ theme }) => theme.radii.pill};
-  background: ${({ theme }) => theme.colors.violetSoft};
-  color: ${({ theme }) => theme.colors.violet};
-`;
-
 const Description = styled.div`
   margin-top: 2.5rem;
 
@@ -187,7 +154,6 @@ const Curriculum = styled.section`
 
 /* Drip Content: kleiner Hinweis-Chip im Abschnittstitel des Curriculums */
 const DripChip = styled.span`
-  margin-left: auto;
   align-self: center;
   font-family: ${({ theme }) => theme.fonts.mono};
   font-size: 0.68rem;
@@ -197,37 +163,79 @@ const DripChip = styled.span`
   border-radius: ${({ theme }) => theme.radii.pill};
   padding: 0.15rem 0.55rem;
   white-space: nowrap;
-
-  & + & {
-    margin-left: 0.35rem;
-  }
 `;
 
-const SectionBlock = styled.details`
+const SectionBlock = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.radii.md};
   margin-bottom: 0.6rem;
   overflow: hidden;
+`;
 
-  summary {
-    cursor: pointer;
-    padding: 1rem 1.2rem;
-    font-weight: 600;
-    background: ${({ theme }) => theme.colors.surface};
-    list-style: none;
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
+/* Accordion-Kopf: Button statt <summary>, damit wir das Panel smooth
+   auf-/zuklappen können (native <details> lässt sich nicht animieren). */
+const SectionSummary = styled.button`
+  width: 100%;
+  cursor: pointer;
+  padding: 1rem 1.2rem;
+  font-weight: 600;
+  font-size: 1rem;
+  text-align: left;
+  color: inherit;
+  background: ${({ theme }) => theme.colors.surface};
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 
-    &::after {
-      content: "+";
-      color: ${({ theme }) => theme.colors.accent};
-      font-family: ${({ theme }) => theme.fonts.mono};
-    }
+  &:hover {
+    background: ${({ theme }) => theme.colors.surfaceHover};
   }
 
-  &[open] summary::after {
-    content: "–";
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: -2px;
+  }
+
+  .right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+`;
+
+/* +/–-Indikator aus zwei Balken: der vertikale schrumpft beim Öffnen weg,
+   das + wird smooth zum – (rein CSS, in allen Browsern identisch). */
+const AccordionIcon = styled.span<{ $open: boolean }>`
+  position: relative;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    background: ${({ theme }) => theme.colors.accent};
+    border-radius: 1px;
+    transition:
+      transform 0.28s ease,
+      opacity 0.28s ease;
+  }
+
+  &::before {
+    width: 14px;
+    height: 2px;
+  }
+
+  &::after {
+    width: 2px;
+    height: 14px;
+    transform: scaleY(${({ $open }) => ($open ? 0 : 1)});
+    opacity: ${({ $open }) => ($open ? 0 : 1)};
   }
 `;
 
@@ -340,6 +348,18 @@ const PerkList = styled.ul`
   }
 `;
 
+/* Perk mit Verweis auf die LearnSphere-Business-Seite – dezent, unterstrichen */
+const PerkLink = styled(Link)`
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+
+  &:hover,
+  &:focus-visible {
+    color: ${({ theme }) => theme.colors.business};
+  }
+`;
+
 const PreviewButton = styled.button`
   color: ${({ theme }) => theme.colors.accent};
   font-size: 0.85rem;
@@ -348,27 +368,6 @@ const PreviewButton = styled.button`
 
   &:hover {
     text-decoration: underline;
-  }
-`;
-
-const PreviewStage = styled.div`
-  margin: 0.75rem 0;
-  border: 1px solid ${({ theme }) => theme.colors.accent};
-  border-radius: ${({ theme }) => theme.radii.md};
-  padding: 1rem;
-  background: ${({ theme }) => theme.colors.bgElevated};
-
-  video {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    border-radius: ${({ theme }) => theme.radii.sm};
-    background: #000;
-  }
-
-  p.text {
-    color: ${({ theme }) => theme.colors.textMuted};
-    white-space: pre-wrap;
-    font-size: 0.92rem;
   }
 `;
 
@@ -408,8 +407,10 @@ const CouponForm = styled.form`
   display: flex;
   gap: 0.5rem;
   align-items: flex-end;
-  /* Innenabstand statt margin: bleibt Teil der animierten Höhe */
-  padding-top: 0.6rem;
+  /* Innenabstand statt margin: bleibt Teil der animierten Höhe. Die 4px an
+     Seiten/unten geben dem Fokus-Rahmen Platz, den das overflow:hidden der
+     Collapse-Hülle sonst abschneidet. */
+  padding: 0.6rem 4px 4px;
 
   > div {
     flex: 1;
@@ -494,12 +495,14 @@ interface DetailCourse {
   description: string;
   coverImage: string | null;
   language: string;
-  /** Alle Kurssprachen, Basissprache zuerst */
-  languages: string[];
+  /** Alle Kurssprachen inkl. Übersetzungs-Herkunft, Basissprache zuerst */
+  languages: CourseLanguageMeta[];
   priceCents: number;
   currency: string;
   requiredWatchPercent: number;
   finalExamRequired: boolean;
+  /** Kurs ist über LearnSphere Business (Team-Lizenzen) buchbar */
+  businessEnabled: boolean;
   creatorName: string;
   creatorImage: string | null;
   creatorHandle: string | null;
@@ -549,6 +552,12 @@ export function CourseDetailView({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  // Aufgeklappte Abschnitte (erster Abschnitt initial offen); mehrere dürfen
+  // gleichzeitig offen sein wie bei den bisherigen <details>.
+  const [openSections, setOpenSections] = useState<ReadonlySet<string>>(
+    () => new Set(course.sections[0] ? [course.sections[0].id] : [])
+  );
+  const reduceMotion = useReducedMotion();
   const [couponInput, setCouponInput] = useState("");
   const [couponOpen, setCouponOpen] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -656,27 +665,7 @@ export function CourseDetailView({
                 <RatingCount>{t("noRatingsYet")}</RatingCount>
               </RatingRow>
             )}
-            <LangRow aria-label={t("courseLanguages")}>
-              {course.languages.map((lang) => (
-                <LangChip key={lang}>
-                  <svg
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.2"
-                    aria-hidden
-                  >
-                    <circle cx="8" cy="8" r="6.2" />
-                    <ellipse cx="8" cy="8" rx="2.8" ry="6.2" />
-                    <path d="M2 8 H14 M2.8 5 H13.2 M2.8 11 H13.2" />
-                  </svg>
-                  {languageDisplayName(lang, locale)}
-                  {lang === course.language ? (
-                    <LangOriginal>{t("originalLanguage")}</LangOriginal>
-                  ) : null}
-                </LangChip>
-              ))}
-            </LangRow>
+            <CourseLanguages languages={course.languages} />
 
             {/* Kursbild ist optional: ohne Bild entfällt der Hero komplett
                 (Karten im Katalog zeigen weiterhin den Platzhalter) */}
@@ -707,66 +696,85 @@ export function CourseDetailView({
 
             <Curriculum aria-label={t("curriculum")}>
               <h2>{t("curriculum")}</h2>
-              {course.sections.map((section, i) => (
-                <SectionBlock key={section.id} open={i === 0}>
-                  <summary>
-                    {section.title}
-                    {section.hasQuiz ? " ✦" : ""}
-                    {(section.dripAfterDays ?? 0) > 0 ? (
-                      <DripChip>
-                        ⏳ {t("dripFromDay", { day: section.dripAfterDays! })}
-                      </DripChip>
-                    ) : null}
-                    {section.dripAfterQuiz ? (
-                      <DripChip>🔒 {t("dripAfterQuiz")}</DripChip>
-                    ) : null}
-                  </summary>
-                  <LessonList>
-                    {section.lessons.map((lesson) => (
-                      <li key={lesson.id} style={{ flexDirection: "column" }}>
-                        <span
-                          style={{
-                            display: "flex",
-                            width: "100%",
-                            justifyContent: "space-between",
-                            gap: "1rem",
-                          }}
-                        >
-                          <span>
-                            {lesson.title}{" "}
-                            {lesson.isPreview ? (
-                              <PreviewButton
-                                type="button"
-                                onClick={() =>
-                                  setPreviewId(
-                                    previewId === lesson.id ? null : lesson.id
-                                  )
-                                }
-                                aria-expanded={previewId === lesson.id}
-                              >
-                                ▶ {previewId === lesson.id
-                                  ? t("closePreview")
-                                  : t("watchPreview")}
-                              </PreviewButton>
-                            ) : null}
-                          </span>
-                          {lesson.durationSeconds > 0 ? (
-                            <span className="duration">
-                              {formatDuration(lesson.durationSeconds)}
-                            </span>
-                          ) : null}
-                        </span>
-
-                        {previewLesson?.id === lesson.id ? (
-                          <PreviewStage>
-                            <BlockRenderer blocks={previewLesson.blocks} />
-                          </PreviewStage>
+              {course.sections.map((section) => {
+                const isOpen = openSections.has(section.id);
+                const panelId = `section-panel-${section.id}`;
+                return (
+                  <SectionBlock key={section.id}>
+                    <SectionSummary
+                      type="button"
+                      aria-expanded={isOpen}
+                      aria-controls={panelId}
+                      onClick={() =>
+                        setOpenSections((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(section.id)) next.delete(section.id);
+                          else next.add(section.id);
+                          return next;
+                        })
+                      }
+                    >
+                      <span>
+                        {section.title}
+                        {section.hasQuiz ? " ✦" : ""}
+                      </span>
+                      <span className="right">
+                        {(section.dripAfterDays ?? 0) > 0 ? (
+                          <DripChip>
+                            ⏳{" "}
+                            {t("dripFromDay", { day: section.dripAfterDays! })}
+                          </DripChip>
                         ) : null}
-                      </li>
-                    ))}
-                  </LessonList>
-                </SectionBlock>
-              ))}
+                        {section.dripAfterQuiz ? (
+                          <DripChip>🔒 {t("dripAfterQuiz")}</DripChip>
+                        ) : null}
+                        <AccordionIcon $open={isOpen} aria-hidden />
+                      </span>
+                    </SectionSummary>
+                    <AnimatePresence initial={false}>
+                      {isOpen ? (
+                        <motion.div
+                          id={panelId}
+                          role="region"
+                          key="panel"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{
+                            duration: reduceMotion ? 0 : 0.28,
+                            ease: [0.4, 0, 0.2, 1],
+                          }}
+                          style={{ overflow: "hidden" }}
+                        >
+                          <LessonList>
+                            {section.lessons.map((lesson) => (
+                              <li key={lesson.id}>
+                                <span>
+                                  {lesson.title}{" "}
+                                  {lesson.isPreview ? (
+                                    <PreviewButton
+                                      type="button"
+                                      onClick={() => setPreviewId(lesson.id)}
+                                      aria-haspopup="dialog"
+                                    >
+                                      ▶ {t("watchPreview")}
+                                    </PreviewButton>
+                                  ) : null}
+                                </span>
+                                {lesson.durationSeconds > 0 ? (
+                                  <span className="duration">
+                                    {formatDuration(lesson.durationSeconds)}
+                                  </span>
+                                ) : null}
+                              </li>
+                            ))}
+                          </LessonList>
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
+                  </SectionBlock>
+                );
+              })}
             </Curriculum>
 
             {course.creatorBio || course.creatorRating.average !== null ? (
@@ -849,6 +857,18 @@ export function CourseDetailView({
                   percent: course.requiredWatchPercent,
                 })}
               </li>
+              {course.businessEnabled ? (
+                <li>
+                  <PerkLink
+                    href={{
+                      pathname: "/business",
+                      query: { course: course.slug },
+                    }}
+                  >
+                    {t("businessAvailable")}
+                  </PerkLink>
+                </li>
+              ) : null}
             </PerkList>
 
             {error ? (
@@ -901,7 +921,6 @@ export function CourseDetailView({
                               label={t("couponLabel")}
                               value={couponInput}
                               onChange={(e) => setCouponInput(e.target.value)}
-                              placeholder="SOMMER-25"
                               autoFocus
                               error={
                                 couponError
@@ -965,6 +984,19 @@ export function CourseDetailView({
           </BuyCard>
         </Layout>
       </Container>
+
+      {/* Lektions-Vorschau als Modal mit Backdrop (Portal nach <body>) */}
+      <Modal
+        open={previewLesson !== null}
+        title={previewLesson?.title ?? ""}
+        closeLabel={t("closePreview")}
+        onClose={() => setPreviewId(null)}
+        size="wide"
+      >
+        {previewLesson ? (
+          <BlockRenderer blocks={previewLesson.blocks} />
+        ) : null}
+      </Modal>
     </Wrap>
   );
 }

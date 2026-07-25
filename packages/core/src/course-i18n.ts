@@ -345,6 +345,65 @@ export function parseBlockTranslations(
   );
 }
 
+/* ---------- Sprach-Herkunft für die Sprach-Fußnote der Kursseite ---------- */
+
+/**
+ * Herkunft, die auf der Kursseite je Sprache angezeigt wird:
+ * - "base"      Originalsprache des Kurses (keine Fußnote)
+ * - "auto"      rein automatisch übersetzt (KI, ohne menschliche Prüfung)
+ * - "optimized" automatisch übersetzt und vom Creator geprüft/angepasst
+ */
+export type LanguageProvenance = "base" | "auto" | "optimized";
+
+/**
+ * Herkunft der Übersetzung eines Blocks in einer Sprache – nur wenn dort
+ * tatsächlich übersetzter Text vorliegt (sonst kein Signal → null, weil der
+ * Block auf die Basissprache zurückfällt).
+ */
+export function blockTranslationProvenance(
+  translations: unknown,
+  locale: string
+): ContentProvenance | null {
+  const overrides = overridesFor(translations, locale);
+  if (overrideString(overrides, "content") === null) return null;
+  return parseProvenance(overrides.provenance);
+}
+
+/**
+ * Rollup der Block-Herkünfte einer Sprache: Sobald der Creator mindestens
+ * einen übersetzten Inhalt geprüft oder angepasst hat (Herkunft ≠ reine "AI"),
+ * gilt die Sprache als vom Creator optimiert – sonst als rein automatisch
+ * übersetzt. Ohne jedes Signal (leere Liste) bleibt es bei "auto".
+ */
+export function rollupLanguageProvenance(
+  provenances: readonly ContentProvenance[]
+): "auto" | "optimized" {
+  return provenances.some((p) => p !== "AI") ? "optimized" : "auto";
+}
+
+/**
+ * Herkunft je Kurssprache bestimmen. Die Basissprache ist immer "base"; für
+ * Zusatzsprachen entscheidet die Herkunft der übersetzten Text-/HTML-Blöcke.
+ */
+export function courseLanguageProvenance(
+  languages: readonly string[],
+  baseLanguage: string,
+  blockTranslations: readonly unknown[]
+): Record<string, LanguageProvenance> {
+  const result: Record<string, LanguageProvenance> = {};
+  for (const lang of languages) {
+    if (lang === baseLanguage) {
+      result[lang] = "base";
+      continue;
+    }
+    const provenances = blockTranslations
+      .map((t) => blockTranslationProvenance(t, lang))
+      .filter((p): p is ContentProvenance => p !== null);
+    result[lang] = rollupLanguageProvenance(provenances);
+  }
+  return result;
+}
+
 /** Anzeigedauer einer Lektion in der Zielsprache (Video/Audio-Blöcke). */
 export function lessonDurationForLocale(
   blocks: BlockLike[],

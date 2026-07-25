@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/primitives";
 import { formatDuration } from "@elearning/core/format";
 import { Field } from "@/components/ui/Field";
+import { HtmlBlockFields } from "@/components/dashboard/HtmlBlockFields";
 import { RichTextEditor } from "@/components/ui/RichTextEditorLazy";
 import { useUnsavedMarker } from "@/components/ui/UnsavedChangesGuard";
 import { AudioPlayer } from "@/components/learn/AudioPlayer";
@@ -326,6 +327,8 @@ export interface BlockDraft {
   fileName: string;
   content: string;
   css: string;
+  /** HTML-Blöcke: optionales JavaScript (läuft sandboxed, wenn nicht leer) */
+  script: string;
   durationSeconds: number;
   transcriptDe: string;
   transcriptEn: string;
@@ -355,6 +358,7 @@ export const EMPTY_BLOCK: BlockDraft = {
   fileName: "",
   content: "",
   css: "",
+  script: "",
   durationSeconds: 0,
   transcriptDe: "",
   transcriptEn: "",
@@ -2454,6 +2458,31 @@ export function LessonBlocksForm({
                   placeholder="h1 { color: rebeccapurple; }"
                 />
               </div>
+              <div>
+                <p style={{ fontSize: "0.82rem", marginBottom: "0.35rem" }}>
+                  {t("jsContent")}
+                </p>
+                <Textarea
+                  aria-label={t("jsContent")}
+                  value={block.script}
+                  onChange={(e) => patchBlock(index, { script: e.target.value })}
+                  placeholder="document.querySelector('button')?.addEventListener(…)"
+                />
+                <p
+                  style={{
+                    fontSize: "0.78rem",
+                    marginTop: "0.3rem",
+                    color: "#8A8CA3",
+                  }}
+                >
+                  {t("jsHint")}
+                </p>
+              </div>
+              <HtmlBlockFields
+                content={block.content}
+                cssCode={block.css}
+                script={block.script}
+              />
             </>
           ) : null}
         </BlockPanel>

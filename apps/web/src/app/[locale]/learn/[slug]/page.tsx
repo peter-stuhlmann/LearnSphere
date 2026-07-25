@@ -17,10 +17,13 @@ import { LearnView } from "@/components/learn/LearnView";
 
 export default async function LearnPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams?: Promise<{ preview?: string }>;
 }) {
   const { locale, slug } = await params;
+  const preview = (await searchParams)?.preview === "1";
   const session = await auth();
   if (!session?.user?.id) {
     redirect({ href: "/login", locale });
@@ -71,8 +74,8 @@ export default async function LearnPage({
   });
   if (!course) notFound();
 
-  // Einschreibung und eigene Bewertung sind unabhängig → parallel laden
-  const [enrollment, myReview] = await Promise.all([
+  // Einschreibung, eigene Bewertung und Favoriten sind unabhängig → parallel
+  const [enrollment, myReview, favoriteRows] = await Promise.all([
     db.enrollment.findUnique({
       where: {
         userId_courseId: { userId: session!.user.id, courseId: course.id },
@@ -91,18 +94,44 @@ export default async function LearnPage({
       },
       select: { rating: true, comment: true },
     }),
+    db.lessonFavorite.findMany({
+      where: {
+        userId: session!.user.id,
+        lesson: { section: { courseId: course.id } },
+      },
+      select: { lessonId: true },
+    }),
   ]);
-  if (!enrollment) {
+  // Vorschau als Teilnehmer: der Kurs-Creator darf die echte Lernansicht auch
+  // ohne Einschreibung öffnen (?preview=1) – ohne Fortschritt zu speichern.
+  const isOwner = course.creatorId === session!.user.id;
+  const previewMode = !enrollment && isOwner && preview;
+  if (!enrollment && !previewMode) {
     redirect({
       href: { pathname: "/courses/[slug]", params: { slug } },
       locale,
     });
   }
 
+  // Synthetischer, leerer Fortschritt für den Vorschaumodus (frischer Stand)
+  const enroll = enrollment ?? {
+    createdAt: new Date(),
+    lastLessonId: null,
+    lessonProgress: [] as {
+      lessonId: string;
+      watchedSeconds: number;
+      completed: boolean;
+      positions: unknown;
+    }[],
+    quizAttempts: [] as { quizId: string; passed: boolean; createdAt: Date }[],
+    certificate: null as { serial: string } | null,
+  };
+
   const lessons = course.sections.flatMap((s) => s.lessons);
   const progressByLesson = new Map(
-    enrollment!.lessonProgress.map((p) => [p.lessonId, p])
+    enroll.lessonProgress.map((p) => [p.lessonId, p])
   );
+  const favoriteLessonIds = new Set(favoriteRows.map((f) => f.lessonId));
 
   // Heatmap ("Oft geschaut"): aggregierte Zähler aller Medienblöcke laden
   const mediaBlockIds = lessons
@@ -126,9 +155,9 @@ export default async function LearnPage({
 
   // Letzte Position: nur übernehmen, wenn die Lektion noch im Kurs existiert
   const lastLessonId =
-    enrollment!.lastLessonId &&
-    lessons.some((l) => l.id === enrollment!.lastLessonId)
-      ? enrollment!.lastLessonId
+    enroll.lastLessonId &&
+    lessons.some((l) => l.id === enroll.lastLessonId)
+      ? enroll.lastLessonId
       : null;
 
   const watchPercent = courseWatchPercent(
@@ -141,7 +170,7 @@ export default async function LearnPage({
   const sectionQuizzesPassed = course.sections
     .filter((s) => s.quiz)
     .map((s) =>
-      enrollment!.quizAttempts.some((a) => a.quizId === s.quiz!.id && a.passed)
+      enroll.quizAttempts.some((a) => a.quizId === s.quiz!.id && a.passed)
     );
 
   const eligible = isEligibleForExam({
@@ -164,10 +193,10 @@ export default async function LearnPage({
           dripAfterQuiz: section.dripAfterQuiz,
         },
         {
-          enrolledAt: enrollment!.createdAt,
+          enrolledAt: enroll.createdAt,
           now,
           previousQuizPassed: previous?.quiz
-            ? enrollment!.quizAttempts.some(
+            ? enroll.quizAttempts.some(
                 (a) => a.quizId === previous.quiz!.id && a.passed
               )
             : null,
@@ -184,7 +213,7 @@ export default async function LearnPage({
   >();
   for (const section of course.sections) {
     if (!section.quiz) continue;
-    const attempts = enrollment!.quizAttempts
+    const attempts = enroll.quizAttempts
       .filter((a) => a.quizId === section.quiz!.id)
       .map((a) => ({ createdAt: a.createdAt, passed: a.passed }));
     const decision = canAttemptQuiz({
@@ -216,7 +245,7 @@ export default async function LearnPage({
         // fürs ExamBand: „Nochmal versuchen" nur wenn Wiederholen erlaubt;
         // der Versuchszähler baut den direkten ?retry=-Link (frische Prüfung)
         retakeAllowed: finalQuizRaw.retakeAfterPass,
-        attempts: enrollment!.quizAttempts.filter(
+        attempts: enroll.quizAttempts.filter(
           (attempt) => attempt.quizId === finalQuizRaw.id
         ).length,
       }
@@ -225,6 +254,7 @@ export default async function LearnPage({
   return (
     <LearnView
       courseId={course.id}
+      previewMode={previewMode}
       lastLessonId={lastLessonId}
       myRating={myReview?.rating ?? null}
       myComment={myReview?.comment ?? null}
@@ -249,7 +279,8 @@ export default async function LearnPage({
             id: s.id,
             title: s.title,
             translations: s.translations,
-            locked: lock.locked,
+            // Vorschau: alle Abschnitte offen, damit der Creator alles durchsehen kann
+            locked: previewMode ? false : lock.locked,
             unlocksAt: lock.unlocksAt?.toISOString() ?? null,
             requiresPreviousQuiz: lock.requiresPreviousQuiz,
             quizState: quizStateBySection.get(s.id) ?? null,
@@ -257,7 +288,7 @@ export default async function LearnPage({
               ? {
                   id: s.quiz.id,
                   title: s.quiz.title,
-                  passed: enrollment!.quizAttempts.some(
+                  passed: enroll.quizAttempts.some(
                     (a) => a.quizId === s.quiz!.id && a.passed
                   ),
                 }
@@ -269,6 +300,7 @@ export default async function LearnPage({
               durationSeconds: l.durationSeconds,
               watchedSeconds: progressByLesson.get(l.id)?.watchedSeconds ?? 0,
               completed: progressByLesson.get(l.id)?.completed ?? false,
+              favorite: favoriteLessonIds.has(l.id),
               positions: parsePositions(progressByLesson.get(l.id)?.positions),
               // "Teste dich" nur anbieten, wenn genug Lernstoff da ist –
               // dieselbe Schwelle wie in der Self-Test-Action
@@ -290,6 +322,7 @@ export default async function LearnPage({
                     fileName: b.fileName ?? "",
                     content: b.content ?? "",
                     css: b.css ?? "",
+                    script: b.script ?? "",
                     durationSeconds: b.durationSeconds,
                     transcriptDe: b.transcriptDe ?? "",
                     transcriptEn: b.transcriptEn ?? "",
@@ -306,7 +339,7 @@ export default async function LearnPage({
       }}
       watchPercent={watchPercent}
       examEligible={eligible}
-      certificateSerial={enrollment!.certificate?.serial ?? null}
+      certificateSerial={enroll.certificate?.serial ?? null}
       community={{
         viewerId: session!.user.id,
         viewerName: session!.user.name ?? "",

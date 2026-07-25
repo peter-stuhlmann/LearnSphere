@@ -57,6 +57,9 @@ enum SalesChannel {
   PLATFORM
   /// Verkauf über Drittseiten (API, Embed-Widget) – Creator: 75 %
   EXTERNAL
+  /// Zugang über eine LearnSphere-Business-Lizenz (Seat-Abrechnung,
+  /// Erlösaufteilung siehe core/business.ts – kein Einzelverkauf)
+  BUSINESS
 }
 
 enum BlockType {
@@ -124,6 +127,10 @@ model User {
   affiliateCode        String?   @unique
   /// Zeitpunkt des Beitritts (= Bedingungen akzeptiert); null = kein Affiliate
   affiliateJoinedAt    DateTime?
+  /// Creator-Programm freigeschaltet (AGB akzeptiert); null = gesperrt
+  creatorJoinedAt      DateTime?
+  /// LearnSphere Business freigeschaltet (AGB akzeptiert); null = gesperrt
+  businessJoinedAt     DateTime?
   /// termine.lol-Verbindung des Creator-Kontos (Connect-Flow; Key bleibt
   /// serverseitig). Kurse schalten Buchung per Course.bookingEnabled frei.
   bookingCalendarId    String?
@@ -152,6 +159,12 @@ model User {
   refundsReceived     Refund[]             @relation("CreatorRefunds")
   flashcardReviews    FlashcardReview[]
   learnActivities     LearnActivity[]
+  lessonFavorites     LessonFavorite[]
+  cartItems           CartItem[]
+  creatorCampaigns    CreatorCampaign[]
+  emailOptOuts        CreatorEmailOptOut[] @relation("CreatorEmailOptOuts")
+  businessLicenses    BusinessLicense[]    @relation("BusinessLicenses")
+  businessWorkspace   BusinessWorkspace?   @relation("BusinessWorkspace")
 }
 
 /// Geräte-Session der nativen App: Refresh-Token (nur Hash) mit Rotation.
@@ -205,6 +218,7 @@ model AiUsage {
   @@index([activity])
   @@index([model])
   @@index([userId])
+  @@index([courseId])
 }
 
 enum PayoutStatus {
@@ -350,6 +364,176 @@ model BlockWatchBucket {
 
 /// Persönliche Notizen der Lernenden je Lektion – optional mit Zeitstempel
 /// in einem Medienblock ("Notiz bei 4:32", Klick springt dorthin).
+enum CampaignStatus {
+  /// gespeicherter Entwurf – noch nie versendet
+  DRAFT
+  /// wartet auf den geplanten Versandzeitpunkt
+  SCHEDULED
+  /// gerade im Versand (Claim gegen Doppel-Versand bei parallelem Cron)
+  SENDING
+  SENT
+  CANCELED
+}
+
+/// Creator-Mail an Lernende: Kampagne (sofort oder geplant) mit Historie.
+/// Empfänger werden NIE gespeichert – nur aggregierte Zahlen, damit
+/// Creator Lernende nicht identifizieren können. Bei geplanten Kampagnen
+/// werden die Empfänger erst ZUM Versandzeitpunkt aufgelöst (neue
+/// Einschreibungen kommen dazu, Abmeldungen werden respektiert).
+model CreatorCampaign {
+  id             String         @id @default(cuid())
+  creatorId      String
+  subject        String
+  contentHtml    String         @db.Text
+  status         CampaignStatus @default(SENT)
+  /// geplanter Versandzeitpunkt (null = sofort versendet)
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  /// Ziel-Auswahl für den späteren Versand
+  allCourses     Boolean        @default(true)
+  courseIds      Json?
+  locale         String         @default("de")
+  /// Titel-Snapshot der Zielkurse; null = alle Kurse des Creators
+  courseTitles   Json?
+  recipientCount Int            @default(0)
+  sentCount      Int            @default(0)
+  failedCount    Int            @default(0)
+  createdAt      DateTime       @default(now())
+
+  creator User @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId, createdAt])
+  @@index([status, scheduledAt])
+}
+
+/// Abmeldung von Creator-Mails: gilt je Creator und E-Mail-Adresse
+/// (aus dem Abmeldelink im Mail-Footer, ohne Login). Adressbasiert, damit
+/// die Abmeldung auch Kontowechsel übersteht.
+model CreatorEmailOptOut {
+  id        String   @id @default(cuid())
+  email     String
+  creatorId String
+  createdAt DateTime @default(now())
+
+  creator User @relation("CreatorEmailOptOuts", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([email, creatorId])
+  @@index([creatorId])
+}
+
+/// LearnSphere Business: Kurs-Lizenz eines Business-Inhabers für sein Team.
+/// Abrechnung je Seat und Monat (9 € monatlich / 7 € bei jährlicher
+/// Zahlweise, mindestens 5 Seats); Seat-Änderungen greifen zum Folgemonat.
+/// Erlösaufteilung: @elearning/core/business.
+/// Einmal-Zertifizierungskauf: N Seats für einen Kurs, einmalig bezahlt.
+model BusinessLicense {
+  id                 String          @id @default(cuid())
+  ownerId            String
+  courseId           String
+  seats              Int
+  /// Beim Kauf eingefrorener Seat-Preis in Cent (Kurspreis − Mengenrabatt).
+  seatPriceCents     Int             @default(0)
+  status             ApiPlanStatus   @default(ACTIVE)
+  /// Widerrufs-/Archivierungszeitpunkt (status CANCELED)
+  canceledAt         DateTime?
+  stripeCustomerId       String?
+  /// Idempotenz der Einmalzahlung (Checkout-Session)
+  stripeCheckoutSessionId String?    @unique
+  createdAt          DateTime        @default(now())
+
+  owner   User             @relation("BusinessLicenses", fields: [ownerId], references: [id], onDelete: Cascade)
+  course  Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  members BusinessMember[]
+
+  // bewusst KEIN unique(ownerId, courseId): mehrere Bestellungen je Kurs erlaubt
+  @@index([ownerId])
+  @@index([courseId])
+}
+
+enum WorkspaceStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+/// Whitelabel-Portal eines Business-Verwalters: eigener Mandant unter
+/// <slug>.<TENANT_BASE_DOMAIN> und optional einer verifizierten eigenen
+/// Kundendomain. Zeigt ausschließlich den Lernbereich mit den vom Owner
+/// lizenzierten Kursen – die Marke LearnSphere bleibt für das Team verborgen.
+model BusinessWorkspace {
+  id                String          @id @default(cuid())
+  ownerId           String          @unique
+  /// Subdomain-Label: <slug>.<TENANT_BASE_DOMAIN>
+  slug              String          @unique
+  /// Optionale eigene Domain (voll anonymes Whitelabel); erst nach Verify aktiv
+  customDomain      String?         @unique
+  /// Ownership-Nachweis der Kundendomain (DNS-TXT-Token) + Verifikationszeitpunkt
+  domainVerifyToken String?
+  domainVerifiedAt  DateTime?
+  /// Branding des Portals
+  brandName         String
+  /// Logo als Data-URL (portabel, wie beim Avatar)
+  logo              String?         @db.MediumText
+  brandColor        String?
+  /// Whitelabel-Absender: Anzeigename und (nach Verify) eigene Sending-Domain
+  emailFromName     String?
+  emailDomain       String?
+  status            WorkspaceStatus @default(ACTIVE)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  owner User @relation("BusinessWorkspace", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+/// Seat-Zuweisung per E-Mail: Die Adresse braucht noch kein Konto –
+/// registriert sie sich später, wird die Einschreibung automatisch
+/// eingelöst (claimBusinessMemberships).
+model BusinessMember {
+  id         String    @id @default(cuid())
+  licenseId  String
+  email      String
+  invitedAt  DateTime  @default(now())
+  /// verknüpfter Account, sobald die Adresse ein Konto hat
+  userId     String?
+  /// Zeitpunkt der tatsächlichen Kurs-Einschreibung
+  enrolledAt DateTime?
+
+  license BusinessLicense @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@unique([licenseId, email])
+  @@index([email])
+}
+
+/// DB-Warenkorb eingeloggter Nutzer (geräteübergreifend). Gäste nutzen den
+/// localStorage-Korb; beim Login führt CartSync beide zusammen.
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+}
+
+/// Favoriten: vom Lernenden markierte Lektionen (Stern in der Lern-Ansicht)
+model LessonFavorite {
+  id        String   @id @default(cuid())
+  userId    String
+  lessonId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([lessonId])
+}
+
 model LessonNote {
   id          String   @id @default(cuid())
   userId      String
@@ -602,6 +786,9 @@ model Course {
   bookingEnabled       Boolean   @default(false)
   /// Genau eine Kategorie aus der festen LearnSphere-Liste (lib/categories.ts)
   category             String?
+  /// Für LearnSphere Business verfügbar (Team-Lizenzen; Creator erhält
+  /// 35 % je Seat) – Creator kann abwählen
+  businessEnabled      Boolean   @default(true)
   /// Zertifikat-Design des Creators (lib/certificate/theme.ts); null = Default
   certificateTheme     Json?
   /// Freie Tags des Creators, normalisiert kommagetrennt ("react,frontend")
@@ -629,6 +816,8 @@ model Course {
   assistantMessages  AssistantMessage[]
   refunds            Refund[]
   waitlistEntries    WaitlistEntry[]
+  cartEntries        CartItem[]
+  businessLicenses   BusinessLicense[]
 
   @@index([creatorId])
   @@index([published])
@@ -674,6 +863,7 @@ model Lesson {
   comments          LessonComment[]
   selfTestQuestions SelfTestQuestion[]
   notes             LessonNote[]
+  favorites         LessonFavorite[]
   /// Einschreibungen, deren letzte Position diese Lektion ist
   resumedBy         Enrollment[]       @relation("EnrollmentLastLesson")
 
@@ -719,6 +909,9 @@ model LessonBlock {
   content         String?   @db.MediumText
   /// eigenes CSS für HTML-Blöcke
   css             String?   @db.MediumText
+  /// HTML-Blöcke: optionales JavaScript. Liegt Code vor, läuft er sandboxed in
+  /// einer opaque Origin (allow-scripts, KEIN allow-same-origin) mit CSP.
+  script          String?   @db.MediumText
   /// Abspieldauer für Video/Audio (Fortschrittsgewichtung)
   durationSeconds Int       @default(0)
   /// Transkript für Video/Audio, je Sprache (auto-transkribiert oder manuell)

@@ -37,6 +37,8 @@ export default defineConfig({
         "src/lib/affiliate-server.ts",
         "src/lib/ai-usage-server.ts",
         "src/lib/rating-server.ts",
+        // DB-Glue wie rating-server: Query + Karten-Mapping (Logik in core)
+        "src/lib/recommended-courses.ts",
         "src/lib/transcribe.ts",
         "src/lib/translate.ts",
         "src/lib/moderation.ts",
@@ -44,6 +46,8 @@ export default defineConfig({
         "src/lib/youtube-server.ts",
         "src/lib/registry.tsx",
         "src/lib/certificate/CertificateDocument.tsx",
+        // PDF-Markup wie CertificateDocument: per Sichtprüfung/E2E abgedeckt
+        "src/lib/billing/BillingDocument.tsx",
       ],
       thresholds: {
         lines: 100,

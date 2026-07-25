@@ -42,6 +42,19 @@ export async function fulfillApiSubscriptionCheckout(
   });
 }
 
+/** Stripe-Abo-Status in unser Statusmodell übersetzen. */
+function subscriptionStatus(
+  subscription: Stripe.Subscription
+): "ACTIVE" | "PAST_DUE" | "CANCELED" {
+  return subscription.status === "canceled" ||
+    subscription.status === "unpaid" ||
+    subscription.status === "incomplete_expired"
+    ? "CANCELED"
+    : subscription.status === "past_due"
+      ? "PAST_DUE"
+      : "ACTIVE";
+}
+
 /** Spiegelt Statusänderungen des Stripe-Abos (Kündigung, Zahlungsausfall). */
 export async function syncApiSubscription(
   subscription: Stripe.Subscription
@@ -51,18 +64,36 @@ export async function syncApiSubscription(
   });
   if (!record) return;
 
-  const status =
-    subscription.status === "canceled" ||
-    subscription.status === "unpaid" ||
-    subscription.status === "incomplete_expired"
-      ? "CANCELED"
-      : subscription.status === "past_due"
-        ? "PAST_DUE"
-        : "ACTIVE";
-
   await db.apiSubscription.update({
     where: { id: record.id },
-    data: { status },
+    data: { status: subscriptionStatus(subscription) },
+  });
+}
+
+/**
+ * LearnSphere-Business-Bestellung nach bezahltem Einmal-Checkout anlegen
+ * (idempotent über die eindeutige Checkout-Session).
+ */
+export async function fulfillBusinessLicenseCheckout(
+  session: Stripe.Checkout.Session
+): Promise<void> {
+  const { createLicense } = await import(
+    "@/lib/services/business-service"
+  );
+  const userId = session.metadata?.userId;
+  const courseId = session.metadata?.courseId;
+  const seats = Number(session.metadata?.seats);
+  if (!userId || !courseId || !Number.isInteger(seats)) return;
+  // Eingefrorenen Seat-Preis aus den Metadaten übernehmen (exakt der Betrag,
+  // den der Kunde bezahlt hat); fehlt er, leitet createLicense ihn ab.
+  const seatPriceRaw = Number(session.metadata?.seatPriceCents);
+  await createLicense(userId, {
+    courseId,
+    seats,
+    seatPriceCents: Number.isFinite(seatPriceRaw) ? seatPriceRaw : undefined,
+    stripeCustomerId:
+      typeof session.customer === "string" ? session.customer : null,
+    stripeCheckoutSessionId: session.id,
   });
 }
 

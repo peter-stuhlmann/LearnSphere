@@ -16,6 +16,13 @@ interface MailInput {
    * die eigene Domain (sonst scheitert SPF/DKIM).
    */
   replyTo?: string;
+  /**
+   * Vollständiger Absender ("Name <adresse>") – überschreibt die RESEND_FROM-
+   * Vorlage. Für Whitelabel-Portale, die unter der Marke des Betreibers
+   * (oder einer neutralen Domain) versenden. Die Domain muss in Resend
+   * verifiziert sein, sonst lehnt der Versand ab.
+   */
+  from?: string;
 }
 
 /**
@@ -35,9 +42,12 @@ function resolveFrom(sender: string): string {
  * sonst über klassisches SMTP. Ohne beides (lokale Entwicklung) wird die
  * Mail in die Konsole geloggt. Ist RESEND_OVERRIDE_TO gesetzt, gehen ALLE
  * Mails an diese Adresse (Testschutz – niemand bekommt versehentlich Post).
+ *
+ * Rückgabe: true, wenn die Mail angenommen wurde – Kampagnen zählen damit
+ * Fehlversande; bestehende Aufrufer dürfen den Wert ignorieren.
  */
-export async function sendMail(input: MailInput): Promise<void> {
-  const from = resolveFrom(input.sender ?? "noreply");
+export async function sendMail(input: MailInput): Promise<boolean> {
+  const from = input.from ?? resolveFrom(input.sender ?? "noreply");
   const override = process.env.RESEND_OVERRIDE_TO;
   const to = override || input.to;
   const subject =
@@ -72,18 +82,20 @@ export async function sendMail(input: MailInput): Promise<void> {
           response.status,
           (await response.text()).slice(0, 300)
         );
+        return false;
       }
+      return true;
     } catch (err) {
       console.error("[mail] Resend fehlgeschlagen:", err);
+      return false;
     }
-    return;
   }
 
   if (!process.env.SMTP_HOST) {
     console.info(
       `\n📧 [DEV-MAIL] Von: ${from} An: ${to}\nBetreff: ${subject}\n\n${input.text}\n`
     );
-    return;
+    return true;
   }
 
   const transporter = nodemailer.createTransport({
@@ -95,12 +107,18 @@ export async function sendMail(input: MailInput): Promise<void> {
       : undefined,
   });
 
-  await transporter.sendMail({
-    from,
-    to,
-    subject,
-    text: input.text,
-    html: input.html,
-    replyTo: input.replyTo,
-  });
+  try {
+    await transporter.sendMail({
+      from,
+      to,
+      subject,
+      text: input.text,
+      html: input.html,
+      replyTo: input.replyTo,
+    });
+    return true;
+  } catch (err) {
+    console.error("[mail] SMTP fehlgeschlagen:", err);
+    return false;
+  }
 }

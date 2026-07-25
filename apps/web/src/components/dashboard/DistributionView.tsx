@@ -13,10 +13,7 @@ import {
   refreshConnectStatus,
   startConnectOnboarding,
 } from "@/app/actions/connect-actions";
-import {
-  requestPayout,
-  savePayoutAccount,
-} from "@/app/actions/payout-actions";
+import { requestPayout } from "@/app/actions/payout-actions";
 import { maskIban, MIN_PAYOUT_CENTS } from "@elearning/core/payout";
 import type { PayoutSummary } from "@/lib/payout-server";
 import { formatMoney } from "@elearning/core/format";
@@ -204,27 +201,11 @@ export function DistributionView({
   const [keyName, setKeyName] = useState("");
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  const [bank, setBank] = useState({ holder: payout.holder, iban: payout.iban });
   const [payoutError, setPayoutError] = useState<string | null>(null);
   const [payoutNotice, setPayoutNotice] = useState<string | null>(null);
 
   // Guthaben/Auszahlungen sind Geldbeträge: 0 heißt „0,00 €", nie „Kostenlos"
   const euro = (cents: number) => formatMoney(cents || 0, "EUR", locale);
-
-  function onSaveBank(event: FormEvent) {
-    event.preventDefault();
-    setPayoutError(null);
-    setPayoutNotice(null);
-    startTransition(async () => {
-      const result = await savePayoutAccount(bank);
-      if (!result.ok) {
-        setPayoutError(result.error ?? "generic");
-        return;
-      }
-      setPayoutNotice(t("bankSaved"));
-      router.refresh();
-    });
-  }
 
   function onRequestPayout() {
     setPayoutError(null);
@@ -697,25 +678,26 @@ export function DistributionView({
             <Muted style={{ fontSize: "0.8rem" }}>{t("minPayout")}</Muted>
           </div>
 
-          <FormStack onSubmit={onSaveBank} style={{ maxWidth: 480 }}>
-            <Field
-              label={t("holder")}
-              value={bank.holder}
-              onChange={(e) => setBank({ ...bank, holder: e.target.value })}
-              required
-              minLength={3}
-            />
-            <Field
-              label={t("iban")}
-              value={bank.iban}
-              placeholder="DE89 3704 0044 0532 0130 00"
-              onChange={(e) => setBank({ ...bank, iban: e.target.value })}
-              required
-            />
-            <GhostButton type="submit" disabled={pending}>
-              {t("saveBank")}
+          {/* Auszahlungsdaten werden im Profil gepflegt – hier nur der Stand */}
+          <div style={{ maxWidth: 480 }}>
+            {payout.iban ? (
+              <Muted style={{ fontSize: "0.9rem" }}>
+                {t("bankOnFile", {
+                  holder: payout.holder,
+                  iban: maskIban(payout.iban),
+                })}
+              </Muted>
+            ) : (
+              <Muted style={{ fontSize: "0.9rem" }}>{t("noBankYet")}</Muted>
+            )}
+            <GhostButton
+              as={Link}
+              href="/profile"
+              style={{ marginTop: "0.75rem" }}
+            >
+              {t("manageBankInProfile")}
             </GhostButton>
-          </FormStack>
+          </div>
 
           <div style={{ marginTop: "1.25rem" }}>
             <Muted style={{ fontSize: "0.85rem", marginBottom: "0.4rem" }}>
