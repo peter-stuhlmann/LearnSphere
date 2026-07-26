@@ -111,12 +111,31 @@ const LinkedInIcon = (
  * `note` erscheint zwischen Buttons und Trenner – für Hinweise, die sich
  * auf den Social-Login beziehen (nicht auf das E-Mail-Formular darunter).
  */
-export function OAuthButtons({ note }: { note?: ReactNode }) {
+export function OAuthButtons({
+  note,
+  viaApex = false,
+}: {
+  note?: ReactNode;
+  /** Whitelabel-Mandant: OAuth über die Hauptdomain (Bridge) statt direkt. */
+  viaApex?: boolean;
+}) {
   const t = useTranslations("auth");
   const locale = useLocale();
   const [pending, startTransition] = useTransition();
 
   function start(provider: "google" | "linkedin") {
+    if (viaApex) {
+      // Auf Mandanten-Hosts scheitert die direkte redirect_uri – daher den
+      // Flow auf der Hauptdomain starten (Bridge), die per Handoff-Token
+      // zurückkommt. Voller Seitenwechsel, weil cross-origin.
+      const apex = process.env.NEXT_PUBLIC_APP_URL;
+      if (!apex) return;
+      const url = new URL(`${apex}/${locale}/oauth-bridge`);
+      url.searchParams.set("provider", provider);
+      url.searchParams.set("host", window.location.hostname);
+      window.location.href = url.toString();
+      return;
+    }
     startTransition(async () => {
       await oauthSignIn(provider, locale);
     });

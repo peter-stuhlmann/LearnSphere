@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { RegisterForm } from "@/components/auth/RegisterForm";
+import { getRequestWorkspace } from "@/lib/services/workspace-service";
 
 export async function generateMetadata({
   params,
@@ -12,6 +13,8 @@ export async function generateMetadata({
   return { title: t("registerTitle") };
 }
 
-export default function RegisterPage() {
-  return <RegisterForm />;
+export default async function RegisterPage() {
+  // OAuth auf Mandanten-Hosts läuft über die Hauptdomain (Bridge + Handoff)
+  const workspace = await getRequestWorkspace();
+  return <RegisterForm viaApex={Boolean(workspace)} />;
 }

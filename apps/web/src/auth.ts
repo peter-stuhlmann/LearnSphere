@@ -90,6 +90,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
+    // Whitelabel-Handoff: Nach OAuth auf der Hauptdomain wird auf dem
+    // Mandanten-Host mit einem kurzlebigen Einmal-Token eine Session etabliert.
+    // Der Token ist an genau diesen Host gebunden und einmalig einlösbar.
+    Credentials({
+      id: "handoff",
+      name: "handoff",
+      credentials: { token: {} },
+      async authorize(credentials) {
+        const token =
+          typeof credentials?.token === "string" ? credentials.token : "";
+        if (!token) return null;
+        const { consumeOAuthHandoff } = await import("@/lib/tenant-oauth");
+        const { headers } = await import("next/headers");
+        const h = await headers();
+        const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "")
+          .split(":")[0]
+          .toLowerCase();
+        return consumeOAuthHandoff(token, host);
+      },
+    }),
   ],
   events: {
     // OAuth-Provider (Google/LinkedIn) verifizieren die E-Mail selbst –

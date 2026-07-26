@@ -679,6 +679,23 @@ model BillingAddress {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+/// Einmal-Token für den OAuth-Handoff von der Hauptdomain (wo OAuth läuft) auf
+/// einen Whitelabel-Mandanten-Host. Kurzlebig, einmalig einlösbar, an den
+/// Ziel-Host gebunden (Replay-/Missbrauchsschutz). Nur der SHA-256-Hash wird
+/// gespeichert.
+model OAuthHandoff {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  /// Ziel-Host (Subdomain oder verifizierte Kundendomain), an den gebunden
+  host      String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([expiresAt])
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String

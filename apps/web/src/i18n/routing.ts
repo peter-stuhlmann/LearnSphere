@@ -25,6 +25,8 @@ export const routing = defineRouting({
     "/billing": { de: "/rechnungen", en: "/billing" },
     "/login": { de: "/anmelden", en: "/login" },
     "/register": { de: "/registrieren", en: "/register" },
+    "/oauth-bridge": "/oauth-bridge",
+    "/oauth-continue": "/oauth-continue",
     "/forgot-password": {
       de: "/passwort-vergessen",
       en: "/forgot-password",

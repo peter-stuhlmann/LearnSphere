@@ -173,7 +173,7 @@ const HoneypotWrap = styled.div`
   white-space: nowrap;
 `;
 
-export function RegisterForm() {
+export function RegisterForm({ viaApex = false }: { viaApex?: boolean }) {
   const t = useTranslations("auth");
   const locale = useLocale();
   const router = useRouter();
@@ -313,23 +313,24 @@ export function RegisterForm() {
   return (
     <AuthShell title={t("registerTitle")} subtitle={t("registerSubtitle")}>
       <OAuthButtons
+        viaApex={viaApex}
         note={
-          <LegalNote>
-            {t.rich("oauthLegal", {
-              terms: (chunks) => (
-                <Link href="/terms" target="_blank" rel="noopener">
-                  {chunks}
-                </Link>
-              ),
-              privacy: (chunks) => (
-                <Link href="/privacy" target="_blank" rel="noopener">
-                  {chunks}
-                </Link>
-              ),
-            })}
-          </LegalNote>
-        }
-      />
+            <LegalNote>
+              {t.rich("oauthLegal", {
+                terms: (chunks) => (
+                  <Link href="/terms" target="_blank" rel="noopener">
+                    {chunks}
+                  </Link>
+                ),
+                privacy: (chunks) => (
+                  <Link href="/privacy" target="_blank" rel="noopener">
+                    {chunks}
+                  </Link>
+                ),
+              })}
+            </LegalNote>
+          }
+        />
 
       <FormStack onSubmit={onSubmit}>
         {error ? (

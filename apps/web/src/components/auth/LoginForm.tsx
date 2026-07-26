@@ -17,7 +17,7 @@ import {
 } from "./AuthShell";
 import { OAuthButtons } from "./OAuthButtons";
 
-export function LoginForm() {
+export function LoginForm({ viaApex = false }: { viaApex?: boolean }) {
   const t = useTranslations("auth");
   const locale = useLocale();
   const router = useRouter();
@@ -25,11 +25,16 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [totp, setTotp] = useState("");
   const [needsTotp, setNeedsTotp] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  // frisch registriert → Hinweis auf die Verifizierungs-Mail
+  const justRegistered = searchParams.get("registered") === "1";
+  // Portal-OAuth ohne gültige Einladung leitet mit ?authError=not_invited hierher
+  // (nur bekannte Codes zulassen – sonst würde t() an fremden Werten scheitern)
+  const [error, setError] = useState<string | null>(
+    searchParams.get("authError") === "not_invited" ? "not_invited" : null
+  );
   const [pending, setPending] = useState(false);
   const [verifyResent, setVerifyResent] = useState(false);
-  // frisch registriert → Hinweis auf die Verifizierungs-Mail
-  const justRegistered = useSearchParams().get("registered") === "1";
 
   async function onResendVerification() {
     setVerifyResent(true);
@@ -70,7 +75,7 @@ export function LoginForm() {
 
   return (
     <AuthShell title={t("loginTitle")} subtitle={t("loginSubtitle")}>
-      <OAuthButtons />
+      <OAuthButtons viaApex={viaApex} />
 
       <FormStack onSubmit={onSubmit}>
         {justRegistered && !error ? (
