@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import styled, { css, keyframes } from "styled-components";
@@ -128,6 +128,12 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     setShowBar(false);
   }
 
+  // Aktueller Pfad für den Popstate-Vergleich (im Listener sonst veraltet).
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
   // Abgang erkennen: interne Link-Klicks + Vor/Zurück-Navigation.
   // Capture-Phase, denn Next ruft für Client-Navigation selbst
   // preventDefault() auf – danach wäre der Klick nicht mehr erkennbar.
@@ -135,7 +141,13 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     const onClick = (event: MouseEvent) => {
       if (isRouteChangeClick(event)) setLeaving(true);
     };
-    const onPopState = () => setLeaving(true);
+    const onPopState = () => {
+      // Nur echte Seitenwechsel dimmen. Reine Query-/Hash-Änderungen (z. B.
+      // Lektionswechsel im Kurs über ?l=…) sollen den Inhalt nicht ausblenden –
+      // beim Popstate steht die neue URL schon, der React-Pfad noch nicht.
+      if (window.location.pathname === pathnameRef.current) return;
+      setLeaving(true);
+    };
     document.addEventListener("click", onClick, true);
     window.addEventListener("popstate", onPopState);
     return () => {

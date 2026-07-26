@@ -42,9 +42,11 @@ import {
   Container,
   GhostButton,
   Kicker,
+  PrimaryButton,
   ToolbarButton,
 } from "@/components/ui/primitives";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { UpNextCountdown } from "./UpNextCountdown";
 
 const Wrap = styled.main`
   padding: 2.5rem 0 2rem;
@@ -370,6 +372,101 @@ const ExamNavRowStatic = styled.div`
   ${examRowCss}
 `;
 
+/* Lektionsende: prominente „Weiter"-Leiste – hält den Lern-Flow ohne
+   Sidebar-Klick am Laufen (auch im Fokus-Modus). */
+const NextBar = styled.div`
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px dashed ${({ theme }) => theme.colors.border};
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const NextPrimary = styled(PrimaryButton)`
+  gap: 0.5rem;
+  max-width: 100%;
+
+  /* langer Lektionstitel darf umbrechen statt die Leiste zu sprengen */
+  white-space: normal;
+  text-align: left;
+`;
+
+const DoneNote = styled.p`
+  font-size: 1rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.accent};
+`;
+
+/* Kursende: die Abschlussprüfung als „Ziellinie" – freigeschaltet oder mit
+   sichtbarer Checkliste, was noch fehlt. */
+const ExamGate = styled.div`
+  margin-top: 1.75rem;
+  padding: 1.25rem 1.35rem;
+  border-radius: ${({ theme }) => theme.radii.lg};
+  border: 1px solid ${({ theme }) => theme.colors.borderStrong};
+  background:
+    radial-gradient(
+      ellipse 80% 100% at 100% 0%,
+      rgba(200, 255, 77, 0.08),
+      transparent 60%
+    ),
+    ${({ theme }) => theme.colors.bgElevated};
+`;
+
+const ExamHead = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+
+  strong {
+    font-family: ${({ theme }) => theme.fonts.display};
+    font-size: 1.2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+`;
+
+const ExamHint = styled.p`
+  margin-top: 0.9rem;
+  font-size: 0.9rem;
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
+const ReqList = styled.ul`
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.92rem;
+  }
+
+  li[data-done="true"] {
+    color: ${({ theme }) => theme.colors.text};
+  }
+
+  li[data-done="false"] {
+    color: ${({ theme }) => theme.colors.textMuted};
+  }
+`;
+
+/** Ziel des „Weiter"-Buttons am Lektionsende. */
+type NextTarget =
+  | { kind: "none" }
+  | { kind: "lesson"; id: string; title: string }
+  | { kind: "quiz"; quizId: string; title: string }
+  | { kind: "exam"; quizId: string }
+  | { kind: "done" };
+
 interface LearnLesson {
   id: string;
   title: string;
@@ -646,9 +743,10 @@ export function LearnView({
   );
 
   // Drip Content: Lektionen gesperrter Abschnitte sind nicht anwählbar
-  const unlockedLessons = viewCourse.sections
-    .filter((s) => !s.locked)
-    .flatMap((s) => s.lessons);
+  const unlockedLessons = useMemo(
+    () => viewCourse.sections.filter((s) => !s.locked).flatMap((s) => s.lessons),
+    [viewCourse]
+  );
   const firstIncomplete =
     unlockedLessons.find((l) => !l.completed) ?? unlockedLessons[0] ?? null;
   // Weitermachen, wo man aufgehört hat: gemerkte Position schlägt die
@@ -661,6 +759,70 @@ export function LearnView({
       null
   );
   const active = unlockedLessons.find((l) => l.id === activeId) ?? null;
+
+  // Ausgangs-Lektion (für die Rückkehr, wenn ein History-Eintrag ohne ?l ist).
+  const initialLessonRef = useRef(activeId);
+  // Läuft gerade ein "Als Nächstes"-Countdown? (Ziel-Lektions-ID)
+  const [pendingNext, setPendingNext] = useState<string | null>(null);
+
+  // Lektion in die URL (?l=…) spiegeln, damit die Zurück-Taste Lektion für
+  // Lektion zurückblättert. Native History-API → kein Server-Reload; der
+  // Lektionsinhalt liegt bereits vollständig im Client.
+  function selectLesson(id: string) {
+    setPendingNext(null);
+    setActiveId(id);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("l", id);
+      window.history.pushState(window.history.state, "", url);
+    } catch {
+      // History-API nicht verfügbar – Auswahl gilt trotzdem (nur ohne URL)
+    }
+  }
+
+  // Vor/Zurück (Popstate) + Deep-Link: aktive Lektion aus der URL übernehmen.
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const id = new URLSearchParams(window.location.search).get("l");
+      if (id && unlockedLessons.some((l) => l.id === id)) setActiveId(id);
+      else setActiveId(initialLessonRef.current);
+    };
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, [unlockedLessons]);
+
+  // Beim ersten Laden ein ?l aus der URL respektieren (Lesezeichen/Deep-Link).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("l");
+    if (id && id !== activeId && unlockedLessons.some((l) => l.id === id)) {
+      // einmalige Deep-Link-Synchronisation beim Mounten
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveId(id);
+    }
+    // bewusst nur beim Mounten
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autoplay ("Lern-Binging"): nach Abschluss automatisch zur nächsten Lektion.
+  // Nutzerwahl in localStorage (Default an); nie in eine Prüfung hinein.
+  const storedAutoplay = useSyncExternalStore(
+    subscribeNever,
+    () => window.localStorage.getItem("learn-autoplay"),
+    () => null
+  );
+  const [autoOverride, setAutoOverride] = useState<boolean | null>(null);
+  const autoAdvance = autoOverride ?? storedAutoplay !== "0";
+
+  function toggleAutoplay() {
+    const next = !autoAdvance;
+    setAutoOverride(next);
+    try {
+      window.localStorage.setItem("learn-autoplay", next ? "1" : "0");
+    } catch {
+      // localStorage nicht verfügbar – Wahl gilt nur für diese Sitzung
+    }
+    if (!next) setPendingNext(null);
+  }
 
   // Beim Lektionswechsel oben beginnen (nicht auf alter Scrollposition bleiben)
   const contentRef = useRef<HTMLDivElement>(null);
@@ -697,6 +859,9 @@ export function LearnView({
     lastMediaRef.current = null;
     pendingBucketsRef.current = new Map();
     sentBucketsRef.current = new Map();
+    // laufenden Countdown eines vorherigen Lektionsendes verwerfen
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPendingNext(null);
   }, [activeId]);
 
   /** Heatmap-Zähler melden (fire-and-forget, niemals blockierend). */
@@ -810,11 +975,82 @@ export function LearnView({
     const allEnded = mediaBlocks.every((b) => endedBlocksRef.current.has(b.id));
     saveProgress(active.id, lessonWatchedSum(active), allEnded);
     flushWatchBuckets();
+
+    // Lektion natürlich zu Ende geschaut → Autoplay-Countdown, ABER nur von
+    // Lektion zu Lektion (nie in eine ausstehende Prüfung) und nur, wenn der
+    // Nutzer Autoplay aktiv lässt. Manuelles Blättern löst das nie aus.
+    if (allEnded && autoAdvance && !previewMode) {
+      const flat = viewCourse.sections
+        .filter((s) => !s.locked)
+        .flatMap((s) => s.lessons);
+      const idx = flat.findIndex((l) => l.id === active.id);
+      const next = flat[idx + 1];
+      const section = viewCourse.sections.find((s) =>
+        s.lessons.some((l) => l.id === active.id)
+      );
+      const isLastInSection = section?.lessons.at(-1)?.id === active.id;
+      const checkpoint = Boolean(
+        isLastInSection && section?.quiz && !section.quiz.passed
+      );
+      if (next && !checkpoint) setPendingNext(next.id);
+    }
   }
 
   const hasMedia = active
     ? active.blocks.some((b) => b.type === "VIDEO" || b.type === "AUDIO")
     : false;
+
+  // Ziel der „Weiter"-Leiste am Lektionsende: nächste Lektion → sonst die
+  // Zwischenprüfung des Abschnitts → sonst Abschlussprüfung → sonst „geschafft".
+  const nav = useMemo<NextTarget>(() => {
+    const flat = viewCourse.sections
+      .filter((s) => !s.locked)
+      .flatMap((s) => s.lessons.map((l) => ({ l, s })));
+    const idx = flat.findIndex((x) => x.l.id === activeId);
+    if (idx === -1) return { kind: "none" };
+    const cur = flat[idx];
+    const next = flat[idx + 1];
+    const isLastInSection = cur.s.lessons.at(-1)?.id === activeId;
+    // Mitten im Kurs: Abschnitt beendet, Zwischenprüfung offen, es folgen aber
+    // noch Lektionen → sanfter Hinweis zur Zwischenprüfung.
+    if (next && isLastInSection && cur.s.quiz && !cur.s.quiz.passed && !previewMode) {
+      return { kind: "quiz", quizId: cur.s.quiz.id, title: cur.s.quiz.title };
+    }
+    if (next) return { kind: "lesson", id: next.l.id, title: next.l.title };
+    // Kursende: Abschlussprüfung IMMER zeigen (auch gesperrt, mit Bedingungen).
+    if (course.finalExamRequired && course.finalQuiz && !previewMode) {
+      return { kind: "exam", quizId: course.finalQuiz.id };
+    }
+    return { kind: "done" };
+  }, [
+    viewCourse,
+    activeId,
+    previewMode,
+    course.finalExamRequired,
+    course.finalQuiz,
+  ]);
+
+  function goToLesson(id: string) {
+    selectLesson(id);
+  }
+
+  // Freischalt-Bedingungen der Abschlussprüfung (Spiegel von isEligibleForExam):
+  // genug gesehen UND alle Zwischenprüfungen bestanden.
+  const currentWatch = Math.round(watchPercent);
+  const quizzesTotal = course.sections.filter((s) => s.quiz).length;
+  const quizzesPassed = course.sections.filter(
+    (s) => s.quiz && s.quiz.passed
+  ).length;
+  const examState = {
+    passed: certificateSerial !== null,
+    eligible: examEligible,
+    watchDone: currentWatch >= course.requiredWatchPercent,
+    requiredWatch: course.requiredWatchPercent,
+    currentWatch,
+    quizzesTotal,
+    quizzesPassed,
+    quizzesDone: quizzesTotal === 0 || quizzesPassed === quizzesTotal,
+  };
 
   // Favoriten: optimistisch umschalten, bei Server-Fehler zurückrollen
   const [favorites, setFavorites] = useState<Set<string>>(
@@ -968,7 +1204,7 @@ export function LearnView({
               const target =
                 section.lessons.find((lesson) => !lesson.completed) ??
                 section.lessons[0];
-              if (target) setActiveId(target.id);
+              if (target) selectLesson(target.id);
             }}
           />
         ) : null}
@@ -1014,7 +1250,7 @@ export function LearnView({
                     key={lesson.id}
                     $active={lesson.id === activeId}
                     aria-current={lesson.id === activeId ? "true" : undefined}
-                    onClick={() => setActiveId(lesson.id)}
+                    onClick={() => selectLesson(lesson.id)}
                   >
                     <Check $done={lesson.completed} aria-hidden>
                       {lesson.completed ? "✓" : ""}
@@ -1159,6 +1395,17 @@ export function LearnView({
                         ⛶ {t("focusMode")}
                       </ToolbarButton>
                     ) : null}
+                    <ToolbarButton
+                      type="button"
+                      $active={autoAdvance}
+                      aria-pressed={autoAdvance}
+                      onClick={toggleAutoplay}
+                      title={
+                        autoAdvance ? t("autoplayOnHint") : t("autoplayOffHint")
+                      }
+                    >
+                      {autoAdvance ? "⏭" : "⏸"} {t("autoplay")}
+                    </ToolbarButton>
                     {active.blocks.some(
                       (b) => b.type === "TEXT" && b.content.trim()
                     ) ? (
@@ -1222,6 +1469,105 @@ export function LearnView({
                   </div>
                 ) : null}
 
+                {/* Lektionsende: ein Klick zum nächsten Schritt bzw. die
+                    Abschlussprüfung als sichtbare Ziellinie mit Bedingungen */}
+                {nav.kind === "lesson" ? (
+                  <NextBar>
+                    <NextPrimary
+                      type="button"
+                      onClick={() => goToLesson(nav.id)}
+                    >
+                      {t("nextLessonNamed", { title: nav.title })} →
+                    </NextPrimary>
+                  </NextBar>
+                ) : nav.kind === "quiz" ? (
+                  <NextBar>
+                    <NextPrimary
+                      as={Link}
+                      href={{
+                        pathname: "/learn/[slug]/quiz/[quizId]",
+                        params: { slug: course.slug, quizId: nav.quizId },
+                      }}
+                    >
+                      ✦ {t("toSectionQuiz")} →
+                    </NextPrimary>
+                  </NextBar>
+                ) : nav.kind === "exam" ? (
+                  <ExamGate>
+                    <ExamHead>
+                      <strong>🎓 {t("examSectionTitle")}</strong>
+                      {examState.passed ? (
+                        <NextPrimary
+                          as={Link}
+                          href={{
+                            pathname: "/learn/[slug]/quiz/[quizId]",
+                            params: { slug: course.slug, quizId: nav.quizId },
+                          }}
+                        >
+                          {t("examCertificateCta")} →
+                        </NextPrimary>
+                      ) : examState.eligible ? (
+                        <NextPrimary
+                          as={Link}
+                          href={{
+                            pathname: "/learn/[slug]/quiz/[quizId]",
+                            params: { slug: course.slug, quizId: nav.quizId },
+                          }}
+                        >
+                          {t("toExam")} →
+                        </NextPrimary>
+                      ) : (
+                        <PrimaryButton
+                          type="button"
+                          disabled
+                          aria-describedby="exam-reqs"
+                        >
+                          {t("toExam")}
+                        </PrimaryButton>
+                      )}
+                    </ExamHead>
+                    {!examState.passed && !examState.eligible ? (
+                      <>
+                        <ExamHint>{t("examLockedIntro")}</ExamHint>
+                        <ReqList id="exam-reqs">
+                          <li data-done={examState.watchDone ? "true" : "false"}>
+                            <Check $done={examState.watchDone} aria-hidden>
+                              {examState.watchDone ? "✓" : ""}
+                            </Check>
+                            <span>
+                              {t("examWatchReq", {
+                                required: examState.requiredWatch,
+                                current: examState.currentWatch,
+                              })}
+                            </span>
+                          </li>
+                          {examState.quizzesTotal > 0 ? (
+                            <li
+                              data-done={
+                                examState.quizzesDone ? "true" : "false"
+                              }
+                            >
+                              <Check $done={examState.quizzesDone} aria-hidden>
+                                {examState.quizzesDone ? "✓" : ""}
+                              </Check>
+                              <span>
+                                {t("examQuizReq", {
+                                  passed: examState.quizzesPassed,
+                                  total: examState.quizzesTotal,
+                                })}
+                              </span>
+                            </li>
+                          ) : null}
+                        </ReqList>
+                      </>
+                    ) : null}
+                  </ExamGate>
+                ) : nav.kind === "done" ? (
+                  <NextBar>
+                    <DoneNote>🎉 {t("courseEndReached")}</DoneNote>
+                  </NextBar>
+                ) : null}
+
                 <LessonCommunity lessonId={active.id} viewer={community} />
               </Stage>
             ) : null}
@@ -1241,7 +1587,18 @@ export function LearnView({
         <AssistantDock
           lessonId={active.id}
           lang={contentLang}
-          onJumpToLesson={(id) => setActiveId(id)}
+          onJumpToLesson={(id) => selectLesson(id)}
+        />
+      ) : null}
+
+      {/* "Als Nächstes"-Countdown nach natürlichem Lektionsabschluss */}
+      {pendingNext && !previewMode ? (
+        <UpNextCountdown
+          title={
+            unlockedLessons.find((l) => l.id === pendingNext)?.title ?? ""
+          }
+          onAdvance={() => goToLesson(pendingNext)}
+          onCancel={() => setPendingNext(null)}
         />
       ) : null}
     </Wrap>

@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Link } from "@/i18n/navigation";
 import { TransitionLink } from "@/components/navigation/TransitionLink";
 import { Muted, PrimaryButton } from "@/components/ui/primitives";
+import { CoverPlaceholder } from "@/components/ui/CoverPlaceholder";
 
 const Band = styled(motion.section)`
   position: relative;
@@ -303,7 +304,9 @@ export function LearningGreeting({
                   fill
                   sizes="84px"
                 />
-              ) : null}
+              ) : (
+                <CoverPlaceholder />
+              )}
             </Thumb>
             <ContinueText>
               <p className="kicker">▶ {t("continueKicker")}</p>

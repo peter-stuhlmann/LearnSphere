@@ -46,8 +46,14 @@ export function withViewTransition(
 /** Auflöser der laufenden Transition – wird beim Routenwechsel bedient. */
 let settle: (() => void) | null = null;
 
-/** Sicherheitsnetz: nie länger als so lange auf die neue Route warten. */
-const SETTLE_TIMEOUT_MS = 1500;
+/**
+ * Sicherheitsnetz: nie länger als so lange auf die neue Route warten. Bewusst
+ * kurz – ein langer, eingefrorener Alt-Frame verleitet sonst dazu, die
+ * Zurück-Taste zu drücken, während die Vorwärts-Navigation noch läuft (die
+ * beiden konkurrieren dann und man landet „woanders"). Mit loading.tsx rendert
+ * die neue Route ohnehin sofort, sodass die Transition viel früher auflöst.
+ */
+const SETTLE_TIMEOUT_MS = 700;
 
 export function navigateWithViewTransition(navigate: () => void): void {
   const doc = document as DocumentWithVT;
@@ -61,14 +67,19 @@ export function navigateWithViewTransition(navigate: () => void): void {
   doc.startViewTransition(() => {
     navigate();
     return new Promise<void>((resolve) => {
-      const timer = setTimeout(() => {
+      const finish = () => {
+        clearTimeout(timer);
+        window.removeEventListener("popstate", onPop);
         settle = null;
         resolve();
-      }, SETTLE_TIMEOUT_MS);
-      settle = () => {
-        clearTimeout(timer);
-        resolve();
       };
+      const timer = setTimeout(finish, SETTLE_TIMEOUT_MS);
+      // Drückt jemand während des laufenden Übergangs die Zurück-Taste, lösen
+      // wir die Transition sofort auf – sonst konkurriert die eingefrorene
+      // Vorwärts-Navigation mit dem Zurück und man landet „woanders".
+      const onPop = () => finish();
+      window.addEventListener("popstate", onPop, { once: true });
+      settle = finish;
     });
   });
 }
