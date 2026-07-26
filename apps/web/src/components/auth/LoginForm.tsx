@@ -3,7 +3,15 @@
 import { useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+import styled from "styled-components";
 import { useLocale, useTranslations } from "next-intl";
+import {
+  PasswordInput,
+  en as pvrEn,
+  type PvrLocale,
+} from "pwd-validator-react";
+import { de as pvrDe } from "pwd-validator-react/locales";
+import "pwd-validator-react/styles.css";
 import { Link, useRouter } from "@/i18n/navigation";
 import { resendVerification } from "@/app/actions/auth-actions";
 import { Field } from "@/components/ui/Field";
@@ -16,6 +24,37 @@ import {
   InlineLink,
 } from "./AuthShell";
 import { OAuthButtons } from "./OAuthButtons";
+
+/**
+ * pwd-validator-react ans "Night Observatory"-Theme anbinden – hier nur für
+ * das Login-Passwortfeld mit Auge-Toggle (keine Stärke-/Regel-Anzeige). Die
+ * CSS-Variablen spiegeln die gleiche Zuordnung wie im RegisterForm.
+ */
+const PvrTheme = styled.div`
+  --pvr-bg-color: ${({ theme }) => theme.colors.surface};
+  --pvr-text-color: ${({ theme }) => theme.colors.text};
+  --pvr-label-color: ${({ theme }) => theme.colors.textMuted};
+  --pvr-placeholder-color: ${({ theme }) => theme.colors.textFaint};
+  --pvr-border-color: ${({ theme }) => theme.colors.border};
+  --pvr-border-radius: ${({ theme }) => theme.radii.md};
+  --pvr-focus-color: ${({ theme }) => theme.colors.accent};
+  --pvr-error-color: ${({ theme }) => theme.colors.danger};
+  --pvr-toggle-color: ${({ theme }) => theme.colors.textMuted};
+  --pvr-toggle-hover-color: ${({ theme }) => theme.colors.text};
+  --pvr-font-family: inherit;
+`;
+
+/** Dezenter Hinweis auf Mandanten-Portalen: Anmeldung nur mit Einladung. */
+const InviteHint = styled.p`
+  margin-bottom: 1.25rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.radii.md};
+  background: ${({ theme }) => theme.colors.bgElevated};
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 0.88rem;
+  line-height: 1.5;
+`;
 
 export function LoginForm({ viaApex = false }: { viaApex?: boolean }) {
   const t = useTranslations("auth");
@@ -35,6 +74,8 @@ export function LoginForm({ viaApex = false }: { viaApex?: boolean }) {
   );
   const [pending, setPending] = useState(false);
   const [verifyResent, setVerifyResent] = useState(false);
+
+  const pvrLocale: PvrLocale = locale === "de" ? pvrDe : pvrEn;
 
   async function onResendVerification() {
     setVerifyResent(true);
@@ -75,6 +116,9 @@ export function LoginForm({ viaApex = false }: { viaApex?: boolean }) {
 
   return (
     <AuthShell title={t("loginTitle")} subtitle={t("loginSubtitle")}>
+      {viaApex ? (
+        <InviteHint role="note">{t("tenantLoginHint")}</InviteHint>
+      ) : null}
       <OAuthButtons viaApex={viaApex} />
 
       <FormStack onSubmit={onSubmit}>
@@ -109,15 +153,19 @@ export function LoginForm({ viaApex = false }: { viaApex?: boolean }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <Field
-          label={t("password")}
-          type="password"
-          name="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <PvrTheme>
+          <PasswordInput
+            variant="classic"
+            locale={pvrLocale}
+            label={t("password")}
+            name="password"
+            autoComplete="current-password"
+            required
+            showToggle
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </PvrTheme>
 
         {needsTotp ? (
           <Field
