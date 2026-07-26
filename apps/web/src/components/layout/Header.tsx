@@ -15,13 +15,15 @@ import {
 } from "@/components/cart/cartStore";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import styled, { css } from "styled-components";
+import styled, { css, useTheme } from "styled-components";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { logout } from "@/app/actions/session-actions";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { LanguageModal } from "./LanguageModal";
+import { MobileMenu } from "./MobileMenu";
 import { HeaderSearch } from "./HeaderSearch";
 import { isAnyUnsaved } from "@/lib/unsaved";
+import type { ReactNode } from "react";
 
 const SkipLink = styled.a`
   position: absolute;
@@ -150,20 +152,9 @@ const AreaBadge = styled.span<{ $mode: AreaMode }>`
           `}
 `;
 
-const Nav = styled.nav<{ $open: boolean }>`
-  @media (max-width: 767px) {
-    display: ${({ $open }) => ($open ? "flex" : "none")};
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    flex-direction: column;
-    align-items: stretch;
-    background: ${({ theme }) => theme.colors.bgElevated};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-    padding: 1rem 20px 1.5rem;
-    gap: 0.5rem;
-  }
+/* Desktop-Navigation inline; auf Mobil übernimmt das MobileMenu-Overlay. */
+const Nav = styled.nav`
+  display: none;
 
   @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
     display: flex;
@@ -459,7 +450,7 @@ const GlobeIcon = (
   </svg>
 );
 
-const Burger = styled.button`
+const Burger = styled.button<{ $open: boolean }>`
   display: inline-flex;
   flex-direction: column;
   justify-content: center;
@@ -469,6 +460,9 @@ const Burger = styled.button`
   align-items: center;
   border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid ${({ theme }) => theme.colors.border};
+  /* über dem Overlay bleiben, damit das X-Morph sichtbar bleibt */
+  position: relative;
+  z-index: 210;
 
   span {
     display: block;
@@ -476,6 +470,29 @@ const Burger = styled.button`
     height: 2px;
     background: ${({ theme }) => theme.colors.text};
     border-radius: 2px;
+    transition:
+      transform 250ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease;
+  }
+
+  /* drei Striche → X */
+  span:nth-child(1) {
+    transform: ${({ $open }) =>
+      $open ? "translateY(7px) rotate(45deg)" : "none"};
+  }
+  span:nth-child(2) {
+    opacity: ${({ $open }) => ($open ? 0 : 1)};
+    transform: ${({ $open }) => ($open ? "scaleX(0.4)" : "none")};
+  }
+  span:nth-child(3) {
+    transform: ${({ $open }) =>
+      $open ? "translateY(-7px) rotate(-45deg)" : "none"};
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    span {
+      transition: none;
+    }
   }
 
   @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
@@ -838,6 +855,68 @@ export function Header({ user }: HeaderProps) {
   const studio = mode === "studio";
   const close = () => setOpen(false);
 
+  const theme = useTheme();
+  const accentColor =
+    mode === "studio"
+      ? theme.colors.violet
+      : mode === "partner"
+        ? theme.colors.partner
+        : mode === "business"
+          ? theme.colors.business
+          : theme.colors.accent;
+
+  // Primär-Navigation genau einmal definieren – dieselben Einträge erscheinen
+  // im Desktop-Header (inline) und im Mobil-Overlay (gestaffelt eingefadet).
+  const navItems: ReactNode[] =
+    studio && user
+      ? [
+          <NavLink key="dashboard" href="/creator" onClick={close}>
+            {t("dashboard")}
+          </NavLink>,
+          <NavLink key="courses" href="/creator/courses" onClick={close}>
+            {t("myCourses")}
+          </NavLink>,
+          <NavLink key="emails" href="/creator/emails" onClick={close}>
+            {t("creatorEmails")}
+          </NavLink>,
+          <DistributionSubmenu key="distribution" onNavigate={close} />,
+        ]
+      : mode === "partner" && user
+        ? [
+            <NavLink key="affiliate" href="/affiliate" onClick={close}>
+              {t("affiliateOverview")}
+            </NavLink>,
+          ]
+        : mode === "business" && user
+          ? [
+              <NavLink key="business" href="/business" onClick={close}>
+                {t("businessOverview")}
+              </NavLink>,
+            ]
+          : user
+            ? [
+                <NavLink key="courses" href="/courses" onClick={close}>
+                  {t("discoverCourses")}
+                </NavLink>,
+                <NavLink key="mylearning" href="/my-learning" onClick={close}>
+                  {t("myLearning")}
+                </NavLink>,
+              ]
+            : [
+                <NavLink key="courses" href="/courses" onClick={close}>
+                  {t("discoverCourses")}
+                </NavLink>,
+                <NavLink key="pricing" href="/pricing" onClick={close}>
+                  {t("pricing")}
+                </NavLink>,
+                <NavLink key="login" href="/login" onClick={close}>
+                  {t("login")}
+                </NavLink>,
+                <CtaLink key="register" href="/register" onClick={close}>
+                  {t("register")}
+                </CtaLink>,
+              ];
+
   const params = useParams();
 
   // Sprachwechsel remountet die Seite – bei ungespeicherten Änderungen
@@ -901,54 +980,18 @@ export function Header({ user }: HeaderProps) {
         </Brand>
 
         <Right>
-          <Nav $open={open} aria-label="Hauptnavigation">
-            {studio && user ? (
-              <>
-                <NavLink href="/creator" onClick={close}>
-                  {t("dashboard")}
-                </NavLink>
-                <NavLink href="/creator/courses" onClick={close}>
-                  {t("myCourses")}
-                </NavLink>
-                <NavLink href="/creator/emails" onClick={close}>
-                  {t("creatorEmails")}
-                </NavLink>
-                <DistributionSubmenu onNavigate={close} />
-              </>
-            ) : mode === "partner" && user ? (
-              <NavLink href="/affiliate" onClick={close}>
-                {t("affiliateOverview")}
-              </NavLink>
-            ) : mode === "business" && user ? (
-              <NavLink href="/business" onClick={close}>
-                {t("businessOverview")}
-              </NavLink>
-            ) : user ? (
-              <>
-                <NavLink href="/courses" onClick={close}>
-                  {t("discoverCourses")}
-                </NavLink>
-                <NavLink href="/my-learning" onClick={close}>
-                  {t("myLearning")}
-                </NavLink>
-              </>
-            ) : (
-              <>
-                <NavLink href="/courses" onClick={close}>
-                  {t("discoverCourses")}
-                </NavLink>
-                <NavLink href="/pricing" onClick={close}>
-                  {t("pricing")}
-                </NavLink>
-                <NavLink href="/login" onClick={close}>
-                  {t("login")}
-                </NavLink>
-                <CtaLink href="/register" onClick={close}>
-                  {t("register")}
-                </CtaLink>
-              </>
-            )}
-          </Nav>
+          <Nav aria-label="Hauptnavigation">{navItems}</Nav>
+
+          <MobileMenu
+            id="mobile-nav-menu"
+            open={open}
+            onClose={close}
+            title={t("menu")}
+            closeLabel={t("closeMenu")}
+            accentColor={accentColor}
+          >
+            {navItems}
+          </MobileMenu>
 
           {mode === "learner" ? (
             <>
@@ -1001,7 +1044,9 @@ export function Header({ user }: HeaderProps) {
           ) : null}
 
           <Burger
+            $open={open}
             aria-expanded={open}
+            aria-controls="mobile-nav-menu"
             aria-label={open ? t("closeMenu") : t("openMenu")}
             onClick={() => setOpen((v) => !v)}
           >
