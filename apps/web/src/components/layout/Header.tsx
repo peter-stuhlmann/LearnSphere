@@ -1178,17 +1178,21 @@ export function Header({ user }: HeaderProps) {
             />
           ) : null}
 
-          <Burger
-            $open={open}
-            aria-expanded={open}
-            aria-controls="mobile-nav-menu"
-            aria-label={open ? t("closeMenu") : t("openMenu")}
-            onClick={() => setOpen((v) => !v)}
-          >
-            <span />
-            <span />
-            <span />
-          </Burger>
+          {/* Eingeloggte öffnen das Menü über den Avatar (Identitäts-Anker) –
+              dann sparen wir den Burger. Gäste haben keinen Avatar → Burger. */}
+          {!user ? (
+            <Burger
+              $open={open}
+              aria-expanded={open}
+              aria-controls="mobile-nav-menu"
+              aria-label={open ? t("closeMenu") : t("openMenu")}
+              onClick={() => setOpen((v) => !v)}
+            >
+              <span />
+              <span />
+              <span />
+            </Burger>
+          ) : null}
         </Right>
       </Inner>
     </Bar>
