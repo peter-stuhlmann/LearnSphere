@@ -2,52 +2,60 @@
 # LearnSphere – Caddy Reverse-Proxy (Hostinger VPS)
 #
 # Terminiert TLS und leitet an die Next.js-App (Node, Port 3000) weiter.
-# Automatisiert BEIDE Whitelabel-Fälle:
-#   1. Wildcard-Subdomains  *.learnsphere.one   → EIN Wildcard-Zertifikat
-#   2. Beliebige Kundendomains                  → On-Demand-TLS, abgesichert
-#      über den "ask"-Endpoint der App (nur bekannte Mandanten-Hosts).
+# Automatisiert BEIDE Whitelabel-Fälle OHNE DNS-API / Cloudflare:
+#   1. Wildcard-Subdomains  *.learnsphere.one   → On-Demand-TLS
+#   2. Beliebige Kundendomains                  → On-Demand-TLS
+# Beide abgesichert über den "ask"-Endpoint der App: nur bekannte, aktive
+# Mandanten-Hosts erhalten ein Zertifikat.
 #
-# Ein neuer Mandant braucht damit KEINE Server-/DNS-Änderung – nur einen
+# Einzige DNS-Voraussetzung bei Namecheap: EIN Wildcard-A-Record
+#   *  A  <VPS-IP>      (deckt jede Subdomain ab)
+#   @  A  <VPS-IP>      (Hauptdomain, falls noch nicht gesetzt)
+# Kundendomains zeigen der Kunde per CNAME/A auf den VPS.
+#
+# Ein neuer Mandant braucht danach KEINE Server-/DNS-Änderung – nur einen
 # DB-Eintrag (Subdomain sofort, Kundendomain nach DNS-Verify des Kunden).
+# Ports 80 UND 443 müssen erreichbar sein (ACME-Challenge).
+#
+# Getestet mit Caddy v2.11. Hinweis: Die früheren on_demand_tls-Optionen
+# "interval"/"burst" wurden in Caddy 2.8 entfernt – Schutz liefert allein
+# der "ask"-Endpoint.
 # =============================================================================
 
 {
 	email admin@learnsphere.one
 
-	# On-Demand-TLS: Caddy fragt vor jeder Zertifikatsausstellung die App,
-	# ob der Host bekannt ist. Ohne diese Sperre könnte jeder Fremd-Host
-	# Zertifikate auslösen (Let's-Encrypt-Rate-Limits / DoS).
+	# On-Demand-TLS: Caddy fragt VOR jeder Zertifikatsausstellung die App, ob der
+	# Host bekannt ist. Ohne diese Sperre könnte jeder Fremd-Host Zertifikate
+	# auslösen (Let's-Encrypt-Rate-Limits / DoS).
 	on_demand_tls {
 		ask http://127.0.0.1:3000/api/internal/tls-check
-		interval 2m
-		burst 5
 	}
 }
 
-# --- 1) Hauptanwendung + Wildcard-Subdomains ---------------------------------
-# Das Wildcard-Zertifikat *.learnsphere.one deckt ALLE Mandanten-Subdomains ab
-# und wird per DNS-01 ausgestellt (dazu unten den passenden DNS-Provider für
-# learnsphere.one einsetzen; Caddy-DNS-Plugin nötig, z. B. Cloudflare).
-learnsphere.one, *.learnsphere.one {
-	tls {
-		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
-		resolvers 1.1.1.1
-	}
+# --- Hauptanwendung + Apex: reguläres, automatisches Zertifikat --------------
+learnsphere.one, www.learnsphere.one {
 	encode zstd gzip
+	request_body {
+		max_size 1500MB
+	}
 	reverse_proxy 127.0.0.1:3000 {
 		header_up X-Forwarded-Host {host}
 		header_up X-Real-IP {remote_host}
 	}
 }
 
-# --- 2) Beliebige Kundendomains (voll anonymes Whitelabel) -------------------
-# Kein fester Hostname → Caddy nutzt On-Demand-TLS. Der ask-Endpoint oben
-# lässt nur aktive, verifizierte Mandanten-Domains durch.
-:443 {
+# --- Alles andere: Mandanten-Subdomains UND Kundendomains -------------------
+# Fängt jeden weiteren Host auf 443 ab und stellt das Zertifikat on-demand aus
+# (nur wenn der ask-Endpoint 200 liefert = aktiver Mandant).
+https:// {
 	tls {
 		on_demand
 	}
 	encode zstd gzip
+	request_body {
+		max_size 1500MB
+	}
 	reverse_proxy 127.0.0.1:3000 {
 		header_up X-Forwarded-Host {host}
 		header_up X-Real-IP {remote_host}
