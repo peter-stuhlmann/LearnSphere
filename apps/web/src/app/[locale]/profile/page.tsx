@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getRequestWorkspace } from "@/lib/services/workspace-service";
 import { ProfileView } from "@/components/profile/ProfileView";
 
 export async function generateMetadata({
@@ -34,8 +35,13 @@ export default async function ProfilePage({
     redirect({ href: "/login", locale });
   }
 
+  // Whitelabel-Portal: nur Lernbereich – keine Rechnungsadresse/Auszahlung,
+  // keine Creator/Business/Partner-Tabs.
+  const workspace = await getRequestWorkspace();
+
   return (
     <ProfileView
+      learnerOnly={Boolean(workspace)}
       profile={{
         name: user!.name ?? "",
         email: user!.email,

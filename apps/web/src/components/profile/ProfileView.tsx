@@ -662,9 +662,17 @@ interface ProfileViewProps {
   };
   billing: BillingDraft | null;
   payout: PayoutDraft;
+  /** Whitelabel-Portal: nur Lernbereich – ohne Rechnungsadresse, Auszahlung
+   *  und die Creator/Business/Partner-Tabs. */
+  learnerOnly?: boolean;
 }
 
-export function ProfileView({ profile, billing, payout }: ProfileViewProps) {
+export function ProfileView({
+  profile,
+  billing,
+  payout,
+  learnerOnly = false,
+}: ProfileViewProps) {
   const t = useTranslations("profile");
   const router = useRouter();
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -957,6 +965,8 @@ export function ProfileView({ profile, billing, payout }: ProfileViewProps) {
           </Card>
         </Header>
 
+        {learnerOnly ? null : (
+          <>
         {/* Rechnungsadresse gilt für alle Bereiche – daher außerhalb der Tabs */}
         <div style={{ marginTop: "1.5rem" }}>{billingCard}</div>
 
@@ -1025,6 +1035,8 @@ export function ProfileView({ profile, billing, payout }: ProfileViewProps) {
             </Card>
           ) : null}
         </Panel>
+          </>
+        )}
       </Container>
     </Wrap>
   );
