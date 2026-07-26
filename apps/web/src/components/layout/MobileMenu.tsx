@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Children,
   useEffect,
   useRef,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -12,11 +11,13 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BodyPortal } from "@/components/ui/BodyPortal";
 
 /**
- * Vollflächiges Mobil-Menü: öffnet sich smooth über den ganzen Viewport,
- * die Links faden gestaffelt ein. Barrierefrei als modaler Dialog –
- * Fokus-Falle, Escape/Backdrop schließen, Body-Scroll gesperrt, Fokus kehrt
- * beim Schließen zum auslösenden Element zurück. Respektiert
- * prefers-reduced-motion (dann nur ein dezentes Ein-/Ausblenden).
+ * Vollflächiges Mobil-Menü: öffnet sich smooth über den ganzen Viewport, die
+ * Einträge faden gestaffelt ein. Fasst Navigation, Bereichswechsel und Konto
+ * in einem Overlay zusammen (per Sektionen mit optionaler Überschrift).
+ *
+ * Barrierefrei als modaler Dialog – Fokus-Falle, Escape/Close, Body-Scroll
+ * gesperrt, Fokus kehrt beim Schließen zum auslösenden Element zurück.
+ * Respektiert prefers-reduced-motion (dann nur ein dezentes Ein-/Ausblenden).
  */
 
 const Sheet = styled(motion.div)<{ $accent: string }>`
@@ -44,14 +45,7 @@ const TopBar = styled.div`
   justify-content: space-between;
   gap: 1rem;
   min-height: 42px;
-  margin-bottom: 1.75rem;
-`;
-
-/* Aktionen rechts oben: optionaler leading-Slot (z. B. Suche) + Schließen */
-const TopActions = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
+  margin-bottom: 1.5rem;
 `;
 
 const Kicker = styled.span`
@@ -60,6 +54,13 @@ const Kicker = styled.span`
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.textFaint};
+`;
+
+/* Aktionen rechts oben: optionaler leading-Slot (z. B. Suche) + Schließen */
+const TopActions = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 `;
 
 const CloseButton = styled.button<{ $accent: string }>`
@@ -88,36 +89,30 @@ const CloseButton = styled.button<{ $accent: string }>`
   }
 `;
 
-const List = styled(motion.ul)<{ $accent: string }>`
-  list-style: none;
-  margin: 0;
-  padding: 0;
+const Body = styled(motion.div)<{ $accent: string }>`
   display: flex;
   flex-direction: column;
 
-  /* Die übergebenen Links (NavLink/CtaLink o. ä.) im Vollbild groß und
-     großzügig darstellen – unabhängig von ihrem Header-Styling. */
-  li {
+  /* Einträge (Links/Buttons) im Vollbild groß und großzügig – unabhängig von
+     ihrem Header-Styling (z. B. NavLink/CtaLink). */
+  .m-item {
     border-top: 1px solid ${({ theme }) => theme.colors.border};
   }
-  li:last-child {
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  }
 
-  li > a,
-  li > button {
+  .m-item > a,
+  .m-item > button {
     display: flex;
     width: 100%;
     align-items: center;
     gap: 0.75rem;
-    padding: 1.15rem 0.25rem;
+    padding: 1.05rem 0.25rem;
     background: transparent;
     border: none;
     border-radius: 0;
     text-align: left;
     text-decoration: none;
     font-family: ${({ theme }) => theme.fonts.display};
-    font-size: 1.6rem;
+    font-size: 1.45rem;
     font-weight: 600;
     letter-spacing: -0.01em;
     color: ${({ theme }) => theme.colors.text};
@@ -126,17 +121,43 @@ const List = styled(motion.ul)<{ $accent: string }>`
       padding-left 220ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  li > a:hover,
-  li > button:hover,
-  li > a:focus-visible,
-  li > button:focus-visible {
+  .m-item > a:hover,
+  .m-item > button:hover,
+  .m-item > a:focus-visible,
+  .m-item > button:focus-visible {
     color: ${({ $accent }) => $accent};
-    padding-left: 1rem;
+    padding-left: 0.9rem;
     outline: none;
+  }
+
+  /* Destruktiv (Abmelden) rot hervorheben */
+  .m-item > button.danger:hover,
+  .m-item > button.danger:focus-visible {
+    color: ${({ theme }) => theme.colors.danger};
   }
 `;
 
-const Item = styled(motion.li)``;
+const SectionLabel = styled(motion.p)`
+  margin: 1.6rem 0 0.1rem;
+  font-family: ${({ theme }) => theme.fonts.mono};
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.colors.textFaint};
+
+  &:first-child {
+    margin-top: 0;
+  }
+`;
+
+const Item = styled(motion.div).attrs({ className: "m-item" })``;
+
+export type MobileMenuSection = {
+  /** Optionale Sektions-Überschrift (mono Kicker) */
+  label?: string;
+  /** Links/Buttons der Sektion */
+  items: ReactNode[];
+};
 
 type MobileMenuProps = {
   open: boolean;
@@ -147,11 +168,12 @@ type MobileMenuProps = {
   closeLabel: string;
   /** Bereichsfarbe für Glow, Hover und Fokusring */
   accentColor: string;
-  /** id des Sheets, damit der Burger per aria-controls darauf zeigt */
+  /** id des Sheets, damit der Trigger per aria-controls darauf zeigt */
   id?: string;
   /** Optionaler Slot rechts oben neben dem Schließen-Button (z. B. Suche) */
   leading?: ReactNode;
-  children: ReactNode;
+  /** Inhalt in Sektionen (Navigation, Bereiche, Konto …) */
+  sections: MobileMenuSection[];
 };
 
 const FOCUSABLE =
@@ -165,7 +187,7 @@ export function MobileMenu({
   accentColor,
   id,
   leading,
-  children,
+  sections,
 }: MobileMenuProps) {
   const reduce = useReducedMotion();
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -187,7 +209,6 @@ export function MobileMenu({
         return;
       }
       if (event.key !== "Tab") return;
-      // Fokus-Falle: innerhalb des Dialogs zyklisch
       const nodes = sheetRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
       if (!nodes || nodes.length === 0) return;
       const first = nodes[0];
@@ -228,8 +249,8 @@ export function MobileMenu({
     hidden: {},
     visible: {
       transition: {
-        staggerChildren: reduce ? 0 : 0.06,
-        delayChildren: reduce ? 0 : 0.12,
+        staggerChildren: reduce ? 0 : 0.05,
+        delayChildren: reduce ? 0 : 0.1,
       },
     },
   };
@@ -237,19 +258,37 @@ export function MobileMenu({
   const itemMotion = reduce
     ? { hidden: { opacity: 0 }, visible: { opacity: 1 } }
     : {
-        hidden: { opacity: 0, y: 18 },
+        hidden: { opacity: 0, y: 16 },
         visible: {
           opacity: 1,
           y: 0,
-          transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as const },
+          transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] as const },
         },
       };
 
   const onOverlayKeyDown = (event: ReactKeyboardEvent) => {
-    // Klick-Fallback für Tastatur ist über Escape/Tab abgedeckt; hier nur
-    // verhindern, dass Tastendrücke im Dialog nach außen „durchsacken“.
+    // Tastendrücke im Dialog nicht nach außen durchsacken lassen
     event.stopPropagation();
   };
+
+  // Sektionen zu einer flachen, gestaffelten Blockliste ausrollen
+  const blocks: ReactNode[] = [];
+  sections.forEach((section, si) => {
+    if (section.label) {
+      blocks.push(
+        <SectionLabel key={`label-${si}`} variants={itemMotion}>
+          {section.label}
+        </SectionLabel>
+      );
+    }
+    section.items.forEach((item, ii) => {
+      blocks.push(
+        <Item key={`item-${si}-${ii}`} variants={itemMotion}>
+          {item}
+        </Item>
+      );
+    });
+  });
 
   return (
     <BodyPortal>
@@ -281,18 +320,14 @@ export function MobileMenu({
               </TopActions>
             </TopBar>
 
-            <List
+            <Body
               $accent={accentColor}
               variants={listMotion}
               initial="hidden"
               animate="visible"
             >
-              {Children.toArray(children).map((child, index) => (
-                <Item key={index} variants={itemMotion}>
-                  {child}
-                </Item>
-              ))}
-            </List>
+              {blocks}
+            </Body>
           </Sheet>
         ) : null}
       </AnimatePresence>

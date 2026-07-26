@@ -20,7 +20,7 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { logout } from "@/app/actions/session-actions";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { LanguageModal } from "./LanguageModal";
-import { MobileMenu } from "./MobileMenu";
+import { MobileMenu, type MobileMenuSection } from "./MobileMenu";
 import { HeaderSearch } from "./HeaderSearch";
 import { isAnyUnsaved } from "@/lib/unsaved";
 import type { ReactNode } from "react";
@@ -577,10 +577,14 @@ function AvatarMenu({
   user,
   mode,
   onOpenLanguage,
+  onMobileTrigger,
 }: {
   user: { name: string | null; image: string | null; role: string };
   mode: AreaMode;
   onOpenLanguage: () => void;
+  /** Auf Mobil öffnet der Avatar das gemeinsame Burger-Menü statt eines
+   *  eigenen Dropdowns (Konto & Bereiche stecken dort in Sektionen). */
+  onMobileTrigger: () => void;
 }) {
   const t = useTranslations("nav");
   const locale = useLocale();
@@ -601,10 +605,19 @@ function AvatarMenu({
   }, []);
 
   const toggleOpen = useCallback(() => {
+    // Auf Mobil (< md) kein eigenes Dropdown – der Avatar öffnet das
+    // gemeinsame Burger-Menü mit Navigation, Bereichen und Konto.
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 767px)").matches
+    ) {
+      onMobileTrigger();
+      return;
+    }
     // Messung und Öffnen im selben React-Batch → korrekt ab dem 1. Frame
     updateDirection();
     setOpen((value) => !value);
-  }, [updateDirection]);
+  }, [updateDirection, onMobileTrigger]);
 
   useEffect(() => {
     if (!open) return;
@@ -961,6 +974,101 @@ export function Header({ user }: HeaderProps) {
     doSwitchLocale(next);
   };
 
+  // Konto & Bereichswechsel – auf Mobil im selben Menü wie die Navigation
+  // (Desktop hat weiterhin das Avatar-Dropdown).
+  const admin = user?.role === "ADMIN";
+  const areaItems: ReactNode[] = [
+    <Link
+      key="area-learner"
+      href="/my-learning"
+      onClick={close}
+      aria-current={mode === "learner" ? "true" : undefined}
+    >
+      <AreaDot $area="learner" aria-hidden />
+      {t("toLearning")}
+      {mode === "learner" ? <AreaCheck aria-hidden>✓</AreaCheck> : null}
+    </Link>,
+    <Link
+      key="area-studio"
+      href="/creator"
+      onClick={close}
+      aria-current={mode === "studio" ? "true" : undefined}
+    >
+      <AreaDot $area="studio" aria-hidden />
+      {t("toStudio")}
+      {mode === "studio" ? <AreaCheck aria-hidden>✓</AreaCheck> : null}
+    </Link>,
+    <Link
+      key="area-partner"
+      href="/affiliate"
+      onClick={close}
+      aria-current={mode === "partner" ? "true" : undefined}
+    >
+      <AreaDot $area="partner" aria-hidden />
+      {t("affiliateArea")}
+      {mode === "partner" ? <AreaCheck aria-hidden>✓</AreaCheck> : null}
+    </Link>,
+    <Link
+      key="area-business"
+      href="/business"
+      onClick={close}
+      aria-current={mode === "business" ? "true" : undefined}
+    >
+      <AreaDot $area="business" aria-hidden />
+      {t("businessArea")}
+      {mode === "business" ? <AreaCheck aria-hidden>✓</AreaCheck> : null}
+    </Link>,
+  ];
+  const accountItems: ReactNode[] = [
+    <Link key="profile" href="/profile" onClick={close}>
+      {t("profile")}
+    </Link>,
+    <Link key="settings" href="/settings" onClick={close}>
+      {t("settings")}
+    </Link>,
+    <Link key="billing" href="/billing" onClick={close}>
+      {t("billing")}
+    </Link>,
+    ...(admin
+      ? [
+          <Link key="admin" href="/admin" onClick={close}>
+            🛡 {t("adminArea")}
+          </Link>,
+        ]
+      : []),
+    <button
+      key="language"
+      type="button"
+      onClick={() => {
+        close();
+        setLangModalOpen(true);
+      }}
+    >
+      {t("language")}
+    </button>,
+    <button
+      key="logout"
+      type="button"
+      className="danger"
+      onClick={() => {
+        close();
+        clearCartLocalOnly();
+        logout(locale);
+      }}
+    >
+      {t("logout")}
+    </button>,
+  ];
+  const menuSections: MobileMenuSection[] = [
+    { items: navItems },
+    ...(user
+      ? [
+          { label: t("areas"), items: areaItems },
+          { label: t("account"), items: accountItems },
+        ]
+      : []),
+  ];
+
   return (
     <Bar $mode={mode}>
       <SkipLink href="#main">{tc("skipToContent")}</SkipLink>
@@ -1007,6 +1115,7 @@ export function Header({ user }: HeaderProps) {
             title={t("menu")}
             closeLabel={t("closeMenu")}
             accentColor={accentColor}
+            sections={menuSections}
             leading={
               mode === "learner" ? (
                 <MenuSearchSlot>
@@ -1014,9 +1123,7 @@ export function Header({ user }: HeaderProps) {
                 </MenuSearchSlot>
               ) : undefined
             }
-          >
-            {navItems}
-          </MobileMenu>
+          />
 
           {mode === "learner" ? (
             <>
@@ -1067,6 +1174,7 @@ export function Header({ user }: HeaderProps) {
               user={user}
               mode={mode}
               onOpenLanguage={() => setLangModalOpen(true)}
+              onMobileTrigger={() => setOpen(true)}
             />
           ) : null}
 

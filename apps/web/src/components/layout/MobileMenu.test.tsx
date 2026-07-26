@@ -4,6 +4,20 @@ import { ThemeProvider } from "styled-components";
 import { theme } from "@/styles/theme";
 import { MobileMenu } from "./MobileMenu";
 
+const SECTIONS = [
+  {
+    label: "Navigation",
+    items: [
+      <a key="k" href="#kurse">
+        Kurse
+      </a>,
+      <a key="p" href="#preise">
+        Preise
+      </a>,
+    ],
+  },
+];
+
 function renderMenu(props: Partial<Parameters<typeof MobileMenu>[0]> = {}) {
   const onClose = vi.fn();
   const utils = render(
@@ -14,11 +28,9 @@ function renderMenu(props: Partial<Parameters<typeof MobileMenu>[0]> = {}) {
         title="Menü"
         closeLabel="Menü schließen"
         accentColor="#C8FF4D"
+        sections={SECTIONS}
         {...props}
-      >
-        <a href="#kurse">Kurse</a>
-        <a href="#preise">Preise</a>
-      </MobileMenu>
+      />
     </ThemeProvider>
   );
   return { onClose, ...utils };
@@ -76,9 +88,8 @@ describe("MobileMenu", () => {
           title="Menü"
           closeLabel="Menü schließen"
           accentColor="#C8FF4D"
-        >
-          <a href="#kurse">Kurse</a>
-        </MobileMenu>
+          sections={SECTIONS}
+        />
       </ThemeProvider>
     );
     expect(document.body.style.overflow).toBe("");
