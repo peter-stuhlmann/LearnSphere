@@ -248,7 +248,9 @@ const LockedLessonRow = styled.div`
 const Stage = styled.section`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.radii.lg};
-  padding: 1.5rem;
+  /* Mobil kompakter: verschachtelte Karten (z. B. Notizen) würden sonst durch
+     Container + Stage + Card-Padding zu viel Breite fressen → starkes Wrapping */
+  padding: clamp(0.9rem, 3.2vw, 1.5rem);
   background: ${({ theme }) => theme.colors.surface};
 
   h2 {

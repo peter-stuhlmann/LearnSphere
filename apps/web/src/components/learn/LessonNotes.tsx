@@ -24,7 +24,8 @@ const Card = styled.section`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.radii.lg};
   background: ${({ theme }) => theme.colors.surface};
-  padding: 1.25rem 1.4rem;
+  /* Mobil kompakter (liegt bereits in der Stage-Karte – Padding nicht doppeln) */
+  padding: clamp(0.9rem, 3vw, 1.25rem) clamp(0.9rem, 3.4vw, 1.4rem);
 `;
 
 const Head = styled.div`
