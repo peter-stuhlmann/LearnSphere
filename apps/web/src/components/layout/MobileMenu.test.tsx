@@ -104,4 +104,25 @@ describe("MobileMenu", () => {
     fireEvent.keyDown(document, { key: "Tab" });
     expect(closeBtn).toHaveFocus();
   });
+
+  it("rendert eine Grid-Sektion (Buttons nebeneinander)", () => {
+    renderMenu({
+      sections: [
+        {
+          label: "Bereiche",
+          layout: "grid",
+          items: [
+            <a key="l" href="#lernen">
+              Lernen
+            </a>,
+            <a key="s" href="#studio">
+              Studio
+            </a>,
+          ],
+        },
+      ],
+    });
+    expect(screen.getByRole("link", { name: "Lernen" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Studio" })).toBeInTheDocument();
+  });
 });

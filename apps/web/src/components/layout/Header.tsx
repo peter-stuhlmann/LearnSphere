@@ -336,6 +336,73 @@ const AreaCheck = styled.span`
   font-size: 0.8rem;
 `;
 
+/* Bereichswechsel im Mobil-Menü: kompakte Buttons nebeneinander statt großer
+   Zeilen – farbiger Punkt oben, kurzes Label darunter, aktiver hervorgehoben. */
+const AreaGridButton = styled(Link)<{ $area: AreaMode; $active: boolean }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 0.3rem;
+  border-radius: ${({ theme }) => theme.radii.md};
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.66rem;
+  line-height: 1.15;
+  color: ${({ theme, $active }) =>
+    $active ? theme.colors.text : theme.colors.textMuted};
+  border: 1px solid
+    ${({ theme, $area, $active }) =>
+      !$active
+        ? theme.colors.border
+        : $area === "studio"
+          ? theme.colors.violet
+          : $area === "partner"
+            ? theme.colors.partner
+            : $area === "business"
+              ? theme.colors.business
+              : theme.colors.accent};
+  background: ${({ theme, $area, $active }) =>
+    !$active
+      ? "transparent"
+      : $area === "studio"
+        ? theme.colors.violetSoft
+        : $area === "partner"
+          ? theme.colors.partnerSoft
+          : $area === "business"
+            ? theme.colors.businessSoft
+            : theme.colors.accentSoft};
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    background 150ms ease;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.text};
+    border-color: ${({ theme, $area }) =>
+      $area === "studio"
+        ? theme.colors.violet
+        : $area === "partner"
+          ? theme.colors.partner
+          : $area === "business"
+            ? theme.colors.business
+            : theme.colors.accent};
+  }
+
+  &:focus-visible {
+    outline: 2px solid
+      ${({ theme, $area }) =>
+        $area === "studio"
+          ? theme.colors.violet
+          : $area === "partner"
+            ? theme.colors.partner
+            : $area === "business"
+              ? theme.colors.business
+              : theme.colors.accent};
+    outline-offset: 2px;
+  }
+`;
+
 /* --- Avatar-Menü --- */
 
 const AvatarWrap = styled.div`
@@ -1027,46 +1094,50 @@ export function Header({ user }: HeaderProps) {
   // (Desktop hat weiterhin das Avatar-Dropdown).
   const admin = user?.role === "ADMIN";
   const areaItems: ReactNode[] = [
-    <Link
+    <AreaGridButton
       key="area-learner"
+      $area="learner"
+      $active={mode === "learner"}
       href="/my-learning"
       onClick={close}
       aria-current={mode === "learner" ? "true" : undefined}
     >
       <AreaDot $area="learner" aria-hidden />
-      {t("toLearning")}
-      {mode === "learner" ? <AreaCheck aria-hidden>✓</AreaCheck> : null}
-    </Link>,
-    <Link
+      {t("learnerBadge")}
+    </AreaGridButton>,
+    <AreaGridButton
       key="area-studio"
+      $area="studio"
+      $active={mode === "studio"}
       href="/creator"
       onClick={close}
       aria-current={mode === "studio" ? "true" : undefined}
     >
       <AreaDot $area="studio" aria-hidden />
-      {t("toStudio")}
-      {mode === "studio" ? <AreaCheck aria-hidden>✓</AreaCheck> : null}
-    </Link>,
-    <Link
+      {t("studioBadge")}
+    </AreaGridButton>,
+    <AreaGridButton
       key="area-partner"
+      $area="partner"
+      $active={mode === "partner"}
       href="/affiliate"
       onClick={close}
       aria-current={mode === "partner" ? "true" : undefined}
     >
       <AreaDot $area="partner" aria-hidden />
-      {t("affiliateArea")}
-      {mode === "partner" ? <AreaCheck aria-hidden>✓</AreaCheck> : null}
-    </Link>,
-    <Link
+      {t("partnerBadge")}
+    </AreaGridButton>,
+    <AreaGridButton
       key="area-business"
+      $area="business"
+      $active={mode === "business"}
       href="/business"
       onClick={close}
       aria-current={mode === "business" ? "true" : undefined}
     >
       <AreaDot $area="business" aria-hidden />
-      {t("businessArea")}
-      {mode === "business" ? <AreaCheck aria-hidden>✓</AreaCheck> : null}
-    </Link>,
+      {t("businessBadge")}
+    </AreaGridButton>,
   ];
   const accountItems: ReactNode[] = [
     <Link key="profile" href="/profile" onClick={close}>
@@ -1112,7 +1183,11 @@ export function Header({ user }: HeaderProps) {
     { items: navItems },
     ...(user
       ? [
-          { label: t("areas"), items: areaItems },
+          {
+            label: t("areas"),
+            items: areaItems,
+            layout: "grid" as const,
+          },
           { label: t("account"), items: accountItems },
         ]
       : []),

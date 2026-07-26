@@ -150,6 +150,14 @@ const SectionLabel = styled(motion.p)`
 
 const Item = styled(motion.div).attrs({ className: "m-item" })``;
 
+/* Grid-Sektion: kompakte Buttons nebeneinander (Bereichswechsel) */
+const GridBlock = styled(motion.div)`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+`;
+
 /* Kopfbereich (z. B. angemeldeter Nutzer) zwischen TopBar und Sektionen */
 const MenuHeader = styled.div`
   margin-bottom: 0.5rem;
@@ -162,6 +170,9 @@ export type MobileMenuSection = {
   label?: string;
   /** Links/Buttons der Sektion */
   items: ReactNode[];
+  /** "list" (default) = gestapelte große Zeilen; "grid" = kompakte Buttons
+   *  nebeneinander (z. B. Bereichswechsel) */
+  layout?: "list" | "grid";
 };
 
 type MobileMenuProps = {
@@ -288,6 +299,15 @@ export function MobileMenu({
           {section.label}
         </SectionLabel>
       );
+    }
+    if (section.layout === "grid") {
+      // Alle Items als kompakte Buttons in einer Reihe (staffelt als ein Block)
+      blocks.push(
+        <GridBlock key={`grid-${si}`} variants={itemMotion}>
+          {section.items}
+        </GridBlock>
+      );
+      return;
     }
     section.items.forEach((item, ii) => {
       blocks.push(
