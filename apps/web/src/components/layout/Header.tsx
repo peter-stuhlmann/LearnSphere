@@ -1000,7 +1000,10 @@ export function Header({ user }: HeaderProps) {
 
   const mode = areaForPath(pathname);
   const studio = mode === "studio";
-  const close = () => setOpen(false);
+  // Stabile Identität: MobileMenu hängt seinen Fokus-/Scroll-Lock-Effekt an
+  // onClose. Eine neue Funktion je Render würde den Effekt bei jedem Header-
+  // Re-Render neu aufsetzen (Fokus-Flackern, Listener neu registrieren).
+  const close = useCallback(() => setOpen(false), []);
 
   const theme = useTheme();
   const accentColor =
