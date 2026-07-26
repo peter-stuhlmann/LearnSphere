@@ -46,6 +46,7 @@ export async function saveWorkspace(input: unknown): Promise<ActionResult> {
     brandName: parsed.data.brandName,
     brandColor: parsed.data.brandColor || null,
     emailFromName: parsed.data.emailFromName || null,
+    addressForm: parsed.data.addressForm,
   };
   await db.businessWorkspace.upsert({
     where: { ownerId },

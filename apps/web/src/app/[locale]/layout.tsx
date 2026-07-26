@@ -12,6 +12,8 @@ import { Footer } from "@/components/layout/Footer";
 import { TenantHeader } from "@/components/tenant/TenantHeader";
 import { TenantFooter } from "@/components/tenant/TenantFooter";
 import { getRequestWorkspace } from "@/lib/services/workspace-service";
+import { deepMerge } from "@/lib/deep-merge";
+import deFormalOverride from "@elearning/i18n/messages/de-formal.json";
 import { NoScriptNotice } from "@/components/layout/NoScriptNotice";
 import { CartSync } from "@/components/cart/CartSync";
 import { PageTransition } from "@/components/layout/PageTransition";
@@ -88,6 +90,13 @@ export default async function LocaleLayout({
     getRequestWorkspace(),
   ]);
 
+  // Whitelabel-Portal mit Sie-Anrede (nur Deutsch): nur die abweichenden
+  // Texte werden überschrieben, neutrale bleiben unverändert.
+  const clientMessages =
+    workspace && locale === "de" && workspace.addressForm === "FORMAL"
+      ? deepMerge(messages, deFormalOverride)
+      : messages;
+
   // Name/Avatar frisch aus der DB, damit Profil-Änderungen sofort greifen
   const freshUser = session?.user?.id
     ? await db.user.findUnique({
@@ -103,7 +112,7 @@ export default async function LocaleLayout({
       className={`${display.variable} ${body.variable} ${mono.variable}`}
     >
       <body>
-        <NextIntlClientProvider messages={messages}>
+        <NextIntlClientProvider messages={clientMessages}>
           <Providers>
             {workspace ? (
               <TenantHeader
@@ -135,7 +144,7 @@ export default async function LocaleLayout({
             {session?.user?.id ? <CartSync /> : null}
             <UnsavedChangesGuard />
             <ViewTransitionBridge />
-            <CookieConsent />
+            <CookieConsent brand={workspace ? workspace.brandName : "LearnSphere"} />
             <GoogleAnalytics />
           </Providers>
         </NextIntlClientProvider>

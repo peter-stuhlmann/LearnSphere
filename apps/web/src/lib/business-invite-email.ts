@@ -125,6 +125,15 @@ const WL_TEXTS = {
     footer: (brand: string) =>
       `Du erhältst diese E-Mail, weil deine Adresse bei ${brand} für einen Kurs eingetragen wurde.`,
   },
+  "de-formal": {
+    subject: (brand: string, course: string) => `${brand}: Ihr Zugang zu „${course}“`,
+    heading: (brand: string) => `Willkommen bei ${brand}`,
+    body: (brand: string, course: string) =>
+      `Sie wurden für den Kurs „${course}“ freigeschaltet. Melden Sie sich mit dieser E-Mail-Adresse an – oder registrieren Sie sich damit, falls Sie noch kein Konto haben – und der Kurs wartet in Ihrem Lernbereich bei ${brand} auf Sie.`,
+    cta: "Jetzt loslegen",
+    footer: (brand: string) =>
+      `Sie erhalten diese E-Mail, weil Ihre Adresse bei ${brand} für einen Kurs eingetragen wurde.`,
+  },
   en: {
     subject: (brand: string, course: string) => `${brand}: your access to “${course}”`,
     heading: (brand: string) => `Welcome to ${brand}`,
@@ -143,6 +152,8 @@ export interface WhitelabelInviteInput {
   courseTitle: string;
   loginUrl: string;
   locale: "de" | "en";
+  /** Sie-Anrede (nur Deutsch); ohne Angabe du-Form. */
+  formal?: boolean;
 }
 
 export function renderWhitelabelInviteEmail(input: WhitelabelInviteInput): {
@@ -150,7 +161,8 @@ export function renderWhitelabelInviteEmail(input: WhitelabelInviteInput): {
   html: string;
   text: string;
 } {
-  const t = WL_TEXTS[input.locale];
+  const t =
+    input.formal && input.locale === "de" ? WL_TEXTS["de-formal"] : WL_TEXTS[input.locale];
   const accent =
     input.accentColor && /^#[0-9a-fA-F]{6}$/.test(input.accentColor)
       ? input.accentColor

@@ -376,6 +376,10 @@
     "brandColor": "Akzentfarbe",
     "emailFromName": "E-Mail-Absender",
     "emailFromNameHint": "Name, der als Absender der Einladungs-Mails erscheint.",
+    "addressFormLabel": "Anrede",
+    "addressFormInformal": "Du",
+    "addressFormFormal": "Sie",
+    "addressFormHint": "Wie dein Team im Portal angesprochen wird (nur Deutsch). Die Texte passen sich automatisch an.",
     "domainTitle": "Eigene Domain",
     "domainIntro": "Für ein vollständig anonymes Portal: Verknüpfe deine eigene Domain. Dann taucht LearnSphere weder in der Adresse noch im Zertifikat auf.",
     "domainLabel": "Deine Domain",
@@ -431,8 +435,8 @@
     "free": "Kostenlos"
   },
   "consent": {
-    "title": "Cookies bei LearnSphere",
-    "description": "Wir nutzen notwendige Cookies für den Betrieb der Plattform – und mit deiner Einwilligung anonymisierte Statistiken, um LearnSphere besser zu machen. Details findest du in der",
+    "title": "Cookies bei {brand}",
+    "description": "Wir nutzen notwendige Cookies für den Betrieb – und mit deiner Einwilligung anonymisierte Statistiken, um {brand} besser zu machen. Details findest du in der",
     "privacyLink": "Datenschutzerklärung.",
     "acceptAll": "Alle akzeptieren",
     "settings": "Einstellungen",
@@ -569,6 +573,7 @@
   "auth": {
     "loginTitle": "Willkommen zurück",
     "loginSubtitle": "Melde dich an, um weiterzulernen.",
+    "tenantLoginHint": "Anmeldung nur für eingeladene Team-Mitglieder – bitte mit genau der E-Mail-Adresse, unter der du eingeladen wurdest.",
     "registerTitle": "Konto erstellen",
     "registerSubtitle": "In 30 Sekunden startklar – kostenlos.",
     "email": "E-Mail-Adresse",

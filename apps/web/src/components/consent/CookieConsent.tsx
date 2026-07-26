@@ -252,7 +252,12 @@ function persistConsent(analytics: boolean) {
  * Entscheidung vorliegt; über das Footer-Event lassen sich die Einstellungen
  * jederzeit wieder öffnen (Widerruf, DSGVO Art. 7 Abs. 3).
  */
-export function CookieConsent() {
+export function CookieConsent({
+  brand = "LearnSphere",
+}: {
+  /** Markenname fürs Whitelabel-Portal; ohne Angabe die Plattform-Marke. */
+  brand?: string;
+}) {
   const t = useTranslations("consent");
   const [visible, setVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -298,13 +303,13 @@ export function CookieConsent() {
   return (
     <>
       {visible && !settingsOpen ? (
-        <Banner aria-label={t("title")}>
+        <Banner aria-label={t("title", { brand })}>
           <BannerTitle>
             <span aria-hidden>✦</span>
-            {t("title")}
+            {t("title", { brand })}
           </BannerTitle>
           <BannerText>
-            {t("description")}{" "}
+            {t("description", { brand })}{" "}
             <Link href="/privacy">{t("privacyLink")}</Link>
           </BannerText>
           <BannerActions>

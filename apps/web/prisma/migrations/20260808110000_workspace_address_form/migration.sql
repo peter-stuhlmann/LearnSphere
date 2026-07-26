@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `BusinessWorkspace` ADD COLUMN `addressForm` ENUM('INFORMAL', 'FORMAL') NOT NULL DEFAULT 'INFORMAL';

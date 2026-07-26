@@ -16,6 +16,8 @@ export interface WorkspaceHost {
   brandName: string;
   brandColor: string | null;
   logo: string | null;
+  /** Anredeform der deutschen Portal-Texte */
+  addressForm: "INFORMAL" | "FORMAL";
   /** Auf welchem Weg der Host aufgelöst wurde */
   kind: "subdomain" | "customDomain";
 }
@@ -101,6 +103,7 @@ export async function lookupWorkspaceByHost(
       brandName: true,
       brandColor: true,
       logo: true,
+      addressForm: true,
     } as const;
 
     if (slug) {

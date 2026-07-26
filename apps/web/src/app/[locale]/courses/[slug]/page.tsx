@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
+import { requireTenantAuth } from "@/lib/services/workspace-service";
 import { db } from "@/lib/db";
 import { isStripeEnabled, stripe } from "@/lib/stripe";
 import { fulfillCourseCheckout } from "@/lib/fulfillment";
@@ -56,6 +57,8 @@ export default async function CourseDetailPage({
   searchParams: Promise<{ session_id?: string; acct?: string; via?: string }>;
 }) {
   const { locale, slug } = await params;
+  // Mandanten-Portal: Kursseiten nur für eingeloggte Team-Mitglieder
+  await requireTenantAuth(locale);
   const { session_id: checkoutSessionId, acct, via } = await searchParams;
 
   // Rückkehr vom Stripe-Checkout: Session verifizieren und idempotent

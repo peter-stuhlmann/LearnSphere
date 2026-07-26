@@ -350,6 +350,8 @@ export const workspaceSchema = z.object({
     .optional()
     .or(z.literal("")),
   emailFromName: z.string().trim().max(80).optional().or(z.literal("")),
+  /// Anredeform der deutschen Portal-Texte (du/Sie)
+  addressForm: z.enum(["INFORMAL", "FORMAL"]).default("INFORMAL"),
 });
 
 export type WorkspaceInput = z.input<typeof workspaceSchema>;

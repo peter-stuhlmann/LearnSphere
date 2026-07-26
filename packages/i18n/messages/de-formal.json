@@ -1,0 +1,104 @@
+{
+  "auth": {
+    "loginSubtitle": "Melden Sie sich an, um weiterzulernen.",
+    "tenantLoginHint": "Anmeldung nur für eingeladene Team-Mitglieder – bitte mit genau der E-Mail-Adresse, unter der Sie eingeladen wurden.",
+    "totpHint": "6-stelliger Code aus Ihrer Authenticator-App",
+    "privacyNote": "Informationen zur Verarbeitung Ihrer Daten finden Sie in unserer <privacy>Datenschutzerklärung</privacy>.",
+    "oauthLegal": "Mit der Registrierung über Google oder LinkedIn akzeptieren Sie unsere <terms>AGB</terms>. Es gilt unsere <privacy>Datenschutzerklärung</privacy>.",
+    "oauthRedirectingHint": "Sie werden sicher zur Anmeldung weitergeleitet.",
+    "oauthContinuingHint": "Einen Moment – wir richten Ihr Portal ein.",
+    "registerSuccess": "Konto erstellt! Sie können sich jetzt anmelden.",
+    "registeredCheckInbox": "Konto erstellt! Wir haben Ihnen eine E-Mail geschickt – bitte bestätigen Sie Ihre Adresse über den Link darin, bevor Sie sich anmelden.",
+    "verifySuccessText": "Ihr Konto ist jetzt aktiv. Melden Sie sich an und legen Sie los.",
+    "verifyResent": "Wenn ein unbestätigtes Konto mit dieser E-Mail existiert, haben wir Ihnen eine neue Bestätigungs-Mail geschickt.",
+    "forgotSubtitle": "Wir senden Ihnen einen Link zum Zurücksetzen.",
+    "resetSent": "Wenn ein Konto mit dieser E-Mail existiert, haben wir Ihnen einen Link geschickt.",
+    "resetSubtitle": "Wählen Sie ein neues, sicheres Passwort.",
+    "resetSuccess": "Passwort geändert! Sie können sich jetzt anmelden.",
+    "errors": {
+      "2fa_required": "Bitte geben Sie Ihren 2FA-Code ein.",
+      "not_invited": "Für dieses Portal ist keine Einladung für diese E-Mail hinterlegt. Bitte wenden Sie sich an Ihre Ansprechperson.",
+      "password_pwned": "Dieses Passwort ist in bekannten Datenlecks aufgetaucht – bitte wählen Sie ein anderes.",
+      "name_too_short": "Bitte geben Sie Ihren Namen ein.",
+      "email_invalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+      "email_not_verified": "Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse über den Link, den wir Ihnen geschickt haben."
+    }
+  },
+  "tenant": {
+    "portalTitle": "Ihre Kurse",
+    "portalIntro": "Willkommen in Ihrem Lernbereich. Hier finden Sie alle für Sie freigeschalteten Kurse.",
+    "portalEmpty": "Aktuell sind keine Kurse freigeschaltet. Bitte wenden Sie sich an Ihre Ansprechperson."
+  },
+  "greeting": {
+    "day": "Schön, dass Sie da sind! ✨",
+    "dayName": "Schön, dass Sie da sind, {name}! ✨"
+  },
+  "common": {
+    "unsavedMessage": "Sie haben ungespeicherte Änderungen. Wenn Sie die Seite jetzt verlassen, gehen sie verloren."
+  },
+  "consent": {
+    "description": "Wir nutzen notwendige Cookies für den Betrieb – und mit Ihrer Einwilligung anonymisierte Statistiken, um {brand} besser zu machen. Details finden Sie in der",
+    "settingsIntro": "Wählen Sie aus, welche Kategorien Sie zulassen möchten. Ihre Auswahl können Sie jederzeit über den Footer ändern."
+  },
+  "catalog": {
+    "empty": "Noch keine veröffentlichten Kurse – schauen Sie bald wieder vorbei!"
+  },
+  "course": {
+    "enrolled": "Sie sind eingeschrieben"
+  },
+  "learn": {
+    "emptyText": "Sie sind noch in keinem Kurs eingeschrieben.",
+    "examRequirement": "Sie brauchen mindestens {percent} % Sehanteil und alle Zwischenprüfungen.",
+    "previewHint": "So sehen eingeschriebene Nutzer den Kurs. Ihr Fortschritt wird hier nicht gespeichert.",
+    "examLockedIntro": "Fast geschafft! So schalten Sie die Abschlussprüfung frei:",
+    "courseEndReached": "Geschafft – Sie haben das Kursende erreicht!",
+    "autoplayOffHint": "Autoplay aus – Sie blättern selbst weiter",
+    "videoNotSupported": "Ihr Browser kann dieses Video nicht abspielen.",
+    "selfTestTitle": "Testen Sie sich",
+    "notesPlaceholder": "Gedanken zur Lektion festhalten … (nur für Sie sichtbar)",
+    "notesEmpty": "Noch keine Notizen – halten Sie fest, was Sie sich merken möchten.",
+    "ytConsentText": "Beim Laden wird eine Verbindung zu YouTube (Google) hergestellt. Dabei können personenbezogene Daten wie Ihre IP-Adresse übertragen und Cookies gesetzt werden.",
+    "journeyTitle": "Ihre Lernreise"
+  },
+  "review": {
+    "freeTextPlaceholder": "Ihre Antwort (optional) – dann vergleichen",
+    "yourAnswer": "Ihre Antwort",
+    "emptyNoCards": "Sobald Sie Ihre erste Zwischen- oder Abschlussprüfung versuchen, entstehen hier automatisch Karteikarten aus den Prüfungsfragen.",
+    "emptyNextDue": "Ihre nächste Wiederholung ist am {date} fällig.",
+    "doneText": "Ihr Gehirn dankt es Ihnen – Wiederholen im richtigen Abstand verankert Wissen langfristig."
+  },
+  "exam": {
+    "yourAnswer": "Ihre Antwort:",
+    "yourScore": "Ihr Ergebnis: {percent} %",
+    "certificateActionsLabel": "Ihr Zertifikat",
+    "notEligible": "Sie sind noch nicht zur Prüfung zugelassen.",
+    "notEligibleHeading": "Sie sind noch nicht zur Abschlussprüfung zugelassen. Erfüllen Sie folgende Kriterien:",
+    "leaveWarningText": "Sie haben das Prüfungsfenster verlassen ({count} von {max}). Beim {max}. Mal wird Ihre Prüfung automatisch mit den bisherigen Antworten abgegeben.",
+    "guaranteeBlocked": "Die Abschlussprüfung ist während Ihrer 30-Tage-Rückgabegarantie gesperrt – sie öffnet automatisch am {date}.",
+    "guaranteeExplain": "Solange die Garantie läuft, können Sie den Kurs jederzeit zurückgeben – deshalb gibt es in dieser Zeit noch kein Zertifikat. Wenn Sie die Prüfung sofort machen möchten, können Sie Ihre Rückgabegarantie freiwillig beenden.",
+    "guaranteeWaiveWarning": "Sind Sie sicher? Wenn Sie die Garantie beenden, können Sie diesen Kurs NICHT mehr zurückgeben. Das lässt sich nicht rückgängig machen.",
+    "guaranteeExamNote": "Die Abschlussprüfung öffnet nach Ihrer Rückgabegarantie am {date} – oder Sie beenden sie freiwillig auf der Prüfungsseite.",
+    "freeTextPlaceholder": "Ihre Antwort …",
+    "blockedAlreadyPassed": "Sie haben diese Prüfung bereits bestanden – eine Wiederholung ist nicht vorgesehen.",
+    "blockedExhausted": "Sie haben alle Versuche für diese Prüfung aufgebraucht."
+  },
+  "rating": {
+    "saved": "Danke für Ihre Bewertung!",
+    "reviewLabel": "Ihr Review (optional)",
+    "reviewPlaceholder": "Möchten Sie kurz erzählen, wie Ihnen der Kurs gefallen hat? (optional)"
+  },
+  "community": {
+    "placeholder": "Stellen Sie eine Frage oder starten Sie eine Diskussion … (@ erwähnt andere)",
+    "replyPlaceholder": "Ihre Antwort … (@ erwähnt andere)"
+  },
+  "assistant": {
+    "welcome": "Hallo! Ich kenne alle Inhalte dieses Kurses und helfe Ihnen beim Lernen. Fragen Sie mich etwas zur aktuellen Lektion – oder starten Sie mit einem Vorschlag.",
+    "newChatMessage": "Ihr bisheriger Verlauf mit dem Lernassistenten in diesem Kurs wird dabei entfernt und ist danach nicht mehr aufrufbar.",
+    "errorRateLimited": "Kurz durchatmen – Sie haben gerade sehr viele Nachrichten geschickt. Versuchen Sie es gleich nochmal."
+  },
+  "booking": {
+    "reservedHint": "Die Uhrzeit ist jetzt 10 Minuten für Sie reserviert – schließen Sie die Buchung in Ruhe ab.",
+    "emailLabel": "Ihre E-Mail-Adresse",
+    "doneText": "Wir haben Ihnen eine E-Mail geschickt. Bitte bestätigen Sie den Termin über den Link darin – erst dann ist er fest gebucht."
+  }
+}

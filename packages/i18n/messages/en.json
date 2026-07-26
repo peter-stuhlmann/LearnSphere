@@ -376,6 +376,10 @@
     "brandColor": "Accent color",
     "emailFromName": "Email sender",
     "emailFromNameHint": "Name shown as the sender of invitation emails.",
+    "addressFormLabel": "Form of address",
+    "addressFormInformal": "Informal (du)",
+    "addressFormFormal": "Formal (Sie)",
+    "addressFormHint": "How your team is addressed in the portal (German only). Texts adapt automatically.",
     "domainTitle": "Custom domain",
     "domainIntro": "For a fully anonymous portal: connect your own domain. Then LearnSphere appears neither in the address nor in the certificate.",
     "domainLabel": "Your domain",
@@ -431,8 +435,8 @@
     "free": "Free"
   },
   "consent": {
-    "title": "Cookies at LearnSphere",
-    "description": "We use necessary cookies to run the platform – and, with your consent, anonymised statistics to make LearnSphere better. Details in our",
+    "title": "Cookies at {brand}",
+    "description": "We use necessary cookies to run the service – and, with your consent, anonymised statistics to make {brand} better. Details in our",
     "privacyLink": "privacy policy.",
     "acceptAll": "Accept all",
     "settings": "Settings",
@@ -569,6 +573,7 @@
   "auth": {
     "loginTitle": "Welcome back",
     "loginSubtitle": "Sign in to continue learning.",
+    "tenantLoginHint": "Sign-in is for invited team members only – please use the exact email address you were invited with.",
     "registerTitle": "Create your account",
     "registerSubtitle": "Ready in 30 seconds – free.",
     "email": "Email address",

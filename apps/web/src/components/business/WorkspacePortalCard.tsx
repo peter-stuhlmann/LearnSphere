@@ -88,6 +88,45 @@ const Actions = styled.div`
   gap: 0.6rem;
 `;
 
+const FieldLabel = styled.span`
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.textMuted};
+  margin-bottom: 0.4rem;
+`;
+
+const Segmented = styled.div`
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.radii.pill};
+  background: ${({ theme }) => theme.colors.bgElevated};
+`;
+
+const SegButton = styled.button<{ $active: boolean }>`
+  flex: 1;
+  padding: 0.5rem 0.9rem;
+  border-radius: ${({ theme }) => theme.radii.pill};
+  font-size: 0.88rem;
+  font-weight: ${({ $active }) => ($active ? 600 : 400)};
+  background: ${({ theme, $active }) =>
+    $active ? theme.colors.accent : "transparent"};
+  color: ${({ theme, $active }) =>
+    $active ? theme.colors.onAccent : theme.colors.textMuted};
+
+  &:hover {
+    color: ${({ theme, $active }) =>
+      $active ? theme.colors.onAccent : theme.colors.text};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+  }
+`;
+
 const KNOWN_ERRORS = [
   "slug_invalid",
   "slug_reserved",
@@ -122,6 +161,9 @@ export function WorkspacePortalCard({
   const [emailFromName, setEmailFromName] = useState(
     workspace?.emailFromName ?? ""
   );
+  const [addressForm, setAddressForm] = useState<"INFORMAL" | "FORMAL">(
+    workspace?.addressForm ?? "INFORMAL"
+  );
   const [domainInput, setDomainInput] = useState("");
 
   const [notice, setNotice] = useState<string | null>(null);
@@ -152,7 +194,8 @@ export function WorkspacePortalCard({
   function onSaveWorkspace(event: FormEvent) {
     event.preventDefault();
     run(
-      () => saveWorkspace({ slug, brandName, brandColor, emailFromName }),
+      () =>
+        saveWorkspace({ slug, brandName, brandColor, emailFromName, addressForm }),
       "saved"
     );
   }
@@ -230,6 +273,30 @@ export function WorkspacePortalCard({
             onChange={(e) => setEmailFromName(e.target.value)}
             maxLength={80}
           />
+          <div>
+            <FieldLabel as="label">{t("addressFormLabel")}</FieldLabel>
+            <Segmented role="group" aria-label={t("addressFormLabel")}>
+              <SegButton
+                type="button"
+                $active={addressForm === "INFORMAL"}
+                aria-pressed={addressForm === "INFORMAL"}
+                onClick={() => setAddressForm("INFORMAL")}
+              >
+                {t("addressFormInformal")}
+              </SegButton>
+              <SegButton
+                type="button"
+                $active={addressForm === "FORMAL"}
+                aria-pressed={addressForm === "FORMAL"}
+                onClick={() => setAddressForm("FORMAL")}
+              >
+                {t("addressFormFormal")}
+              </SegButton>
+            </Segmented>
+            <Muted style={{ fontSize: "0.8rem", marginTop: "0.4rem" }}>
+              {t("addressFormHint")}
+            </Muted>
+          </div>
           <PrimaryButton type="submit" disabled={pending}>
             {tc("save")}
           </PrimaryButton>

@@ -17,6 +17,7 @@ import { CatalogView } from "@/components/catalog/CatalogView";
 import {
   getRequestWorkspace,
   licensedCourseIds,
+  requireTenantAuth,
 } from "@/lib/services/workspace-service";
 
 const PAGE_SIZES = [6, 12, 24, 48];
@@ -46,6 +47,8 @@ export default async function CoursesPage({
   }>;
 }) {
   const { locale } = await params;
+  // Mandanten-Portal: Katalog nur für eingeloggte Team-Mitglieder
+  await requireTenantAuth(locale);
   const {
     q,
     page: pageParam,

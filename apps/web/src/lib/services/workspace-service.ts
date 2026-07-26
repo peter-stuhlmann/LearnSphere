@@ -22,6 +22,7 @@ export interface WorkspaceData {
   brandName: string;
   brandColor: string;
   emailFromName: string;
+  addressForm: "INFORMAL" | "FORMAL";
   customDomain: string | null;
   domainVerified: boolean;
   /** DNS-Records, die der Owner bei seiner Domain setzen muss (nur wenn Domain gesetzt). */
@@ -50,6 +51,7 @@ export async function loadWorkspacePageData(
       brandName: ws.brandName,
       brandColor: ws.brandColor ?? "",
       emailFromName: ws.emailFromName ?? "",
+      addressForm: ws.addressForm,
       customDomain: ws.customDomain,
       domainVerified: ws.domainVerifiedAt !== null,
       dns:
@@ -84,6 +86,7 @@ export interface WorkspaceMailContext {
   brandColor: string | null;
   emailFromName: string | null;
   emailDomain: string | null;
+  addressForm: "INFORMAL" | "FORMAL";
   /** Portal-Host: verifizierte Kundendomain, sonst <slug>.<base>. */
   portalHost: string;
 }
@@ -100,6 +103,7 @@ export async function loadWorkspaceMailContext(
       brandColor: true,
       emailFromName: true,
       emailDomain: true,
+      addressForm: true,
       customDomain: true,
       domainVerifiedAt: true,
       status: true,
@@ -115,6 +119,7 @@ export async function loadWorkspaceMailContext(
     brandColor: ws.brandColor,
     emailFromName: ws.emailFromName,
     emailDomain: ws.emailDomain,
+    addressForm: ws.addressForm,
     portalHost,
   };
 }
@@ -130,6 +135,22 @@ export function workspaceMailFrom(ctx: WorkspaceMailContext): string | null {
   if (!domain) return null;
   const name = ctx.emailFromName || ctx.brandName;
   return `${name} <noreply@${domain}>`;
+}
+
+/**
+ * Auf einem Whitelabel-Mandanten-Host: Kurse sind nur eingeloggt sichtbar.
+ * Nicht angemeldete Besucher werden serverseitig zur Login-Seite geleitet.
+ * Auf der Hauptdomain (kein Workspace) passiert nichts.
+ */
+export async function requireTenantAuth(locale: string): Promise<void> {
+  const workspace = await getRequestWorkspace();
+  if (!workspace) return;
+  const { auth } = await import("@/auth");
+  const session = await auth();
+  if (!session?.user?.id) {
+    const { redirect } = await import("@/i18n/navigation");
+    redirect({ href: "/login", locale });
+  }
 }
 
 /** Kurs-IDs, die der Owner per aktiver Lizenz für sein Team bereitstellt. */

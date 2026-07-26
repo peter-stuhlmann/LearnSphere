@@ -37,6 +37,18 @@ describe("renderWhitelabelInviteEmail", () => {
     expect(x.html).toContain("#4DD8FF");
   });
 
+  it("nutzt die Sie-Anrede bei formal=true (Deutsch)", () => {
+    const formal = renderWhitelabelInviteEmail({
+      brandName: "Acme Academy",
+      courseTitle: "TypeScript",
+      loginUrl: "https://academy.acme.com/de/anmelden",
+      locale: "de",
+      formal: true,
+    });
+    expect(formal.text).toMatch(/Melden Sie sich|wurden für den Kurs/);
+    expect(formal.text.toLowerCase()).not.toMatch(/\bmelde dich\b|\bdu wurdest\b/);
+  });
+
   it("escaped HTML in Marke und Kurstitel", () => {
     const x = renderWhitelabelInviteEmail({
       brandName: "<b>x</b>",

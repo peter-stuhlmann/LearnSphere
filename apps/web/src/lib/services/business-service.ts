@@ -204,6 +204,7 @@ export async function addMember(
           courseTitle: license.course.title,
           loginUrl: `https://${mailCtx.portalHost}/${loginPath}`,
           locale: options.locale,
+          formal: mailCtx.addressForm === "FORMAL",
         })
       : renderBusinessInviteEmail({
           ownerName:
@@ -214,15 +215,34 @@ export async function addMember(
           }/${loginPath}`,
           locale: options.locale,
         });
-    // Versandfehler blockieren die Einladung nicht – der Seat steht
-    void sendMail({
-      to: email,
-      subject: invite.subject,
-      text: invite.text,
-      html: invite.html,
-      sender: "noreply",
-      from: mailCtx ? (workspaceMailFrom(mailCtx) ?? undefined) : undefined,
-    }).catch(() => undefined);
+    const wlFrom = mailCtx ? (workspaceMailFrom(mailCtx) ?? undefined) : undefined;
+    // BEWUSST awaiten: In Serverless (Vercel) würde ein fire-and-forget-Promise
+    // nach dem return abgebrochen – die Mail ginge nie raus. Versandfehler
+    // blockieren die Einladung trotzdem nicht (der Seat steht bereits).
+    try {
+      const sent = await sendMail({
+        to: email,
+        subject: invite.subject,
+        text: invite.text,
+        html: invite.html,
+        sender: "noreply",
+        from: wlFrom,
+      });
+      // Fällt der Whitelabel-Absender durch (z. B. nicht in Resend verifizierte
+      // Domain), notfalls über den Standard-Absender zustellen – lieber eine
+      // Mail mit Plattform-Absender als gar keine Einladung.
+      if (!sent && wlFrom) {
+        await sendMail({
+          to: email,
+          subject: invite.subject,
+          text: invite.text,
+          html: invite.html,
+          sender: "noreply",
+        });
+      }
+    } catch (error) {
+      console.error("[business] Einladungs-Mail fehlgeschlagen:", error);
+    }
   }
   return { ok: true };
 }

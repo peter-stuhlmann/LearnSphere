@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import de from "../messages/de.json";
 import en from "../messages/en.json";
+import deFormal from "../messages/de-formal.json";
 import { defaultLocale, getMessages, isAppLocale, locales } from "./index";
 
 /* Rekursiver Key-Paritätstest: jede Message muss in beiden Sprachen
@@ -21,6 +22,12 @@ describe("message catalogs", () => {
 
   it("kein Katalog ist leer", () => {
     expect(keyPaths(de).length).toBeGreaterThan(100);
+  });
+
+  it("de-formal überschreibt nur existierende de-Keys (keine verwaisten)", () => {
+    const deKeys = new Set(keyPaths(de));
+    const orphans = keyPaths(deFormal).filter((k) => !deKeys.has(k));
+    expect(orphans).toEqual([]);
   });
 });
 
