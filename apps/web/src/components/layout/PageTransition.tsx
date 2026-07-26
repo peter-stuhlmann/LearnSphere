@@ -25,6 +25,12 @@ const fadeIn = keyframes`
 `;
 
 const Fader = styled.div<{ $leaving: boolean }>`
+  /* Sticky Footer: Diese Hülle (nicht das verschachtelte <main>) ist der
+     direkte Flex-Child von <body> und muss den freien Platz füllen, damit der
+     Footer auch bei wenig Inhalt unten bleibt. */
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
   animation: ${fadeIn} 240ms ease-out;
 
   ${({ $leaving }) =>

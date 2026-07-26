@@ -118,7 +118,11 @@ export default async function LocaleLayout({
               <TenantHeader
                 brandName={workspace.brandName}
                 brandColor={workspace.brandColor}
-                loggedIn={Boolean(freshUser)}
+                user={
+                  freshUser
+                    ? { name: freshUser.name, image: freshUser.image }
+                    : null
+                }
               />
             ) : (
               <Header
