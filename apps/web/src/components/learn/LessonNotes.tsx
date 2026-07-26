@@ -28,20 +28,73 @@ const Card = styled.section`
   padding: clamp(0.9rem, 3vw, 1.25rem) clamp(0.9rem, 3.4vw, 1.4rem);
 `;
 
-const Head = styled.div`
+/* Auf-/Zuklappen wie „Community & Q&A": Header als Toggle, Inhalt im Grid-
+   Collapse (sanft auf unbekannte Höhe). */
+const ToggleButton = styled.button`
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 0.75rem;
+  gap: 0.55rem;
+  width: 100%;
+  text-align: left;
 
   h3 {
     font-size: 1.05rem;
     margin-right: auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
 
     span {
       margin-right: 0.4rem;
     }
   }
+
+  &:hover h3 {
+    color: ${({ theme }) => theme.colors.accent};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 3px;
+    border-radius: ${({ theme }) => theme.radii.sm};
+  }
+`;
+
+const Chevron = styled.span<{ $open: boolean }>`
+  display: inline-block;
+  flex-shrink: 0;
+  color: ${({ theme }) => theme.colors.textMuted};
+  transition: transform 250ms ease;
+  transform: rotate(${({ $open }) => ($open ? "90deg" : "0deg")});
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
+const Collapse = styled.div<{ $open: boolean }>`
+  display: grid;
+  grid-template-rows: ${({ $open }) => ($open ? "1fr" : "0fr")};
+  opacity: ${({ $open }) => ($open ? 1 : 0)};
+  transition:
+    grid-template-rows 300ms ease,
+    opacity 300ms ease;
+
+  > div {
+    overflow: hidden;
+    /* Fokusring der Kinder nicht abschneiden */
+    padding: 3px;
+    margin: -3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
+const ExportRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
 `;
 
 const Count = styled.span`
@@ -209,6 +262,7 @@ export function LessonNotes({
 }) {
   const t = useTranslations("learn");
   const tc = useTranslations("common");
+  const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState<LessonNoteDto[]>([]);
   const [draft, setDraft] = useState("");
   const [withStamp, setWithStamp] = useState(true);
@@ -291,24 +345,35 @@ export function LessonNotes({
 
   return (
     <Card aria-label={t("notesTitle")}>
-      <Head>
+      <ToggleButton
+        type="button"
+        aria-expanded={open}
+        aria-controls="lesson-notes-panel"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Chevron $open={open} aria-hidden="true">
+          ▸
+        </Chevron>
         <h3>
           <span aria-hidden>📝</span>
           {t("notesTitle")}
         </h3>
-        {notes.length > 0 ? (
-          <>
-            <Count>{notes.length}</Count>
-            <ExportButton type="button" onClick={exportMarkdown}>
-              ↓ {t("notesExport")}
-            </ExportButton>
-          </>
-        ) : null}
-      </Head>
+        {notes.length > 0 ? <Count aria-hidden="true">{notes.length}</Count> : null}
+      </ToggleButton>
 
-      {notes.length === 0 ? <Empty>{t("notesEmpty")}</Empty> : null}
+      <Collapse id="lesson-notes-panel" $open={open} inert={!open}>
+        <div>
+          {notes.length > 0 ? (
+            <ExportRow>
+              <ExportButton type="button" onClick={exportMarkdown}>
+                ↓ {t("notesExport")}
+              </ExportButton>
+            </ExportRow>
+          ) : null}
 
-      <NoteList>
+          {notes.length === 0 ? <Empty>{t("notesEmpty")}</Empty> : null}
+
+          <NoteList>
         {notes.map((note) => (
           <NoteItem key={note.id}>
             {note.timeSeconds !== null && note.blockId ? (
@@ -403,6 +468,8 @@ export function LessonNotes({
           ) : null}
         </ComposerRow>
       </Composer>
+        </div>
+      </Collapse>
     </Card>
   );
 }
