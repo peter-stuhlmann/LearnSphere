@@ -24,23 +24,34 @@ const Band = styled(motion.section)`
       transparent 55%
     ),
     ${({ theme }) => theme.colors.surface};
-  padding: 1.75rem;
+  /* mobile first: kompaktes Padding ab 320px, mehr Luft erst später */
+  padding: 1.15rem;
   margin-top: 1.5rem;
   display: grid;
-  gap: 1.5rem;
+  gap: 1.25rem;
+
+  @media (min-width: ${({ theme }) => theme.breakpoints.sm}) {
+    padding: 1.5rem;
+  }
 
   @media (min-width: ${({ theme }) => theme.breakpoints.lg}) {
     grid-template-columns: 1.4fr 1fr;
     align-items: center;
+    gap: 1.5rem;
     padding: 2rem 2.25rem;
   }
 `;
 
 const Hello = styled.div`
+  /* Grid-Item: ohne min-width:0 sprengt langer Inhalt (E-Mail-Name) die Spalte */
+  min-width: 0;
+
   h2 {
-    font-size: clamp(1.35rem, 4vw, 1.9rem);
+    font-size: clamp(1.3rem, 5vw, 1.9rem);
     line-height: 1.2;
     margin-bottom: 0.35rem;
+    /* lange, umbruchlose Namen (z. B. E-Mail) niemals überlaufen lassen */
+    overflow-wrap: anywhere;
   }
 `;
 
@@ -88,6 +99,8 @@ const Dot = styled.span<{ $active: boolean; $today: boolean }>`
 `;
 
 const ActionCards = styled.div`
+  /* Grid-Item im Band + Grid-Container – beidseitig schrumpffähig halten */
+  min-width: 0;
   display: grid;
   gap: 0.85rem;
 `;
@@ -96,10 +109,11 @@ const ContinueCard = styled(TransitionLink)`
   display: flex;
   align-items: center;
   gap: 0.9rem;
+  min-width: 0;
   border: 1px solid ${({ theme }) => theme.colors.borderStrong};
   border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.colors.bgElevated};
-  padding: 0.8rem 1rem;
+  padding: 0.8rem 0.9rem;
   text-decoration: none;
   color: inherit;
   transition: border-color 160ms ease, transform 160ms ease;
@@ -138,6 +152,8 @@ const Thumb = styled.div`
 `;
 
 const ContinueText = styled.div`
+  /* nimmt den Restplatz und darf unter die Textbreite schrumpfen → Ellipsis */
+  flex: 1;
   min-width: 0;
 
   p.kicker {
@@ -167,6 +183,7 @@ const ContinueText = styled.div`
 `;
 
 const ReviewCard = styled.div`
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -174,10 +191,14 @@ const ReviewCard = styled.div`
   gap: 0.75rem;
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.radii.md};
-  padding: 0.8rem 1rem;
+  padding: 0.8rem 0.9rem;
 
   p {
     font-size: 0.9rem;
+    min-width: 0;
+    /* Text darf umbrechen; der Button rutscht sonst aus der Karte */
+    flex: 1 1 12ch;
+    overflow-wrap: anywhere;
   }
 `;
 
