@@ -51,6 +51,10 @@ export async function startCourseCheckout(input: {
   });
   if (existing) return { ok: true, url: undefined, demo: false };
 
+  // Superadmin testet ohne Zahlung: kein Stripe-Checkout. Ohne URL fällt der
+  // Client auf enroll() zurück, wo der Comp-Zugang (0 €) angelegt wird.
+  if (session.user.role === "ADMIN") return { ok: true, demo: false };
+
   // Gutschein serverseitig anwenden – der Client bestimmt den Preis nie selbst
   let finalPriceCents = course.priceCents;
   let couponCode: string | undefined;
@@ -205,6 +209,25 @@ export async function startCartCheckout(input: {
   const enrolled = new Set(enrollments.map((e) => e.courseId));
   const toBuy = courses.filter((course) => !enrolled.has(course.id));
   if (toBuy.length === 0) return { ok: false, error: "cart_empty" };
+
+  // Superadmin testet ohne Zahlung: alle Kurse direkt als Comp (0 €) freischalten.
+  if (session.user.role === "ADMIN") {
+    await db.$transaction(
+      toBuy.map((course) =>
+        db.enrollment.create({
+          data: {
+            userId,
+            courseId: course.id,
+            pricePaidCents: 0,
+            salesChannel: "PLATFORM",
+            creatorShareCents: 0,
+            refundableUntil: null,
+          },
+        })
+      )
+    );
+    return { ok: true, demo: true };
+  }
 
   // Affiliate-Attribution je Kurs (Cookie ist hier verfügbar, im Webhook nicht)
   const attributions = await Promise.all(

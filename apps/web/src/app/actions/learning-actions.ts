@@ -56,6 +56,24 @@ export async function enroll(
   });
   if (existing) return { ok: true };
 
+  // Superadmin: kostenloser Comp-Zugang zum Testen. Schaltet auch Bezahlkurse
+  // ohne Zahlung frei (0 € gebucht, kein Creator-Anteil). Ohne Rückgabe-Hold,
+  // damit der Zertifikats-Flow sofort testbar ist.
+  if (session.user.role === "ADMIN" && course.priceCents > 0) {
+    await db.enrollment.create({
+      data: {
+        userId: session.user.id,
+        courseId,
+        pricePaidCents: 0,
+        salesChannel: "PLATFORM",
+        creatorShareCents: 0,
+        refundableUntil: null,
+      },
+    });
+    revalidatePath(`/[locale]/courses/${course.slug}`, "page");
+    return { ok: true };
+  }
+
   // Produktions-Guard: Ohne konfigurierte Stripe-Keys dürfen Bezahlkurse
   // NIEMALS still im Demo-Modus freigeschaltet werden
   if (

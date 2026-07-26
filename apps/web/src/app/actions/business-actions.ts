@@ -32,7 +32,8 @@ export async function startBusinessCheckout(input: {
   seats: number;
   locale: string;
 }): Promise<ActionResult & { url?: string; demo?: boolean }> {
-  const userId = await requireBusinessUser();
+  const session = await auth();
+  const userId = session?.user?.id;
   if (!userId) return { ok: false, error: "unauthorized" };
 
   const seats = Number(input.seats);
@@ -43,6 +44,18 @@ export async function startBusinessCheckout(input: {
   const seatPriceCents = await service.courseSeatPriceCents(courseId, seats);
   if (seatPriceCents === null) {
     return { ok: false, error: "course_unavailable" };
+  }
+
+  // Superadmin testet ohne Zahlung: Lizenz direkt als Comp (0 €) anlegen.
+  if (session.user.role === "ADMIN") {
+    const result = await service.createLicense(userId, {
+      courseId,
+      seats,
+      seatPriceCents: 0,
+    });
+    if (!result.ok) return { ok: false, error: result.error };
+    refresh();
+    return { ok: true, demo: true };
   }
 
   if (!isStripeEnabled()) {
@@ -59,7 +72,6 @@ export async function startBusinessCheckout(input: {
     return { ok: true, demo: true };
   }
 
-  const session = await auth();
   const locale = input.locale === "en" ? "en" : "de";
   // Einmalzahlung: quantity = Seats × rabattierter Seat-Preis.
   const checkout = await stripe().checkout.sessions.create({
