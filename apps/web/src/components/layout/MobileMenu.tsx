@@ -104,21 +104,19 @@ const Body = styled(motion.div)<{ $accent: string }>`
     display: flex;
     width: 100%;
     align-items: center;
-    gap: 0.75rem;
-    padding: 1.05rem 0.25rem;
+    gap: 0.65rem;
+    padding: 0.85rem 0.25rem;
     background: transparent;
     border: none;
     border-radius: 0;
     text-align: left;
     text-decoration: none;
-    font-family: ${({ theme }) => theme.fonts.display};
-    font-size: 1.45rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-size: 1.05rem;
+    font-weight: 500;
     color: ${({ theme }) => theme.colors.text};
     transition:
       color 160ms ease,
-      padding-left 220ms cubic-bezier(0.22, 1, 0.36, 1);
+      padding-left 200ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .m-item > a:hover,
@@ -126,7 +124,7 @@ const Body = styled(motion.div)<{ $accent: string }>`
   .m-item > a:focus-visible,
   .m-item > button:focus-visible {
     color: ${({ $accent }) => $accent};
-    padding-left: 0.9rem;
+    padding-left: 0.6rem;
     outline: none;
   }
 
@@ -138,9 +136,9 @@ const Body = styled(motion.div)<{ $accent: string }>`
 `;
 
 const SectionLabel = styled(motion.p)`
-  margin: 1.6rem 0 0.1rem;
+  margin: 1.25rem 0 0.2rem;
   font-family: ${({ theme }) => theme.fonts.mono};
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.textFaint};

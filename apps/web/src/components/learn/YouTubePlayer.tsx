@@ -53,26 +53,22 @@ const getConsentServerSnapshot = () => false;
 
 const ConsentShell = styled.div`
   width: 100%;
+  /* 16:9 als Mindestmaß: füllt den Video-Slot auf großen Screens, wächst aber
+     mit dem Inhalt und schneidet nie ab (kein overflow:hidden). */
   aspect-ratio: 16 / 9;
+  min-height: 220px;
   border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid ${({ theme }) => theme.colors.border};
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.7rem;
+  gap: 0.6rem;
   text-align: center;
-  padding: 1.25rem;
+  padding: clamp(1rem, 4vw, 1.75rem);
   background:
     radial-gradient(ellipse 120% 160% at 50% 0%, rgba(139, 124, 255, 0.12), transparent 60%),
     ${({ theme }) => theme.colors.bgElevated};
-
-  @media (max-width: 519px) {
-    /* auf sehr schmalen Screens braucht der Text mehr Platz als 16:9 hergibt */
-    aspect-ratio: auto;
-    min-height: 220px;
-  }
 `;
 
 const ConsentBadge = styled.span`
