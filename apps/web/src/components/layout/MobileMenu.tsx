@@ -98,6 +98,10 @@ const Body = styled(motion.div)<{ $accent: string }>`
   .m-item {
     border-top: 1px solid ${({ theme }) => theme.colors.border};
   }
+  /* kein Doppelstrich direkt unter dem User-Kopf / Sektions-Label */
+  .m-item:first-child {
+    border-top: none;
+  }
 
   .m-item > a,
   .m-item > button {
@@ -126,6 +130,12 @@ const Body = styled(motion.div)<{ $accent: string }>`
     color: ${({ $accent }) => $accent};
     padding-left: 0.6rem;
     outline: none;
+  }
+
+  /* Primär-Aktion (z. B. Registrieren) in Bereichsfarbe hervorheben */
+  .m-item > a.cta {
+    color: ${({ $accent }) => $accent};
+    font-weight: 700;
   }
 
   /* Destruktiv (Abmelden) rot hervorheben */

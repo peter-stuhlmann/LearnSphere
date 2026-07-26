@@ -1059,10 +1059,43 @@ export function Header({ user }: HeaderProps) {
                 <NavLink key="login" href="/login" onClick={close}>
                   {t("login")}
                 </NavLink>,
-                <CtaLink key="register" href="/register" onClick={close}>
+                <CtaLink
+                  key="register"
+                  className="cta"
+                  href="/register"
+                  onClick={close}
+                >
                   {t("register")}
                 </CtaLink>,
               ];
+
+  // Mobil-Overlay: identische Navigation, aber das Desktop-Vertrieb-Dropdown
+  // wird zu flachen Links aufgelöst (im Vollbild sind verschachtelte Menüs
+  // schlechte UX und optisch inkonsistent zu den übrigen großen Zeilen).
+  const mobileNavItems: ReactNode[] =
+    studio && user
+      ? [
+          <NavLink key="dashboard" href="/creator" onClick={close}>
+            {t("dashboard")}
+          </NavLink>,
+          <NavLink key="courses" href="/creator/courses" onClick={close}>
+            {t("myCourses")}
+          </NavLink>,
+          <NavLink key="emails" href="/creator/emails" onClick={close}>
+            {t("creatorEmails")}
+          </NavLink>,
+          <NavLink
+            key="distribution"
+            href="/creator/distribution"
+            onClick={close}
+          >
+            {t("distribution")}
+          </NavLink>,
+          <NavLink key="stats" href="/creator/stats" onClick={close}>
+            {t("stats")}
+          </NavLink>,
+        ]
+      : navItems;
 
   const params = useParams();
 
@@ -1180,7 +1213,7 @@ export function Header({ user }: HeaderProps) {
     </button>,
   ];
   const menuSections: MobileMenuSection[] = [
-    { items: navItems },
+    { items: mobileNavItems },
     ...(user
       ? [
           {
