@@ -26,6 +26,23 @@
       "email_not_verified": "Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse über den Link, den wir Ihnen geschickt haben."
     }
   },
+  "profile": {
+    "creatorBioHint": "Stellen Sie sich Ihren Lernenden vor – erscheint auf Ihren Kursseiten und Ihrer Storefront.",
+    "billingHint": "Für Ihre Kurskäufe als Lernende:r. Auszahlungen als Creator verwalten Sie im Studio unter Vertrieb.",
+    "tabsLabel": "Ihre Bereiche",
+    "errors": {
+      "avatar_invalid": "Bitte wählen Sie ein JPG, PNG oder WebP mit maximal 2 MB.",
+      "avatar_too_large": "Das Bild ist zu groß. Bitte wählen Sie eine kleinere Datei – idealerweise unter 2 MB.",
+      "avatar_missing": "Bitte wählen Sie zuerst eine Datei aus.",
+      "first_name_required": "Bitte geben Sie Ihren Vornamen an.",
+      "last_name_required": "Bitte geben Sie Ihren Nachnamen an.",
+      "street_required": "Bitte geben Sie Straße und Hausnummer an.",
+      "zip_invalid": "Bitte geben Sie eine gültige PLZ an.",
+      "city_required": "Bitte geben Sie Ihren Ort an.",
+      "email_invalid": "Bitte geben Sie eine gültige E-Mail-Adresse an.",
+      "holder_required": "Bitte geben Sie den Namen der Kontoinhaber:in an (mind. 3 Zeichen)."
+    }
+  },
   "tenant": {
     "portalTitle": "Ihre Kurse",
     "portalIntro": "Willkommen in Ihrem Lernbereich. Hier finden Sie alle für Sie freigeschalteten Kurse.",
