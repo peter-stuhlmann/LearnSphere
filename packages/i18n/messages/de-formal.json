@@ -18,6 +18,8 @@
     "errors": {
       "2fa_required": "Bitte geben Sie Ihren 2FA-Code ein.",
       "not_invited": "Für dieses Portal ist keine Einladung für diese E-Mail hinterlegt. Bitte wenden Sie sich an Ihre Ansprechperson.",
+      "oauth_account_not_linked": "Diese E-Mail ist bereits mit einem Konto verknüpft. Melden Sie sich mit Ihrem Passwort an – oder nutzen Sie den Anbieter, mit dem Sie sich ursprünglich registriert haben.",
+      "oauth_failed": "Die Anmeldung über den Anbieter ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "password_pwned": "Dieses Passwort ist in bekannten Datenlecks aufgetaucht – bitte wählen Sie ein anderes.",
       "name_too_short": "Bitte geben Sie Ihren Namen ein.",
       "email_invalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",

@@ -627,6 +627,8 @@
       "2fa_invalid": "Der 2FA-Code ist ungültig.",
       "email_taken": "Diese E-Mail ist bereits registriert.",
       "not_invited": "Für dieses Portal ist keine Einladung für diese E-Mail hinterlegt. Bitte wende dich an deine Ansprechperson.",
+      "oauth_account_not_linked": "Diese E-Mail ist bereits mit einem Konto verknüpft. Melde dich mit deinem Passwort an – oder nutze den Anbieter, mit dem du dich ursprünglich registriert hast.",
+      "oauth_failed": "Die Anmeldung über den Anbieter ist fehlgeschlagen. Bitte versuche es erneut.",
       "token_invalid": "Der Link ist ungültig oder abgelaufen.",
       "password_too_short": "Das Passwort muss mindestens 8 Zeichen haben.",
       "password_needs_digit": "Das Passwort braucht mindestens eine Zahl.",

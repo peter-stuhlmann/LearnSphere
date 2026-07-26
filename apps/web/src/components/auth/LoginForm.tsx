@@ -67,11 +67,18 @@ export function LoginForm({ viaApex = false }: { viaApex?: boolean }) {
   const searchParams = useSearchParams();
   // frisch registriert → Hinweis auf die Verifizierungs-Mail
   const justRegistered = searchParams.get("registered") === "1";
-  // Portal-OAuth ohne gültige Einladung leitet mit ?authError=not_invited hierher
-  // (nur bekannte Codes zulassen – sonst würde t() an fremden Werten scheitern)
-  const [error, setError] = useState<string | null>(
-    searchParams.get("authError") === "not_invited" ? "not_invited" : null
-  );
+  // Fehler aus der URL anzeigen (nur bekannte Codes – sonst würde t() an
+  // fremden Werten scheitern):
+  //  - ?authError=not_invited  → Portal-OAuth ohne gültige Einladung
+  //  - ?error=OAuthAccountNotLinked (NextAuth) → E-Mail schon anders registriert
+  const [error, setError] = useState<string | null>(() => {
+    if (searchParams.get("authError") === "not_invited") return "not_invited";
+    const oauth = searchParams.get("error");
+    if (!oauth) return null;
+    return oauth === "OAuthAccountNotLinked"
+      ? "oauth_account_not_linked"
+      : "oauth_failed";
+  });
   const [pending, setPending] = useState(false);
   const [verifyResent, setVerifyResent] = useState(false);
 

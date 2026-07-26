@@ -224,6 +224,11 @@ export async function findOrCreateBuyer(
       // Anzeigename aus dem Local-Part – die Person kann ihn später ändern
       name: email.split("@")[0] || email,
       locale: normalizedLocale,
+      // Bezahlter Kauf = die Person kontrolliert diese Adresse (Beleg ging
+      // dorthin). Ohne emailVerified wäre das Konto sonst ausgesperrt:
+      // Credentials-Login verlangt Verifizierung und OAuth verweigert das
+      // Verknüpfen mit einem unverifizierten Konto (OAuthAccountNotLinked).
+      emailVerified: new Date(),
     },
   });
   await sendAccountCreatedMail(email, normalizedLocale);

@@ -315,7 +315,11 @@ export async function resetPassword(input: {
   await db.$transaction([
     db.user.update({
       where: { id: record.userId },
-      data: { passwordHash },
+      // Der Reset-Link ging an die Adresse und wurde eingelöst = E-Mail-
+      // Nachweis. Damit werden auch passwortlose Käufer-Konten (emailVerified
+      // null) entsperrt: sonst blieben sie nach dem Reset an "email_not_verified"
+      // hängen und OAuth würde die Verknüpfung weiter verweigern.
+      data: { passwordHash, emailVerified: new Date() },
     }),
     db.passwordResetToken.update({
       where: { id: record.id },
