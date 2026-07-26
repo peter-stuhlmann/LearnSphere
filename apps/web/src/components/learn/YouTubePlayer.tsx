@@ -52,20 +52,17 @@ function subscribeConsent(listener: () => void): () => void {
 const getConsentServerSnapshot = () => false;
 
 const ConsentShell = styled.div`
+  /* Kompakte, inhaltsbasierte Karte statt erzwungener 16:9-Höhe – wächst mit
+     dem Inhalt, schneidet nie ab und wirkt auch auf 320px nicht klobig. */
   width: 100%;
-  /* 16:9 als Mindestmaß: füllt den Video-Slot auf großen Screens, wächst aber
-     mit dem Inhalt und schneidet nie ab (kein overflow:hidden). */
-  aspect-ratio: 16 / 9;
-  min-height: 220px;
   border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid ${({ theme }) => theme.colors.border};
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
+  gap: 0.55rem;
   text-align: center;
-  padding: clamp(1rem, 4vw, 1.75rem);
+  padding: clamp(1.1rem, 4vw, 1.75rem);
   background:
     radial-gradient(ellipse 120% 160% at 50% 0%, rgba(139, 124, 255, 0.12), transparent 60%),
     ${({ theme }) => theme.colors.bgElevated};
