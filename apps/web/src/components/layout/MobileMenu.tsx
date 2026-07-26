@@ -152,6 +152,13 @@ const SectionLabel = styled(motion.p)`
 
 const Item = styled(motion.div).attrs({ className: "m-item" })``;
 
+/* Kopfbereich (z. B. angemeldeter Nutzer) zwischen TopBar und Sektionen */
+const MenuHeader = styled.div`
+  margin-bottom: 0.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
 export type MobileMenuSection = {
   /** Optionale Sektions-Überschrift (mono Kicker) */
   label?: string;
@@ -172,6 +179,8 @@ type MobileMenuProps = {
   id?: string;
   /** Optionaler Slot rechts oben neben dem Schließen-Button (z. B. Suche) */
   leading?: ReactNode;
+  /** Optionaler Kopfbereich unter der TopBar (z. B. angemeldeter Nutzer) */
+  header?: ReactNode;
   /** Inhalt in Sektionen (Navigation, Bereiche, Konto …) */
   sections: MobileMenuSection[];
 };
@@ -187,6 +196,7 @@ export function MobileMenu({
   accentColor,
   id,
   leading,
+  header,
   sections,
 }: MobileMenuProps) {
   const reduce = useReducedMotion();
@@ -319,6 +329,8 @@ export function MobileMenu({
                 </CloseButton>
               </TopActions>
             </TopBar>
+
+            {header ? <MenuHeader>{header}</MenuHeader> : null}
 
             <Body
               $accent={accentColor}

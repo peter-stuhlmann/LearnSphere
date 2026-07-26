@@ -524,6 +524,68 @@ const MenuSearchSlot = styled.div`
   }
 `;
 
+/* Avatar-Menü nur auf Desktop – auf Mobil öffnet der Burger alles */
+const DesktopAvatar = styled.div`
+  display: none;
+
+  @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
+    display: inline-flex;
+  }
+`;
+
+/* Angemeldeter Nutzer als Kopf im Mobil-Menü */
+const MenuUser = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+`;
+
+const MenuAvatar = styled.span<{ $mode: AreaMode }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  overflow: hidden;
+  font-weight: 700;
+  background: ${({ theme }) => theme.colors.bgElevated};
+  color: ${({ theme }) => theme.colors.text};
+  border: 2px solid
+    ${({ theme, $mode }) =>
+      $mode === "studio"
+        ? theme.colors.violet
+        : $mode === "partner"
+          ? theme.colors.partner
+          : $mode === "business"
+            ? theme.colors.business
+            : theme.colors.accent};
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const MenuUserText = styled.div`
+  min-width: 0;
+
+  strong {
+    display: block;
+    font-family: ${({ theme }) => theme.fonts.display};
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+  }
+
+  span {
+    font-size: 0.78rem;
+    color: ${({ theme }) => theme.colors.textMuted};
+  }
+`;
+
 const AVATAR_MENU_WIDTH = 220;
 
 interface HeaderProps {
@@ -577,14 +639,10 @@ function AvatarMenu({
   user,
   mode,
   onOpenLanguage,
-  onMobileTrigger,
 }: {
   user: { name: string | null; image: string | null; role: string };
   mode: AreaMode;
   onOpenLanguage: () => void;
-  /** Auf Mobil öffnet der Avatar das gemeinsame Burger-Menü statt eines
-   *  eigenen Dropdowns (Konto & Bereiche stecken dort in Sektionen). */
-  onMobileTrigger: () => void;
 }) {
   const t = useTranslations("nav");
   const locale = useLocale();
@@ -605,19 +663,10 @@ function AvatarMenu({
   }, []);
 
   const toggleOpen = useCallback(() => {
-    // Auf Mobil (< md) kein eigenes Dropdown – der Avatar öffnet das
-    // gemeinsame Burger-Menü mit Navigation, Bereichen und Konto.
-    if (
-      typeof window !== "undefined" &&
-      window.matchMedia("(max-width: 767px)").matches
-    ) {
-      onMobileTrigger();
-      return;
-    }
     // Messung und Öffnen im selben React-Batch → korrekt ab dem 1. Frame
     updateDirection();
     setOpen((value) => !value);
-  }, [updateDirection, onMobileTrigger]);
+  }, [updateDirection]);
 
   useEffect(() => {
     if (!open) return;
@@ -1116,6 +1165,24 @@ export function Header({ user }: HeaderProps) {
             closeLabel={t("closeMenu")}
             accentColor={accentColor}
             sections={menuSections}
+            header={
+              user ? (
+                <MenuUser>
+                  <MenuAvatar $mode={mode} aria-hidden>
+                    {user.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- Data-URL-Avatar
+                      <img src={user.image} alt="" />
+                    ) : (
+                      (user.name?.trim().charAt(0).toUpperCase() ?? "?")
+                    )}
+                  </MenuAvatar>
+                  <MenuUserText>
+                    <strong>{user.name ?? "?"}</strong>
+                    <span>{t("loggedIn")}</span>
+                  </MenuUserText>
+                </MenuUser>
+              ) : undefined
+            }
             leading={
               mode === "learner" ? (
                 <MenuSearchSlot>
@@ -1170,29 +1237,27 @@ export function Header({ user }: HeaderProps) {
           />
 
           {user ? (
-            <AvatarMenu
-              user={user}
-              mode={mode}
-              onOpenLanguage={() => setLangModalOpen(true)}
-              onMobileTrigger={() => setOpen(true)}
-            />
+            <DesktopAvatar>
+              <AvatarMenu
+                user={user}
+                mode={mode}
+                onOpenLanguage={() => setLangModalOpen(true)}
+              />
+            </DesktopAvatar>
           ) : null}
 
-          {/* Eingeloggte öffnen das Menü über den Avatar (Identitäts-Anker) –
-              dann sparen wir den Burger. Gäste haben keinen Avatar → Burger. */}
-          {!user ? (
-            <Burger
-              $open={open}
-              aria-expanded={open}
-              aria-controls="mobile-nav-menu"
-              aria-label={open ? t("closeMenu") : t("openMenu")}
-              onClick={() => setOpen((v) => !v)}
-            >
-              <span />
-              <span />
-              <span />
-            </Burger>
-          ) : null}
+          {/* Ein Trigger fürs Mobil-Menü für alle – der Avatar ist nur Desktop */}
+          <Burger
+            $open={open}
+            aria-expanded={open}
+            aria-controls="mobile-nav-menu"
+            aria-label={open ? t("closeMenu") : t("openMenu")}
+            onClick={() => setOpen((v) => !v)}
+          >
+            <span />
+            <span />
+            <span />
+          </Burger>
         </Right>
       </Inner>
     </Bar>
