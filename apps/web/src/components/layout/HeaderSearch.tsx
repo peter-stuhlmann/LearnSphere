@@ -211,7 +211,13 @@ interface SearchResult {
   creatorName: string;
 }
 
-export function HeaderSearch() {
+export function HeaderSearch({
+  onNavigate,
+}: {
+  /** Wird nach einer Navigation (Treffer/Katalog) aufgerufen – z. B. um das
+   *  umschließende Mobil-Menü zu schließen. */
+  onNavigate?: () => void;
+} = {}) {
   const t = useTranslations("search");
   const locale = useLocale();
   const router = useRouter();
@@ -289,12 +295,14 @@ export function HeaderSearch() {
 
   function goTo(slug: string) {
     close();
+    onNavigate?.();
     router.push({ pathname: "/courses/[slug]", params: { slug } });
   }
 
   function goToCatalog() {
     const q = query.trim();
     close();
+    onNavigate?.();
     router.push({ pathname: "/courses", query: q ? { q } : undefined });
   }
 

@@ -506,6 +506,24 @@ const Right = styled.div`
   gap: 0.75rem;
 `;
 
+/* Suche im Header-Bar: unter 390px zu eng → dort wandert sie ins Burger-Menü */
+const BarSearchSlot = styled.div`
+  display: inline-flex;
+
+  @media (max-width: 389px) {
+    display: none;
+  }
+`;
+
+/* Gegenstück: Suche im Menü nur unterhalb von 390px zeigen */
+const MenuSearchSlot = styled.div`
+  display: none;
+
+  @media (max-width: 389px) {
+    display: inline-flex;
+  }
+`;
+
 const AVATAR_MENU_WIDTH = 220;
 
 interface HeaderProps {
@@ -989,13 +1007,22 @@ export function Header({ user }: HeaderProps) {
             title={t("menu")}
             closeLabel={t("closeMenu")}
             accentColor={accentColor}
+            leading={
+              mode === "learner" ? (
+                <MenuSearchSlot>
+                  <HeaderSearch onNavigate={close} />
+                </MenuSearchSlot>
+              ) : undefined
+            }
           >
             {navItems}
           </MobileMenu>
 
           {mode === "learner" ? (
             <>
-              <HeaderSearch />
+              <BarSearchSlot>
+                <HeaderSearch />
+              </BarSearchSlot>
               <CartLink />
             </>
           ) : null}

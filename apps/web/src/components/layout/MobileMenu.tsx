@@ -47,6 +47,13 @@ const TopBar = styled.div`
   margin-bottom: 1.75rem;
 `;
 
+/* Aktionen rechts oben: optionaler leading-Slot (z. B. Suche) + Schließen */
+const TopActions = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
 const Kicker = styled.span`
   font-family: ${({ theme }) => theme.fonts.mono};
   font-size: 0.68rem;
@@ -142,6 +149,8 @@ type MobileMenuProps = {
   accentColor: string;
   /** id des Sheets, damit der Burger per aria-controls darauf zeigt */
   id?: string;
+  /** Optionaler Slot rechts oben neben dem Schließen-Button (z. B. Suche) */
+  leading?: ReactNode;
   children: ReactNode;
 };
 
@@ -155,6 +164,7 @@ export function MobileMenu({
   closeLabel,
   accentColor,
   id,
+  leading,
   children,
 }: MobileMenuProps) {
   const reduce = useReducedMotion();
@@ -257,15 +267,18 @@ export function MobileMenu({
           >
             <TopBar>
               <Kicker aria-hidden>{title}</Kicker>
-              <CloseButton
-                ref={closeRef}
-                type="button"
-                $accent={accentColor}
-                aria-label={closeLabel}
-                onClick={onClose}
-              >
-                ✕
-              </CloseButton>
+              <TopActions>
+                {leading}
+                <CloseButton
+                  ref={closeRef}
+                  type="button"
+                  $accent={accentColor}
+                  aria-label={closeLabel}
+                  onClick={onClose}
+                >
+                  ✕
+                </CloseButton>
+              </TopActions>
             </TopBar>
 
             <List
