@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
@@ -14,6 +15,7 @@ import { getActivityDays } from "@/lib/services/activity-service";
 import { getReviewQueue } from "@/lib/services/flashcard-service";
 import { getRecommendedCourses } from "@/lib/recommended-courses";
 import { claimBusinessMemberships } from "@/lib/services/business-service";
+import { getRequestWorkspace } from "@/lib/services/workspace-service";
 import { MyLearningView } from "@/components/learn/MyLearningView";
 
 export async function generateMetadata({
@@ -36,6 +38,7 @@ export default async function MyLearningPage({
   if (!session?.user?.id) {
     redirect({ href: "/login", locale });
   }
+  const workspace = await getRequestWorkspace();
 
   // Offene Business-Einladungen dieser Adresse einlösen (Team-Lizenzen):
   // muss VOR dem Laden der Einschreibungen laufen
@@ -115,7 +118,10 @@ export default async function MyLearningPage({
     : 0;
 
   return (
+    // useSearchParams (access=revoked-Hinweis) braucht eine Suspense-Grenze
+    <Suspense>
     <MyLearningView
+      brand={workspace ? workspace.brandName : "LearnSphere"}
       recommendations={recommendations}
       greeting={{
         userName: session!.user.name ?? null,
@@ -162,5 +168,6 @@ export default async function MyLearningPage({
         };
       })}
     />
+    </Suspense>
   );
 }

@@ -24,7 +24,7 @@ import {
   searchBusinessCourses,
   startBusinessCheckout,
 } from "@/app/actions/business-actions";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type {
   BusinessCourseOption,
@@ -265,12 +265,44 @@ const EndedRow = styled.li`
 `;
 
 /* ---------- Tab-Navigation (räumt die Seite auf) ---------- */
-const TabList = styled.div`
+/* Kopfzeile: In-Page-Tabs links, „Whitelabel-Portal“ als eigener Menüpunkt
+   (eigene Route) rechts – auf derselben Grundlinie. */
+const HeaderNav = styled.div`
   display: flex;
-  gap: 0.15rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
   margin-top: 2rem;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   overflow-x: auto;
+`;
+
+const TabList = styled.div`
+  display: flex;
+  gap: 0.15rem;
+`;
+
+const PortalLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1.1rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  color: ${({ theme }) => theme.colors.accent};
+  border-bottom: 2px solid transparent;
+
+  &:hover {
+    border-bottom-color: ${({ theme }) => theme.colors.accent};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: -2px;
+    border-radius: ${({ theme }) => theme.radii.sm};
+  }
 `;
 
 const TabButton = styled.button<{ $active: boolean }>`
@@ -427,6 +459,11 @@ export function BusinessView({ licenses, initialCourse }: BusinessViewProps) {
   const [cancelTarget, setCancelTarget] = useState<BusinessLicenseItem | null>(
     null
   );
+  // Seat freigeben nur nach Bestätigung – der Nutzer verliert sofort den Zugriff.
+  const [removeTarget, setRemoveTarget] = useState<{
+    id: string;
+    email: string;
+  } | null>(null);
   const [notifyMembers, setNotifyMembers] = useState(true);
   const searchRequest = useRef(0);
 
@@ -521,6 +558,19 @@ export function BusinessView({ licenses, initialCourse }: BusinessViewProps) {
     router.refresh();
   }
 
+  async function onRemoveMember() {
+    if (!removeTarget) return;
+    const memberId = removeTarget.id;
+    setRemoveTarget(null);
+    setError(null);
+    const result = await removeBusinessMember({ memberId });
+    if (!result.ok) {
+      setError(result.error ?? "generic");
+      return;
+    }
+    router.refresh();
+  }
+
   const errorText = (code: string) => {
     const known = [
       "seats_invalid",
@@ -553,7 +603,12 @@ export function BusinessView({ licenses, initialCourse }: BusinessViewProps) {
           {t("intro")}
         </Muted>
 
-        <TabNav tabs={tabs} active={tab} onChange={setTab} />
+        <HeaderNav>
+          <TabNav tabs={tabs} active={tab} onChange={setTab} />
+          <PortalLink href="/business/portal">
+            {t("portalLink")} <span aria-hidden>→</span>
+          </PortalLink>
+        </HeaderNav>
 
         {error ? (
           <FormAlert $tone="error" role="alert" style={{ marginTop: "1rem" }}>
@@ -690,14 +745,9 @@ export function BusinessView({ licenses, initialCourse }: BusinessViewProps) {
                           <RowButton
                             type="button"
                             onClick={() =>
-                              void removeBusinessMember({
-                                memberId: member.id,
-                              }).then((result) => {
-                                if (!result.ok) {
-                                  setError(result.error ?? "generic");
-                                  return;
-                                }
-                                router.refresh();
+                              setRemoveTarget({
+                                id: member.id,
+                                email: member.email,
                               })
                             }
                           >
@@ -920,6 +970,16 @@ export function BusinessView({ licenses, initialCourse }: BusinessViewProps) {
           cancelLabel={t("cancelAbort")}
           onConfirm={() => void onCancelLicense()}
           onCancel={() => setCancelTarget(null)}
+        />
+
+        <ConfirmDialog
+          open={removeTarget !== null}
+          title={t("removeTitle")}
+          message={t("removeMessage", { email: removeTarget?.email ?? "" })}
+          confirmLabel={t("removeConfirm")}
+          cancelLabel={t("cancelAbort")}
+          onConfirm={() => void onRemoveMember()}
+          onCancel={() => setRemoveTarget(null)}
         />
       </Container>
     </Wrap>

@@ -103,6 +103,7 @@
     "notesPlaceholder": "Gedanken zur Lektion festhalten … (nur für Sie sichtbar)",
     "notesEmpty": "Noch keine Notizen – halten Sie fest, was Sie sich merken möchten.",
     "ytConsentText": "Beim Laden wird eine Verbindung zu YouTube (Google) hergestellt. Dabei können personenbezogene Daten wie Ihre IP-Adresse übertragen und Cookies gesetzt werden.",
+    "accessRevoked": "Ihr Zugang zu diesem Kurs wurde vom Portal-Betreiber entzogen. Bitte wenden Sie sich an Ihre Ansprechperson.",
     "journeyTitle": "Ihre Lernreise"
   },
   "review": {

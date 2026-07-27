@@ -15,6 +15,7 @@ import styled, { css, keyframes } from "styled-components";
 import { Link, useRouter } from "@/i18n/navigation";
 import { courseWatchPercent } from "@elearning/core/progress";
 import {
+  checkCourseAccess,
   markLessonVisited,
   resetLessonProgress,
   toggleLessonFavorite,
@@ -632,6 +633,8 @@ interface LearnViewProps {
   courseId: string;
   /** Creator-Vorschau: echte Lernansicht, aber ohne Fortschritt zu speichern */
   previewMode?: boolean;
+  /** Whitelabel-Mandanten-Portal: dekorative Extras (3D-Lernreise) entfallen */
+  whitelabel?: boolean;
   /** zuletzt geöffnete Lektion – dort geht es weiter (null = Kursanfang) */
   lastLessonId: string | null;
   watchPercent: number;
@@ -700,6 +703,7 @@ export function LearnView({
   course,
   courseId,
   previewMode = false,
+  whitelabel = false,
   lastLessonId,
   watchPercent,
   examEligible,
@@ -833,6 +837,32 @@ export function LearnView({
   useEffect(() => {
     if (activeId && !previewMode) void markLessonVisited(activeId);
   }, [activeId, previewMode]);
+
+  // Whitelabel-Portal: entzogenen Business-Seat sofort durchsetzen. Verliert
+  // der Nutzer die Einschreibung (Inhaber gibt den Seat frei), wird er aus dem
+  // Kurs geworfen und zur Portal-Startseite mit Hinweis geleitet.
+  useEffect(() => {
+    if (!whitelabel || previewMode) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const res = await checkCourseAccess({ courseId });
+        if (!cancelled && !res.ok) {
+          router.replace({
+            pathname: "/my-learning",
+            query: { access: "revoked" },
+          });
+        }
+      } catch {
+        // Netzwerkfehler ignorieren – der nächste Tick prüft erneut
+      }
+    };
+    const id = window.setInterval(check, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [whitelabel, previewMode, courseId, router]);
 
   const lastSavedRef = useRef(0);
   // Sehfortschritt je Medienblock (Maximum je Block, Summe = Lektionsstand)
@@ -1164,8 +1194,9 @@ export function LearnView({
         </TopBar>
 
         {/* Lernpfad als 3D-Journey: eine Station je Abschnitt, Klick springt
-            dorthin – dekorativ (aria-hidden), Navigation bleibt die Sidebar */}
-        {!focusMode ? (
+            dorthin – dekorativ (aria-hidden), Navigation bleibt die Sidebar.
+            Auf Whitelabel-Portalen bewusst weggelassen. */}
+        {!focusMode && !whitelabel ? (
           <JourneyPath3D
             title={t("journeyTitle")}
             hint={t("journeyHint")}
@@ -1568,17 +1599,22 @@ export function LearnView({
                   </NextBar>
                 ) : null}
 
-                <LessonCommunity lessonId={active.id} viewer={community} />
+                {/* Community & Bewertung entfallen auf Whitelabel-Portalen */}
+                {!whitelabel ? (
+                  <LessonCommunity lessonId={active.id} viewer={community} />
+                ) : null}
               </Stage>
             ) : null}
 
-            <div style={{ marginTop: "1.5rem" }}>
-              <RatingWidget
-                courseId={courseId}
-                initialRating={myRating}
-                initialComment={myComment}
-              />
-            </div>
+            {!whitelabel ? (
+              <div style={{ marginTop: "1.5rem" }}>
+                <RatingWidget
+                  courseId={courseId}
+                  initialRating={myRating}
+                  initialComment={myComment}
+                />
+              </div>
+            ) : null}
           </ContentColumn>
         </Layout>
       </Container>

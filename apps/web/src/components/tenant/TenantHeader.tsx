@@ -214,12 +214,14 @@ const DropdownLink = styled(Link)`
   }
 `;
 
-const DropdownButton = styled.button`
+const DropdownButton = styled.button<{ $danger?: boolean }>`
   ${rowStyles}
-  color: ${({ theme }) => theme.colors.danger};
+  color: ${({ theme, $danger }) =>
+    $danger ? theme.colors.danger : theme.colors.text};
 
   &:hover {
-    background: ${({ theme }) => theme.colors.dangerSoft};
+    background: ${({ theme, $danger }) =>
+      $danger ? theme.colors.dangerSoft : theme.colors.surface};
   }
 `;
 
@@ -414,14 +416,17 @@ export function TenantHeader({
           {user ? (
             <NavLink href="/my-learning">{tn("myLearning")}</NavLink>
           ) : null}
-          <GlobeButton
-            type="button"
-            aria-label={tc("languageSwitcher")}
-            aria-haspopup="dialog"
-            onClick={() => setLangOpen(true)}
-          >
-            {GlobeIcon}
-          </GlobeButton>
+          {/* Sprache: eingeloggt im Avatar-Menü, für Gäste als Globus-Button */}
+          {!user ? (
+            <GlobeButton
+              type="button"
+              aria-label={tc("languageSwitcher")}
+              aria-haspopup="dialog"
+              onClick={() => setLangOpen(true)}
+            >
+              {GlobeIcon}
+            </GlobeButton>
+          ) : null}
           {user ? (
             <AvatarWrap ref={wrapRef}>
               <AvatarButton
@@ -452,6 +457,17 @@ export function TenantHeader({
                   <DropdownButton
                     type="button"
                     role="menuitem"
+                    onClick={() => {
+                      setDropOpen(false);
+                      setLangOpen(true);
+                    }}
+                  >
+                    {tn("language")}
+                  </DropdownButton>
+                  <DropdownButton
+                    type="button"
+                    role="menuitem"
+                    $danger
                     onClick={() => void logout(locale)}
                   >
                     {tn("logout")}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import styled from "styled-components";
+import { useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/navigation";
 import { TransitionLink } from "@/components/navigation/TransitionLink";
 import { averageBestScores, formatLearningTime } from "@elearning/core/stats";
@@ -254,12 +255,15 @@ export function MyLearningView({
   stats,
   greeting,
   recommendations,
+  brand = "LearnSphere",
 }: {
   items: MyLearningItem[];
   stats: MyLearningStats;
   greeting: MyLearningGreeting;
   /** Startempfehlungen für den leeren Lernbereich (beliebteste Shop-Kurse) */
   recommendations: CourseCardCourse[];
+  /** Marke im Kicker – auf Whitelabel-Portalen die Portal-Marke, sonst LearnSphere. */
+  brand?: string;
 }) {
   const tNav = useTranslations("nav");
   const t = useTranslations("learn");
@@ -268,6 +272,8 @@ export function MyLearningView({
   const tRefund = useTranslations("refund");
   const locale = useLocale();
   const router = useRouter();
+  // Kam der Nutzer per Kick-out hierher (Business-Seat entzogen)? → Hinweis.
+  const accessRevoked = useSearchParams().get("access") === "revoked";
 
   // Rückgabe-Dialog: gewählter Kurs + optionaler Grund
   const [refundItem, setRefundItem] = useState<MyLearningItem | null>(null);
@@ -309,8 +315,18 @@ export function MyLearningView({
   return (
     <Wrap id="main">
       <Container>
-        <Kicker>LearnSphere</Kicker>
+        <Kicker>{brand}</Kicker>
         <SectionTitle as="h1">{tNav("myLearning")}</SectionTitle>
+
+        {accessRevoked ? (
+          <FormAlert
+            $tone="error"
+            role="alert"
+            style={{ marginTop: "0.75rem" }}
+          >
+            {t("accessRevoked")}
+          </FormAlert>
+        ) : null}
 
         {items.length > 0 ? <LearningGreeting {...greeting} /> : null}
 

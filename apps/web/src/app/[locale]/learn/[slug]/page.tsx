@@ -13,6 +13,7 @@ import { parseChapters } from "@elearning/core/chapters";
 import { normalizeHeat } from "@elearning/core/heatmap";
 import { parseProvenance } from "@elearning/core/provenance";
 import { isBookingConfigured } from "@/lib/termine";
+import { getRequestWorkspace } from "@/lib/services/workspace-service";
 import { LearnView } from "@/components/learn/LearnView";
 
 export default async function LearnPage({
@@ -24,6 +25,7 @@ export default async function LearnPage({
 }) {
   const { locale, slug } = await params;
   const preview = (await searchParams)?.preview === "1";
+  const workspace = await getRequestWorkspace();
   const session = await auth();
   if (!session?.user?.id) {
     redirect({ href: "/login", locale });
@@ -107,6 +109,14 @@ export default async function LearnPage({
   const isOwner = course.creatorId === session!.user.id;
   const previewMode = !enrollment && isOwner && preview;
   if (!enrollment && !previewMode) {
+    // Whitelabel-Mandant: kein öffentlicher Kurs-Detailweg – zur Portal-
+    // Startseite mit Hinweis (z. B. wenn der Inhaber den Seat entzogen hat).
+    if (workspace) {
+      redirect({
+        href: { pathname: "/my-learning", query: { access: "revoked" } },
+        locale,
+      });
+    }
     redirect({
       href: { pathname: "/courses/[slug]", params: { slug } },
       locale,
@@ -255,6 +265,7 @@ export default async function LearnPage({
     <LearnView
       courseId={course.id}
       previewMode={previewMode}
+      whitelabel={Boolean(workspace)}
       lastLessonId={lastLessonId}
       myRating={myReview?.rating ?? null}
       myComment={myReview?.comment ?? null}

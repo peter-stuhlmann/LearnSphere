@@ -4,7 +4,7 @@ import styled from "styled-components";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { withAlpha } from "@/lib/tenant-theme";
-import { Badge, GhostButton, PrimaryButton } from "@/components/ui/primitives";
+import { Badge, PrimaryButton } from "@/components/ui/primitives";
 
 /**
  * Kompakte Karte auf /business, die zum Portal-Studio (/business/portal)
@@ -126,11 +126,6 @@ export function PortalPromoCard({
         <PrimaryButton as={Link} href="/business/portal">
           {hasWorkspace ? ts("edit") : ts("setup")}
         </PrimaryButton>
-        {liveHref ? (
-          <GhostButton as="a" href={liveHref} target="_blank" rel="noreferrer">
-            {t("openPortal")}
-          </GhostButton>
-        ) : null}
       </Buttons>
     </Promo>
   );

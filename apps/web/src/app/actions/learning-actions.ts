@@ -188,6 +188,24 @@ export async function enroll(
 }
 
 /**
+ * Leichte Zugriffsprüfung für die laufende Kursansicht: Hat der aktuelle Nutzer
+ * noch eine Einschreibung in diesen Kurs? LearnView pollt das auf Whitelabel-
+ * Portalen, damit ein vom Inhaber entzogener Business-Seat den Nutzer sofort
+ * aus dem Kurs wirft (die Einschreibung wird beim Freigeben gelöscht).
+ */
+export async function checkCourseAccess(input: {
+  courseId: string;
+}): Promise<{ ok: boolean }> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false };
+  const enrollment = await db.enrollment.findFirst({
+    where: { userId: session.user.id, courseId: input.courseId },
+    select: { id: true },
+  });
+  return { ok: Boolean(enrollment) };
+}
+
+/**
  * Letzte Position merken: die zuletzt geöffnete Lektion landet an der
  * Einschreibung – beim nächsten Öffnen des Kurses geht es dort weiter.
  */
