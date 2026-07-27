@@ -23,6 +23,52 @@ export interface ActionResult {
   error?: string;
 }
 
+export type InviteCheckStatus =
+  | "not_tenant"
+  | "invited"
+  | "not_invited"
+  | "unknown";
+
+/** Grobe E-Mail-Form – nur als Vorfilter für den Invite-Check. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/**
+ * Frühzeitige, host-basierte Prüfung, ob eine E-Mail für dieses Portal
+ * eingeladen ist – damit das Registrierungsformular schon nach der
+ * E-Mail-Eingabe Rückmeldung geben kann, statt erst beim Absenden.
+ *
+ * Sicherheit: Die Invite-Info ist ohnehin beim Absenden sichtbar (gleiche
+ * Meldung), dieser Check verrät also nichts Neues. Ein IP-Rate-Limit bremst
+ * reine Enumeration; bei Überschreitung geben wir bewusst „unknown" zurück
+ * (kein Invite-Status). Der eigentliche Invite-Gate in registerUser bleibt
+ * als serverseitige Absicherung bestehen.
+ */
+export async function checkTenantInvite(
+  email: string
+): Promise<{ status: InviteCheckStatus }> {
+  const workspace = await getRequestWorkspace();
+  if (!workspace) return { status: "not_tenant" };
+
+  const normalized = email.trim().toLowerCase();
+  if (!EMAIL_SHAPE.test(normalized)) return { status: "unknown" };
+
+  const { headers } = await import("next/headers");
+  const ip =
+    (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown";
+  const allowed = await checkRateLimit(`invite-check:${ip}`, {
+    limit: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!allowed) return { status: "unknown" };
+
+  const invite = await db.businessMember.findFirst({
+    where: { email: normalized, license: { ownerId: workspace.ownerId } },
+    select: { id: true },
+  });
+  return { status: invite ? "invited" : "not_invited" };
+}
+
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 60; // 1 Stunde
 const VERIFY_TOKEN_TTL_MS = 1000 * 60 * 60 * 24; // 24 Stunden
 

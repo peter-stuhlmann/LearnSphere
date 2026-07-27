@@ -1,6 +1,7 @@
 "use client";
 
 import { createGlobalStyle } from "styled-components";
+import { withAlpha } from "@/lib/tenant-theme";
 
 export const GlobalStyle = createGlobalStyle`
   *, *::before, *::after {
@@ -28,9 +29,12 @@ export const GlobalStyle = createGlobalStyle`
     display: flex;
     flex-direction: column;
     -webkit-font-smoothing: antialiased;
+    /* Aura aus Sekundär-/Akzentfarbe – folgt dem (ggf. Whitelabel-)Theme */
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(139, 124, 255, 0.15), transparent),
-      radial-gradient(ellipse 60% 40% at 90% 110%, rgba(200, 255, 77, 0.06), transparent);
+      radial-gradient(ellipse 80% 50% at 50% -20%, ${({ theme }) =>
+        withAlpha(theme.colors.violet, 0.15)}, transparent),
+      radial-gradient(ellipse 60% 40% at 90% 110%, ${({ theme }) =>
+        withAlpha(theme.colors.accent, 0.06)}, transparent);
     background-attachment: fixed;
   }
 

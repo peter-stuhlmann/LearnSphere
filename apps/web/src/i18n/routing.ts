@@ -44,6 +44,7 @@ export const routing = defineRouting({
     "/api-docs": { de: "/api-doku", en: "/api-docs" },
     "/affiliate": { de: "/partnerprogramm", en: "/affiliate" },
     "/business": "/business",
+    "/business/portal": { de: "/business/portal", en: "/business/portal" },
     "/roadmap": "/roadmap",
     "/imprint": { de: "/impressum", en: "/imprint" },
     "/privacy": { de: "/datenschutz", en: "/privacy" },

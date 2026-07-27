@@ -15,6 +15,10 @@ export interface WorkspaceHost {
   status: "ACTIVE" | "SUSPENDED";
   brandName: string;
   brandColor: string | null;
+  /** Weitere Portal-Farben fürs Theme (aus ihnen leitet das Layout die Tokens ab) */
+  colorBackground: string | null;
+  colorText: string | null;
+  colorSecondary: string | null;
   logo: string | null;
   /** Anredeform der deutschen Portal-Texte */
   addressForm: "INFORMAL" | "FORMAL";
@@ -56,6 +60,22 @@ export function appHostname(): string {
 export function tenantBaseDomain(): string {
   const explicit = process.env.TENANT_BASE_DOMAIN;
   return (explicit ? explicit : appHostname()).toLowerCase();
+}
+
+/**
+ * Protokoll und Port für Mandanten-URLs, abgeleitet aus NEXT_PUBLIC_APP_URL.
+ * Lokal ergibt das `http:` + `3000` (damit `<slug>.localhost:3000` klickbar
+ * ist), in Produktion `https:` ohne Port.
+ */
+export function tenantUrlParts(): { protocol: string; port: string } {
+  try {
+    const url = new URL(
+      process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+    );
+    return { protocol: url.protocol, port: url.port };
+  } catch {
+    return { protocol: "http:", port: "3000" };
+  }
 }
 
 /**
@@ -102,6 +122,9 @@ export async function lookupWorkspaceByHost(
       status: true,
       brandName: true,
       brandColor: true,
+      colorBackground: true,
+      colorText: true,
+      colorSecondary: true,
       logo: true,
       addressForm: true,
     } as const;

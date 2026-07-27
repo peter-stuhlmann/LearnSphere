@@ -480,6 +480,15 @@ model BusinessWorkspace {
   /// Logo als Data-URL (portabel, wie beim Avatar)
   logo              String?         @db.MediumText
   brandColor        String?
+  /// Weitere Portal-Farben fürs Whitelabel-Theme (Hex). Aus diesen wenigen
+  /// Kernfarben werden im Layout die übrigen Tokens abgeleitet (tenant-theme).
+  colorBackground   String?
+  colorText         String?
+  colorSecondary    String?
+  /// Rechtsangaben des Portal-Betreibers (Impressum + Verantwortlicher i.S.d.
+  /// DSGVO). JSON, weil optional/variabel; ohne diese Angaben zeigt das Portal
+  /// einen Platzhalter statt Rechtstexte – nie LearnSphere-Daten.
+  legal             Json?
   /// Whitelabel-Absender: Anzeigename und (nach Verify) eigene Sending-Domain
   emailFromName     String?
   emailDomain       String?

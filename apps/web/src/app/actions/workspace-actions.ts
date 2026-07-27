@@ -8,6 +8,7 @@ import { generateToken } from "@/lib/tokens";
 import { DOMAIN_VERIFY_HOST_PREFIX } from "@/lib/services/workspace-service";
 import {
   workspaceDomainSchema,
+  workspaceLegalSchema,
   workspaceSchema,
 } from "@elearning/core/validation";
 import type { ActionResult } from "./auth-actions";
@@ -45,6 +46,9 @@ export async function saveWorkspace(input: unknown): Promise<ActionResult> {
     slug: parsed.data.slug,
     brandName: parsed.data.brandName,
     brandColor: parsed.data.brandColor || null,
+    colorBackground: parsed.data.colorBackground || null,
+    colorText: parsed.data.colorText || null,
+    colorSecondary: parsed.data.colorSecondary || null,
     emailFromName: parsed.data.emailFromName || null,
     addressForm: parsed.data.addressForm,
   };
@@ -54,7 +58,38 @@ export async function saveWorkspace(input: unknown): Promise<ActionResult> {
     create: { ownerId, ...data },
   });
 
-  revalidatePath("/[locale]/business", "page");
+  revalidatePath("/[locale]/business/portal", "page");
+  return { ok: true };
+}
+
+/**
+ * Rechtsangaben des Portal-Betreibers speichern (Impressum + DSGVO-
+ * Verantwortlicher). Ohne vollständige Angaben schlägt die Validierung fehl;
+ * das Portal zeigt bis dahin einen Platzhalter statt Rechtstexte.
+ */
+export async function saveWorkspaceLegal(input: unknown): Promise<ActionResult> {
+  const ownerId = await requireBusinessOwner();
+  if (!ownerId) return { ok: false, error: "unauthorized" };
+
+  const parsed = workspaceLegalSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "invalid" };
+  }
+
+  const workspace = await db.businessWorkspace.findUnique({
+    where: { ownerId },
+    select: { id: true },
+  });
+  if (!workspace) return { ok: false, error: "no_workspace" };
+
+  await db.businessWorkspace.update({
+    where: { ownerId },
+    data: { legal: parsed.data },
+  });
+
+  revalidatePath("/[locale]/business/portal", "page");
+  revalidatePath("/[locale]/imprint", "page");
+  revalidatePath("/[locale]/privacy", "page");
   return { ok: true };
 }
 
@@ -103,7 +138,7 @@ export async function setWorkspaceDomain(input: {
     },
   });
 
-  revalidatePath("/[locale]/business", "page");
+  revalidatePath("/[locale]/business/portal", "page");
   return { ok: true };
 }
 
@@ -138,7 +173,7 @@ export async function verifyWorkspaceDomain(): Promise<ActionResult> {
     data: { domainVerifiedAt: new Date() },
   });
 
-  revalidatePath("/[locale]/business", "page");
+  revalidatePath("/[locale]/business/portal", "page");
   return { ok: true };
 }
 
@@ -152,6 +187,6 @@ export async function removeWorkspaceDomain(): Promise<ActionResult> {
     data: { customDomain: null, domainVerifyToken: null, domainVerifiedAt: null },
   });
 
-  revalidatePath("/[locale]/business", "page");
+  revalidatePath("/[locale]/business/portal", "page");
   return { ok: true };
 }

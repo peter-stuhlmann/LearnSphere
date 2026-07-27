@@ -3,6 +3,7 @@ import {
   appHostname,
   lookupWorkspaceByHost,
   tenantBaseDomain,
+  tenantUrlParts,
   type WorkspaceHost,
 } from "@/lib/tenant";
 import {
@@ -11,8 +12,23 @@ import {
   resolveCourseText,
 } from "@elearning/core/course-i18n";
 import { parseTags } from "@elearning/core/tags";
+import {
+  workspaceLegalSchema,
+  type WorkspaceLegalData,
+} from "@elearning/core/validation";
 import { loadRatingStats } from "@/lib/rating-server";
 import type { CourseCardCourse } from "@/components/catalog/CourseCard";
+
+export type { WorkspaceLegalData };
+
+/** Rohe Rechtsangaben (JSON) sicher in ein vollständiges Objekt parsen. */
+export function parseWorkspaceLegal(
+  value: unknown
+): WorkspaceLegalData | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = workspaceLegalSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
 
 /** DNS-Label, unter dem der Owner den Verifikations-Token als TXT hinterlegt. */
 export const DOMAIN_VERIFY_HOST_PREFIX = "_learnsphere-verify";
@@ -21,6 +37,9 @@ export interface WorkspaceData {
   slug: string;
   brandName: string;
   brandColor: string;
+  colorBackground: string;
+  colorText: string;
+  colorSecondary: string;
   emailFromName: string;
   addressForm: "INFORMAL" | "FORMAL";
   customDomain: string | null;
@@ -28,12 +47,18 @@ export interface WorkspaceData {
   /** DNS-Records, die der Owner bei seiner Domain setzen muss (nur wenn Domain gesetzt). */
   dns: { txtHost: string; txtValue: string; cnameTarget: string } | null;
   status: "ACTIVE" | "SUSPENDED";
+  /** Rechtsangaben des Betreibers (Impressum/Verantwortlicher) – null = noch nicht hinterlegt. */
+  legal: WorkspaceLegalData | null;
 }
 
 export interface WorkspacePageData {
   workspace: WorkspaceData | null;
   baseDomain: string;
   appHost: string;
+  /** Protokoll (z. B. "https:") für Portal-Links – lokal "http:". */
+  portalProtocol: string;
+  /** Port für Portal-Links – lokal "3000", in Produktion leer. */
+  portalPort: string;
 }
 
 /** Workspace des Owners + Basis-/App-Domain fürs Business-Dashboard laden. */
@@ -43,13 +68,18 @@ export async function loadWorkspacePageData(
   const ws = await db.businessWorkspace.findUnique({ where: { ownerId } });
   const baseDomain = tenantBaseDomain();
   const appHost = appHostname();
-  if (!ws) return { workspace: null, baseDomain, appHost };
+  const { protocol: portalProtocol, port: portalPort } = tenantUrlParts();
+  if (!ws)
+    return { workspace: null, baseDomain, appHost, portalProtocol, portalPort };
 
   return {
     workspace: {
       slug: ws.slug,
       brandName: ws.brandName,
       brandColor: ws.brandColor ?? "",
+      colorBackground: ws.colorBackground ?? "",
+      colorText: ws.colorText ?? "",
+      colorSecondary: ws.colorSecondary ?? "",
       emailFromName: ws.emailFromName ?? "",
       addressForm: ws.addressForm,
       customDomain: ws.customDomain,
@@ -63,9 +93,12 @@ export async function loadWorkspacePageData(
             }
           : null,
       status: ws.status,
+      legal: parseWorkspaceLegal(ws.legal),
     },
     baseDomain,
     appHost,
+    portalProtocol,
+    portalPort,
   };
 }
 
@@ -76,9 +109,36 @@ export async function loadWorkspacePageData(
 export async function getRequestWorkspace(): Promise<WorkspaceHost | null> {
   const { headers } = await import("next/headers");
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
-  const ws = await lookupWorkspaceByHost(host);
-  return ws && ws.status === "ACTIVE" ? ws : null;
+  // Hinter Caddy trägt i. d. R. x-forwarded-host die echte Kundendomain,
+  // lokal/direkt nur host. Beide (in dieser Reihenfolge) versuchen – die
+  // Auflösung liefert für Apex/localhost ohnehin null.
+  const candidates = [h.get("x-forwarded-host"), h.get("host")].filter(
+    (value): value is string => Boolean(value)
+  );
+  for (const host of candidates) {
+    const ws = await lookupWorkspaceByHost(host);
+    if (ws && ws.status === "ACTIVE") return ws;
+  }
+  return null;
+}
+
+/**
+ * Rechtsangaben für die Rechtsseiten (Impressum/Datenschutz) des aktuellen
+ * Mandanten-Hosts. Liefert null auf der Hauptdomain (dort gelten die
+ * Plattform-Rechtstexte). `legal` ist null, wenn der Betreiber noch nichts
+ * hinterlegt hat → die Seite zeigt dann einen Platzhalter, nie LearnSphere-Daten.
+ */
+export async function getRequestWorkspaceLegal(): Promise<{
+  brandName: string;
+  legal: WorkspaceLegalData | null;
+} | null> {
+  const workspace = await getRequestWorkspace();
+  if (!workspace) return null;
+  const ws = await db.businessWorkspace.findUnique({
+    where: { id: workspace.id },
+    select: { legal: true },
+  });
+  return { brandName: workspace.brandName, legal: parseWorkspaceLegal(ws?.legal) };
 }
 
 export interface WorkspaceMailContext {

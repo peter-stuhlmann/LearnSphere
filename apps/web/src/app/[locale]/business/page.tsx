@@ -9,7 +9,7 @@ import {
 } from "@/lib/services/business-service";
 import { loadWorkspacePageData } from "@/lib/services/workspace-service";
 import { BusinessView } from "@/components/business/BusinessView";
-import { WorkspacePortalCard } from "@/components/business/WorkspacePortalCard";
+import { PortalPromoCard } from "@/components/business/PortalPromoCard";
 import { Container } from "@/components/ui/primitives";
 
 /**
@@ -66,10 +66,14 @@ export default async function BusinessPage({
     <>
       <BusinessView licenses={licenses} initialCourse={initialCourse} />
       <Container>
-        <WorkspacePortalCard
-          workspace={workspaceData.workspace}
+        <PortalPromoCard
+          hasWorkspace={workspaceData.workspace !== null}
+          slug={workspaceData.workspace?.slug ?? null}
           baseDomain={workspaceData.baseDomain}
-          appHost={workspaceData.appHost}
+          customDomain={workspaceData.workspace?.customDomain ?? null}
+          domainVerified={workspaceData.workspace?.domainVerified ?? false}
+          portalProtocol={workspaceData.portalProtocol}
+          portalPort={workspaceData.portalPort}
         />
       </Container>
     </>

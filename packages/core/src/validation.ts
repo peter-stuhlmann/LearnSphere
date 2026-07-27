@@ -331,6 +331,14 @@ export const WORKSPACE_RESERVED_SLUGS = new Set([
   "docs",
 ]);
 
+/** Optionale Hex-Farbe (#RRGGBB) oder leer (= Plattform-Default). */
+const hexColorField = z
+  .string()
+  .trim()
+  .regex(/^#[0-9a-fA-F]{6}$/, "color_invalid")
+  .optional()
+  .or(z.literal(""));
+
 /** Business-Whitelabel-Portal: Subdomain-Slug + Branding. */
 export const workspaceSchema = z.object({
   slug: z
@@ -343,18 +351,49 @@ export const workspaceSchema = z.object({
       message: "slug_reserved",
     }),
   brandName: z.string().trim().min(2, "brand_name_too_short").max(80),
-  brandColor: z
-    .string()
-    .trim()
-    .regex(/^#[0-9a-fA-F]{6}$/, "color_invalid")
-    .optional()
-    .or(z.literal("")),
+  brandColor: hexColorField,
+  /// Weitere Portal-Farben (leer = Plattform-Default für diesen Bereich)
+  colorBackground: hexColorField,
+  colorText: hexColorField,
+  colorSecondary: hexColorField,
   emailFromName: z.string().trim().max(80).optional().or(z.literal("")),
   /// Anredeform der deutschen Portal-Texte (du/Sie)
   addressForm: z.enum(["INFORMAL", "FORMAL"]).default("INFORMAL"),
 });
 
 export type WorkspaceInput = z.input<typeof workspaceSchema>;
+
+/**
+ * Rechtsangaben des Portal-Betreibers (Impressum nach § 5 DDG + Verantwortlicher
+ * i.S.d. DSGVO). Der Mandant ist Verantwortlicher, LearnSphere Auftragsverarbeiter.
+ * Pflichtfelder decken die gesetzlichen Mindestangaben ab; ohne vollständige
+ * Angaben zeigt das Portal statt Rechtstexte einen Platzhalter.
+ */
+export const workspaceLegalSchema = z.object({
+  /// Name bzw. Firma des Betreibers
+  operator: z.string().trim().min(2, "legal_operator_required").max(150),
+  /// Rechtsform (z. B. GmbH, Einzelunternehmen) – optional
+  legalForm: z.string().trim().max(80).optional().or(z.literal("")),
+  street: z.string().trim().min(3, "legal_street_required").max(200),
+  zip: z.string().trim().min(3, "legal_zip_required").max(20),
+  city: z.string().trim().min(1, "legal_city_required").max(100),
+  country: z.string().trim().min(2, "legal_country_required").max(100),
+  email: z.email("email_invalid").transform((value) => value.toLowerCase()),
+  phone: z.string().trim().max(40).optional().or(z.literal("")),
+  /// Vertretungsberechtigte:r bzw. inhaltlich Verantwortliche:r (§ 18 MStV)
+  representative: z
+    .string()
+    .trim()
+    .min(2, "legal_representative_required")
+    .max(150),
+  /// USt-IdNr. (§ 27a UStG) – optional
+  vatId: z.string().trim().max(30).optional().or(z.literal("")),
+  /// Registergericht + Registernummer – optional
+  register: z.string().trim().max(150).optional().or(z.literal("")),
+});
+
+export type WorkspaceLegalInput = z.input<typeof workspaceLegalSchema>;
+export type WorkspaceLegalData = z.infer<typeof workspaceLegalSchema>;
 
 /** Eigene Kundendomain für das Whitelabel-Portal (vor DNS-Verifikation). */
 export const workspaceDomainSchema = z.object({

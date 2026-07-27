@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { LegalArticle } from "@/components/marketing/LegalArticle";
+import { getRequestWorkspaceLegal } from "@/lib/services/workspace-service";
+import { TenantImprint } from "@/components/legal/TenantLegal";
 
 export async function generateMetadata({
   params,
@@ -18,6 +20,18 @@ export default async function ImprintPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+
+  // Whitelabel-Mandant: Impressum des Portal-Betreibers (nie LearnSphere).
+  const tenant = await getRequestWorkspaceLegal();
+  if (tenant) {
+    return (
+      <TenantImprint
+        brandName={tenant.brandName}
+        legal={tenant.legal}
+        locale={locale}
+      />
+    );
+  }
 
   if (locale === "en") {
     return (

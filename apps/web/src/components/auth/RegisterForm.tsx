@@ -17,7 +17,12 @@ import {
 import { de as pvrDe } from "pwd-validator-react/locales";
 import "pwd-validator-react/styles.css";
 import { Link, useRouter } from "@/i18n/navigation";
-import { registerUser } from "@/app/actions/auth-actions";
+import {
+  checkTenantInvite,
+  registerUser,
+  type InviteCheckStatus,
+} from "@/app/actions/auth-actions";
+import { useThrottledValue } from "@/lib/useThrottledValue";
 import { Field } from "@/components/ui/Field";
 import { PrimaryButton } from "@/components/ui/primitives";
 import { AuthShell, FormAlert, FormFooter, FormStack } from "./AuthShell";
@@ -158,6 +163,11 @@ const PwnedWarning = styled.p`
   color: ${({ theme }) => theme.colors.danger};
 `;
 
+const InviteChecking = styled.p`
+  font-size: 0.78rem;
+  color: ${({ theme }) => theme.colors.textFaint};
+`;
+
 /**
  * Honeypot: Für Menschen unsichtbar (ohne display:none, das viele Bots
  * erkennen), per tabIndex/aria-hidden auch für Tastatur und Screenreader
@@ -187,6 +197,11 @@ export function RegisterForm({ viaApex = false }: { viaApex?: boolean }) {
   // Korrigieren der E-Mail-Adresse irritierend wieder zu
   const [unlocked, setUnlocked] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  // Invite-Status des Mandanten-Portals (frühzeitig nach E-Mail-Eingabe)
+  const [inviteStatus, setInviteStatus] = useState<
+    InviteCheckStatus | "idle" | "checking"
+  >("idle");
+  const throttledEmail = useThrottledValue(email, 600);
 
   // Draft wiederherstellen (nur nach dem Mount – sessionStorage gibt es
   // serverseitig nicht, und im Initial-Render gäbe das einen Hydration-Bruch)
@@ -228,6 +243,30 @@ export function RegisterForm({ viaApex = false }: { viaApex?: boolean }) {
       // Storage voll/blockiert → dann eben ohne Draft
     }
   }, [email, name, acceptTerms]);
+
+  // Frühzeitiger Invite-Check: Sobald die E-Mail-Form plausibel ist (gedrosselt,
+  // nicht bei jedem Tastendruck), prüfen wir host-basiert, ob die Adresse fürs
+  // Portal eingeladen ist. Auf der Hauptdomain (not_tenant) passiert nichts.
+  useEffect(() => {
+    const value = throttledEmail.trim();
+    if (!EMAIL_SHAPE.test(value)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset bei ungültiger Eingabe
+      setInviteStatus("idle");
+      return;
+    }
+    let cancelled = false;
+    setInviteStatus("checking");
+    checkTenantInvite(value)
+      .then((res) => {
+        if (!cancelled) setInviteStatus(res.status);
+      })
+      .catch(() => {
+        if (!cancelled) setInviteStatus("unknown");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [throttledEmail]);
 
   const pvrLocale: PvrLocale = locale === "de" ? pvrDe : pvrEn;
   // Exakt die Server-Regeln (packages/core passwordSchema): 8+ Zeichen,
@@ -349,6 +388,16 @@ export function RegisterForm({ viaApex = false }: { viaApex?: boolean }) {
           onChange={(e) => onEmailChange(e.target.value)}
         />
 
+        {inviteStatus === "not_invited" ? (
+          <FormAlert $tone="error" role="alert">
+            {t("errors.not_invited")}
+          </FormAlert>
+        ) : inviteStatus === "checking" ? (
+          <InviteChecking aria-live="polite">
+            {t("checkingInvite")}
+          </InviteChecking>
+        ) : null}
+
         <HoneypotWrap aria-hidden="true">
           <label htmlFor="register-website">Website</label>
           <input
@@ -469,7 +518,7 @@ export function RegisterForm({ viaApex = false }: { viaApex?: boolean }) {
 
         <PrimaryButton
           type="submit"
-          disabled={pending}
+          disabled={pending || inviteStatus === "not_invited"}
           onClick={(e) => {
             // Solange die weiteren Felder zu sind, öffnet der Button sie
             // nur – sonst blockt die native Validierung an unsichtbaren
