@@ -8,6 +8,7 @@ import {
   renderSitemapXml,
   robotsDisallowPaths,
   SITEMAP_STATIC_PATHS,
+  SITEMAP_TENANT_PATHS,
   sitemapIndexEntries,
 } from "./sitemap";
 
@@ -88,6 +89,20 @@ describe("buildSitemap", () => {
   it("enthält Creator-Storefronts in beiden Sprachen", () => {
     expect(sitemap.some((e) => e.url === `${BASE}/de/c/jana`)).toBe(true);
     expect(sitemap.some((e) => e.url === `${BASE}/en/c/jana`)).toBe(true);
+  });
+
+  it("beschränkt sich mit staticPaths (Mandant) auf die Rechtsseiten", () => {
+    // So nutzt es die Mandanten-Route: reduzierte Pfade + keine Kurse/Creator.
+    const tenant = buildSitemap({
+      baseUrl: BASE,
+      staticPaths: SITEMAP_TENANT_PATHS,
+      courses: [],
+      creators: [],
+    });
+    // nur die Rechtsseiten × 2 Sprachen (nicht der volle statische Satz)
+    expect(tenant).toHaveLength(SITEMAP_TENANT_PATHS.length * 2);
+    expect(tenant.some((e) => e.url.endsWith("/de/impressum"))).toBe(true);
+    expect(tenant.some((e) => e.url.endsWith("/de/preise"))).toBe(false);
   });
 
   it("filtert mit locale auf die <loc>-Einträge einer Sprache", () => {

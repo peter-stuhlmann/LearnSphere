@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server";
-import { getEnv } from "@/lib/env";
+import { getSitemapContext } from "@/lib/services/sitemap-context";
 import { renderSitemapIndexXml, sitemapIndexEntries } from "@/lib/sitemap";
 
 /**
  * /sitemap.xml – Sitemap-INDEX mit einer Sprach-Sitemap pro Locale
- * (/sitemaps/de.xml, /sitemaps/en.xml, …). Skaliert für weitere Sprachen
- * und zeigt in der Search Console die Abdeckung pro Sprache getrennt.
+ * (/sitemaps/de.xml, /sitemaps/en.xml, …). Host-abhängig: auf einem
+ * Whitelabel-Mandanten mit dessen eigener Domain (kein learnsphere.one-Leak).
  */
 
-export const revalidate = 3600;
+// Host-abhängig → nie statisch cachen (sonst könnte ein Host den Cache eines
+// anderen bekommen).
+export const dynamic = "force-dynamic";
 
-export function GET() {
-  const xml = renderSitemapIndexXml(
-    sitemapIndexEntries(getEnv().NEXT_PUBLIC_APP_URL)
-  );
+export async function GET() {
+  const { baseUrl } = await getSitemapContext();
+  const xml = renderSitemapIndexXml(sitemapIndexEntries(baseUrl));
   return new NextResponse(xml, {
     headers: { "Content-Type": "application/xml; charset=utf-8" },
   });

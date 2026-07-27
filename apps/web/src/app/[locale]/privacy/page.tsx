@@ -30,6 +30,7 @@ export default async function PrivacyPage({
         brandName={tenant.brandName}
         legal={tenant.legal}
         locale={locale}
+        formal={tenant.addressForm === "FORMAL"}
       />
     );
   }

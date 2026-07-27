@@ -36,6 +36,8 @@ export const DOMAIN_VERIFY_HOST_PREFIX = "_learnsphere-verify";
 export interface WorkspaceData {
   slug: string;
   brandName: string;
+  /** Logo als Data-URL (Header/Footer/Zertifikat) – null = keins hinterlegt. */
+  logo: string | null;
   brandColor: string;
   colorBackground: string;
   colorText: string;
@@ -76,6 +78,7 @@ export async function loadWorkspacePageData(
     workspace: {
       slug: ws.slug,
       brandName: ws.brandName,
+      logo: ws.logo,
       brandColor: ws.brandColor ?? "",
       colorBackground: ws.colorBackground ?? "",
       colorText: ws.colorText ?? "",
@@ -130,6 +133,7 @@ export async function getRequestWorkspace(): Promise<WorkspaceHost | null> {
  */
 export async function getRequestWorkspaceLegal(): Promise<{
   brandName: string;
+  addressForm: "INFORMAL" | "FORMAL";
   legal: WorkspaceLegalData | null;
 } | null> {
   const workspace = await getRequestWorkspace();
@@ -138,7 +142,11 @@ export async function getRequestWorkspaceLegal(): Promise<{
     where: { id: workspace.id },
     select: { legal: true },
   });
-  return { brandName: workspace.brandName, legal: parseWorkspaceLegal(ws?.legal) };
+  return {
+    brandName: workspace.brandName,
+    addressForm: workspace.addressForm,
+    legal: parseWorkspaceLegal(ws?.legal),
+  };
 }
 
 export interface WorkspaceMailContext {

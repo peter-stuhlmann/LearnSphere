@@ -53,7 +53,33 @@
     "dayName": "Schön, dass Sie da sind, {name}! ✨"
   },
   "common": {
-    "unsavedMessage": "Sie haben ungespeicherte Änderungen. Wenn Sie die Seite jetzt verlassen, gehen sie verloren."
+    "unsavedMessage": "Sie haben ungespeicherte Änderungen. Wenn Sie die Seite jetzt verlassen, gehen sie verloren.",
+    "noscriptText": "{brand} braucht JavaScript, um richtig zu funktionieren. Bitte aktivieren Sie JavaScript in den Einstellungen Ihres Browsers und laden Sie die Seite neu."
+  },
+  "cart": {
+    "title": "Ihr Warenkorb",
+    "empty": "Ihr Warenkorb ist leer.",
+    "recommendedTitle": "Das könnte Ihnen gefallen",
+    "certificateHold": "Zertifikate werden erst nach Ablauf der 30 Tage ausgestellt – oder sofort, wenn Sie in der Abschlussprüfung ausdrücklich auf Ihr Rückgaberecht verzichten.",
+    "errors": {
+      "cart_empty": "Keiner der Kurse ist (noch) kaufbar – vielleicht besitzen Sie sie schon.",
+      "unauthorized": "Bitte melden Sie sich zuerst an."
+    }
+  },
+  "refund": {
+    "modalText": "Sie bekommen den vollen Kaufpreis zurück. Ihr Zugriff, Ihr Lernfortschritt und ein eventuelles Zertifikat dieses Kurses erlöschen sofort und endgültig.",
+    "reasonLabel": "Mögen Sie uns verraten, warum?",
+    "reasonPlaceholder": "Ihr Feedback hilft uns und dem Creator, die Kurse besser zu machen …",
+    "errorStore": "Diesen Kauf haben Sie über den App Store bzw. Google Play getätigt – bitte fordern Sie die Erstattung direkt dort an."
+  },
+  "a11yFeedback": {
+    "message": "Ihre Meldung",
+    "messagePlaceholder": "Was hat Sie behindert? Wo ist es passiert? Womit bedienen Sie die Seite (z. B. Screenreader, Tastatur)?",
+    "success": "Danke! Ihre Meldung ist bei uns angekommen. Wir melden uns bei Ihnen.",
+    "privacyNote": "Wir nutzen Ihre Angaben ausschließlich, um auf Ihre Meldung zu antworten.",
+    "errors": {
+      "name_required": "Bitte geben Sie Ihren Namen an."
+    }
   },
   "consent": {
     "description": "Wir nutzen notwendige Cookies für den Betrieb – und mit Ihrer Einwilligung anonymisierte Statistiken, um {brand} besser zu machen. Details finden Sie in der",

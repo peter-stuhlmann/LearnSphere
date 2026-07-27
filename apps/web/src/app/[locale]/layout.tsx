@@ -13,6 +13,7 @@ import { TenantHeader } from "@/components/tenant/TenantHeader";
 import { TenantFooter } from "@/components/tenant/TenantFooter";
 import { getRequestWorkspace } from "@/lib/services/workspace-service";
 import { hasTenantPalette, tenantColorOverride } from "@/lib/tenant-theme";
+import { theme } from "@/styles/theme";
 import { NoScriptNotice } from "@/components/layout/NoScriptNotice";
 import { CartSync } from "@/components/cart/CartSync";
 import { PageTransition } from "@/components/layout/PageTransition";
@@ -107,6 +108,16 @@ export default async function LocaleLayout({
       ? tenantColorOverride(palette)
       : undefined;
 
+  // NoScript-Box ist inline gestylt (muss ohne JS wirken) → Theme-Farben hier
+  // serverseitig auflösen (Basis-Theme + ggf. Mandanten-Override).
+  const noscriptColors = {
+    bgElevated: colorOverride?.bgElevated ?? theme.colors.bgElevated,
+    border: colorOverride?.border ?? theme.colors.border,
+    accentSoft: colorOverride?.accentSoft ?? theme.colors.accentSoft,
+    text: colorOverride?.text ?? theme.colors.text,
+    textMuted: colorOverride?.textMuted ?? theme.colors.textMuted,
+  };
+
   // Name/Avatar frisch aus der DB, damit Profil-Änderungen sofort greifen
   const freshUser = session?.user?.id
     ? await db.user.findUnique({
@@ -128,6 +139,7 @@ export default async function LocaleLayout({
               <TenantHeader
                 brandName={workspace.brandName}
                 brandColor={workspace.brandColor}
+                logo={workspace.logo}
                 user={
                   freshUser
                     ? { name: freshUser.name, image: freshUser.image }
@@ -147,10 +159,17 @@ export default async function LocaleLayout({
                 }
               />
             )}
-            <NoScriptNotice locale={locale} />
+            <NoScriptNotice
+              locale={locale}
+              brand={workspace ? workspace.brandName : "LearnSphere"}
+              colors={noscriptColors}
+            />
             <PageTransition>{children}</PageTransition>
             {workspace ? (
-              <TenantFooter brandName={workspace.brandName} />
+              <TenantFooter
+                brandName={workspace.brandName}
+                logo={workspace.logo}
+              />
             ) : (
               <Footer />
             )}

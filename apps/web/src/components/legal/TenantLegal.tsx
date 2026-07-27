@@ -1,5 +1,6 @@
 import type { WorkspaceLegalData } from "@elearning/core/validation";
 import { LegalArticle } from "@/components/marketing/LegalArticle";
+import { AccessibilityFeedbackForm } from "@/components/marketing/AccessibilityFeedbackForm";
 
 /**
  * Mandantenspezifische Rechtstexte fürs Whitelabel-Portal. Der Portal-Betreiber
@@ -154,11 +155,17 @@ export function TenantImprint({
 export function TenantPrivacy({
   legal,
   locale,
+  formal,
 }: {
   brandName: string;
   legal: WorkspaceLegalData | null;
   locale: string;
+  /** Sie-Anrede (deutsche Portal-Texte auf FORMAL) */
+  formal: boolean;
 }) {
+  /** deutsche Anrede-Variante wählen (du/Sie) */
+  const du = (informal: string, sie: string) => (formal ? sie : informal);
+
   if (!legal) {
     return (
       <LegalArticle>
@@ -273,8 +280,10 @@ export function TenantPrivacy({
 
       <h2>Verantwortlicher</h2>
       <p>
-        Verantwortlicher für die Verarbeitung deiner Daten in diesem Portal
-        ist:
+        {du(
+          "Verantwortlicher für die Verarbeitung deiner Daten in diesem Portal ist:",
+          "Verantwortlicher für die Verarbeitung Ihrer Daten in diesem Portal ist:"
+        )}
       </p>
       <AddressBlock legal={legal} />
       <p>
@@ -305,12 +314,13 @@ export function TenantPrivacy({
 
       <h2>Welche Daten wir verarbeiten</h2>
       <p>
-        <strong>Konto:</strong> Für die Nutzung des Portals benötigst du ein
-        Nutzerkonto. Wir verarbeiten deinen Namen, deine E-Mail-Adresse und
-        dein Passwort (ausschließlich als kryptografischer Hash gespeichert);
-        aktivierst du die Zwei-Faktor-Authentifizierung, zusätzlich das
-        TOTP-Geheimnis. Rechtsgrundlage: Durchführung des Nutzungsvertrags
-        (Art. 6 Abs. 1 lit. b DSGVO).
+        <strong>Konto:</strong>{" "}
+        {du(
+          "Für die Nutzung des Portals benötigst du ein Nutzerkonto. Wir verarbeiten deinen Namen, deine E-Mail-Adresse und dein Passwort (ausschließlich als kryptografischer Hash gespeichert); aktivierst du die Zwei-Faktor-Authentifizierung, zusätzlich das TOTP-Geheimnis.",
+          "Für die Nutzung des Portals benötigen Sie ein Nutzerkonto. Wir verarbeiten Ihren Namen, Ihre E-Mail-Adresse und Ihr Passwort (ausschließlich als kryptografischer Hash gespeichert); aktivieren Sie die Zwei-Faktor-Authentifizierung, zusätzlich das TOTP-Geheimnis."
+        )}{" "}
+        Rechtsgrundlage: Durchführung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b
+        DSGVO).
       </p>
       <p>
         <strong>Lerndaten &amp; Zertifikate:</strong> Einschreibungen,
@@ -325,12 +335,11 @@ export function TenantPrivacy({
         (Art. 6 Abs. 1 lit. f DSGVO).
       </p>
       <p>
-        <strong>Cookies:</strong> ausschließlich technisch notwendige Cookies
-        (Anmelde-Session, deine Cookie-Auswahl, Spracheinstellung). Keine
-        Werbe-Cookies. Mit deiner Einwilligung kann zusätzlich ein Dienst zur
-        Reichweitenmessung eingesetzt werden (Art. 6 Abs. 1 lit. a DSGVO und
-        § 25 Abs. 1 TDDDG); die Einwilligung kannst du jederzeit in den
-        Cookie-Einstellungen widerrufen.
+        <strong>Cookies:</strong>{" "}
+        {du(
+          "ausschließlich technisch notwendige Cookies (Anmelde-Session, deine Cookie-Auswahl, Spracheinstellung). Keine Werbe-Cookies. Mit deiner Einwilligung kann zusätzlich ein Dienst zur Reichweitenmessung eingesetzt werden (Art. 6 Abs. 1 lit. a DSGVO und § 25 Abs. 1 TDDDG); die Einwilligung kannst du jederzeit in den Cookie-Einstellungen widerrufen.",
+          "ausschließlich technisch notwendige Cookies (Anmelde-Session, Ihre Cookie-Auswahl, Spracheinstellung). Keine Werbe-Cookies. Mit Ihrer Einwilligung kann zusätzlich ein Dienst zur Reichweitenmessung eingesetzt werden (Art. 6 Abs. 1 lit. a DSGVO und § 25 Abs. 1 TDDDG); die Einwilligung können Sie jederzeit in den Cookie-Einstellungen widerrufen."
+        )}
       </p>
 
       <h2>E-Mail-Versand</h2>
@@ -342,22 +351,122 @@ export function TenantPrivacy({
         abgesichert.
       </p>
 
-      <h2>Deine Rechte</h2>
+      <h2>{du("Deine Rechte", "Ihre Rechte")}</h2>
       <p>
-        Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung
-        der Verarbeitung, Datenübertragbarkeit sowie ein Widerspruchsrecht.
-        Diese Rechte kannst du jederzeit über die oben genannten Kontaktdaten
-        des Verantwortlichen ausüben. Außerdem steht dir ein Beschwerderecht
-        bei einer zuständigen Datenschutz-Aufsichtsbehörde zu.
+        {du(
+          "Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit sowie ein Widerspruchsrecht. Diese Rechte kannst du jederzeit über die oben genannten Kontaktdaten des Verantwortlichen ausüben. Außerdem steht dir ein Beschwerderecht bei einer zuständigen Datenschutz-Aufsichtsbehörde zu.",
+          "Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit sowie ein Widerspruchsrecht. Diese Rechte können Sie jederzeit über die oben genannten Kontaktdaten des Verantwortlichen ausüben. Außerdem steht Ihnen ein Beschwerderecht bei einer zuständigen Datenschutz-Aufsichtsbehörde zu."
+        )}
       </p>
 
       <h2>Speicherdauer</h2>
       <p>
-        Deine Kontodaten speichern wir, bis du dein Konto löschst. Ausgestellte
-        Zertifikate bewahren wir auf, damit ihre Echtheit über die Seriennummer
-        geprüft werden kann. Zwingende gesetzliche Aufbewahrungspflichten
-        bleiben unberührt.
+        {du(
+          "Deine Kontodaten speichern wir, bis du dein Konto löschst.",
+          "Ihre Kontodaten speichern wir, bis Sie Ihr Konto löschen."
+        )}{" "}
+        Ausgestellte Zertifikate bewahren wir auf, damit ihre Echtheit über die
+        Seriennummer geprüft werden kann. Zwingende gesetzliche
+        Aufbewahrungspflichten bleiben unberührt.
       </p>
+    </LegalArticle>
+  );
+}
+
+/* ------------------------------------------------------- Barrierefreiheit */
+
+export function TenantAccessibility({
+  brandName,
+  formal,
+  locale,
+}: {
+  brandName: string;
+  /** Sie-Anrede (deutsche Portal-Texte auf FORMAL) */
+  formal: boolean;
+  locale: string;
+}) {
+  if (locale === "en") {
+    return (
+      <LegalArticle>
+        <h1>Accessibility Statement</h1>
+        <p>
+          {brandName} aims to be usable by everyone. This portal is designed to
+          conform to WCAG 2.2 level AA.
+        </p>
+        <h2>Measures</h2>
+        <ul>
+          <li>
+            Full keyboard operability, including a skip link and visible focus
+            indicators
+          </li>
+          <li>
+            Semantic HTML, labelled form fields and ARIA live regions for
+            feedback
+          </li>
+          <li>Color contrast of at least 4.5:1 for text in the design</li>
+          <li>
+            Support for <em>prefers-reduced-motion</em>: animations are reduced
+            or disabled
+          </li>
+          <li>Responsive layout from 320px viewport width, zoomable up to 200%</li>
+          <li>Video lessons support captions where provided</li>
+        </ul>
+        <h2>Known limitations</h2>
+        <ul>
+          <li>
+            Accessibility of course materials (videos, files) depends on the
+            respective provider.
+          </li>
+        </ul>
+        <h2>Feedback</h2>
+        <p>
+          If you encounter barriers, please use the form below — we take every
+          report seriously.
+        </p>
+        <AccessibilityFeedbackForm />
+      </LegalArticle>
+    );
+  }
+
+  return (
+    <LegalArticle>
+      <h1>Erklärung zur Barrierefreiheit</h1>
+      <p>
+        {brandName} soll für alle nutzbar sein. Dieses Portal ist auf
+        Konformität mit WCAG 2.2, Stufe AA, ausgelegt.
+      </p>
+      <h2>Unsere Maßnahmen</h2>
+      <ul>
+        <li>
+          Vollständige Tastaturbedienbarkeit inkl. Sprunglink und sichtbarer
+          Fokus-Markierung
+        </li>
+        <li>
+          Semantisches HTML, beschriftete Formularfelder und ARIA-Live-Regionen
+          für Rückmeldungen
+        </li>
+        <li>Farbkontraste von mindestens 4,5:1 für Text im Design</li>
+        <li>
+          Unterstützung von <em>prefers-reduced-motion</em>: Animationen werden
+          reduziert oder abgeschaltet
+        </li>
+        <li>Responsives Layout ab 320px Viewport-Breite, zoombar bis 200 %</li>
+        <li>Video-Lektionen unterstützen Untertitel, sofern bereitgestellt</li>
+      </ul>
+      <h2>Bekannte Einschränkungen</h2>
+      <ul>
+        <li>
+          Die Barrierefreiheit der Kursmaterialien (Videos, Dateien) hängt vom
+          jeweiligen Anbieter ab.
+        </li>
+      </ul>
+      <h2>Feedback</h2>
+      <p>
+        {formal
+          ? "Wenn Sie auf Barrieren stoßen, nutzen Sie bitte das folgende Formular – wir nehmen jede Meldung ernst."
+          : "Wenn du auf Barrieren stößt, nutze bitte das folgende Formular – wir nehmen jede Meldung ernst."}
+      </p>
+      <AccessibilityFeedbackForm />
     </LegalArticle>
   );
 }

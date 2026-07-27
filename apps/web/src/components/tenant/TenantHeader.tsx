@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import styled from "styled-components";
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { logout } from "@/app/actions/session-actions";
+import { withAlpha } from "@/lib/tenant-theme";
 import {
   MobileMenu,
   type MobileMenuSection,
 } from "@/components/layout/MobileMenu";
+import { LanguageModal } from "@/components/layout/LanguageModal";
 
 /**
  * Whitelabel-Portal-Header: reiner Lernbereich (kein LearnSphere-Branding,
@@ -20,7 +23,10 @@ const Bar = styled.header`
   top: 0;
   z-index: 50;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  background: rgba(7, 8, 15, 0.72);
+  /* Theme-abhängig, damit der Header (und die Links darauf) auch auf
+     hell/anders eingefärbten Whitelabel-Portalen korrekt kontrastiert.
+     Für das Standard-Theme entspricht das exakt rgba(7, 8, 15, 0.72). */
+  background: ${({ theme }) => withAlpha(theme.colors.bgDeep, 0.72)};
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 `;
@@ -40,12 +46,21 @@ const Inner = styled.div`
 `;
 
 const Brand = styled(Link)<{ $brand: string | null }>`
+  display: inline-flex;
+  align-items: center;
   font-family: ${({ theme }) => theme.fonts.display};
   font-size: 1.3rem;
   font-weight: 600;
   text-decoration: none;
   color: ${({ theme, $brand }) => $brand ?? theme.colors.text};
   white-space: nowrap;
+
+  img {
+    height: 32px;
+    width: auto;
+    max-width: 190px;
+    object-fit: contain;
+  }
 `;
 
 /* Desktop-Navigation inline; auf Mobil übernimmt das Burger-Overlay. */
@@ -68,6 +83,71 @@ const NavLink = styled(Link)`
     color: ${({ theme }) => theme.colors.text};
   }
 `;
+
+/* „Anmelden" in Button-Optik (Marken-/Akzentfarbe). */
+const LoginButton = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1.15rem;
+  border-radius: ${({ theme }) => theme.radii.pill};
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  background: ${({ theme }) => theme.colors.accent};
+  color: ${({ theme }) => theme.colors.onAccent};
+  transition: transform 90ms ease, box-shadow 150ms ease;
+
+  &:hover {
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.accentSoft};
+  }
+  &:active {
+    transform: scale(0.97);
+  }
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+  }
+`;
+
+const GlobeButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: ${({ theme }) => theme.colors.textMuted};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.text};
+    border-color: ${({ theme }) => theme.colors.accent};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+  }
+`;
+
+const GlobeIcon = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    aria-hidden
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" />
+  </svg>
+);
 
 const AvatarWrap = styled.div`
   position: relative;
@@ -204,19 +284,36 @@ const MobileUser = styled.div`
 export function TenantHeader({
   brandName,
   brandColor,
+  logo,
   user,
 }: {
   brandName: string;
   brandColor: string | null;
+  logo: string | null;
   user: { name: string | null; image: string | null } | null;
 }) {
   const tn = useTranslations("nav");
+  const tc = useTranslations("common");
   const locale = useLocale();
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropOpen, setDropOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const accent = brandColor ?? "#C8FF4D";
   const initial = (user?.name || "?").charAt(0).toUpperCase();
+
+  const switchLocale = (next: string) => {
+    if (next === locale) return;
+    // aktuelle (ggf. dynamische) Route in die andere Sprache übersetzen
+    router.replace(
+      // @ts-expect-error -- params passen zur aktiven Route
+      { pathname, params },
+      { locale: next }
+    );
+  };
 
   // Avatar-Dropdown: Klick außerhalb + Escape schließen.
   useEffect(() => {
@@ -236,6 +333,31 @@ export function TenantHeader({
   }, [dropOpen]);
 
   const closeMenu = () => setMenuOpen(false);
+  const langSection: MobileMenuSection = {
+    label: tc("languageSwitcher"),
+    items: [
+      <button
+        key="de"
+        type="button"
+        onClick={() => {
+          closeMenu();
+          switchLocale("de");
+        }}
+      >
+        {tc("german")}
+      </button>,
+      <button
+        key="en"
+        type="button"
+        onClick={() => {
+          closeMenu();
+          switchLocale("en");
+        }}
+      >
+        {tc("english")}
+      </button>,
+    ],
+  };
   const sections: MobileMenuSection[] = user
     ? [
         {
@@ -263,6 +385,7 @@ export function TenantHeader({
             </button>,
           ],
         },
+        langSection,
       ]
     : [
         {
@@ -272,17 +395,33 @@ export function TenantHeader({
             </Link>,
           ],
         },
+        langSection,
       ];
 
   return (
     <Bar>
       <Inner>
-        <Brand href="/" $brand={brandColor}>
-          {brandName}
+        <Brand href="/" $brand={brandColor} aria-label={brandName}>
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- Data-URL-Logo
+            <img src={logo} alt={brandName} />
+          ) : (
+            brandName
+          )}
         </Brand>
 
         <DesktopNav aria-label={brandName}>
-          <NavLink href="/my-learning">{tn("myLearning")}</NavLink>
+          {user ? (
+            <NavLink href="/my-learning">{tn("myLearning")}</NavLink>
+          ) : null}
+          <GlobeButton
+            type="button"
+            aria-label={tc("languageSwitcher")}
+            aria-haspopup="dialog"
+            onClick={() => setLangOpen(true)}
+          >
+            {GlobeIcon}
+          </GlobeButton>
           {user ? (
             <AvatarWrap ref={wrapRef}>
               <AvatarButton
@@ -321,7 +460,7 @@ export function TenantHeader({
               ) : null}
             </AvatarWrap>
           ) : (
-            <NavLink href="/login">{tn("login")}</NavLink>
+            <LoginButton href="/login">{tn("login")}</LoginButton>
           )}
         </DesktopNav>
 
@@ -362,6 +501,16 @@ export function TenantHeader({
           ) : null
         }
         sections={sections}
+      />
+
+      <LanguageModal
+        open={langOpen}
+        current={locale}
+        onSelect={(next) => {
+          setLangOpen(false);
+          switchLocale(next);
+        }}
+        onClose={() => setLangOpen(false)}
       />
     </Bar>
   );

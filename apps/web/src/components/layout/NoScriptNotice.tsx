@@ -5,9 +5,26 @@ import { getTranslations } from "next-intl/server";
  * wenn JS aus ist: dann wird der ohne JS nicht nutzbare Hauptinhalt (#main)
  * ausgeblendet und stattdessen diese Meldung gezeigt – Header und Footer
  * bleiben stehen. Die Meldung nutzt Inline-Styles (kein styled-components),
- * damit sie auch ohne Client-JS zuverlässig aussieht.
+ * damit sie auch ohne Client-JS zuverlässig aussieht – die Farben kommen aber
+ * (serverseitig aufgelöst) aus dem aktiven Theme, damit die Box auch auf
+ * Whitelabel-Portalen zum Farbschema passt.
  */
-export async function NoScriptNotice({ locale }: { locale: string }) {
+export async function NoScriptNotice({
+  locale,
+  brand,
+  colors,
+}: {
+  locale: string;
+  /** Marke des Portals (Whitelabel) bzw. „LearnSphere" auf der Hauptdomain. */
+  brand: string;
+  colors: {
+    bgElevated: string;
+    border: string;
+    accentSoft: string;
+    text: string;
+    textMuted: string;
+  };
+}) {
   const t = await getTranslations({ locale, namespace: "common" });
 
   return (
@@ -33,8 +50,8 @@ export async function NoScriptNotice({ locale }: { locale: string }) {
             textAlign: "center",
             padding: "2.5rem 1.75rem",
             borderRadius: "22px",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            background: "#12141F",
+            border: `1px solid ${colors.border}`,
+            background: colors.bgElevated,
             boxShadow: "0 20px 60px rgba(0, 0, 0, 0.45)",
           }}
         >
@@ -49,7 +66,7 @@ export async function NoScriptNotice({ locale }: { locale: string }) {
               justifyContent: "center",
               borderRadius: "999px",
               fontSize: "1.6rem",
-              background: "rgba(200, 255, 77, 0.12)",
+              background: colors.accentSoft,
             }}
           >
             ⚡
@@ -59,7 +76,7 @@ export async function NoScriptNotice({ locale }: { locale: string }) {
               margin: "0 0 0.75rem",
               fontSize: "1.5rem",
               lineHeight: 1.25,
-              color: "#EDEDF2",
+              color: colors.text,
               fontFamily: "var(--font-display), Georgia, serif",
             }}
           >
@@ -70,10 +87,10 @@ export async function NoScriptNotice({ locale }: { locale: string }) {
               margin: 0,
               fontSize: "1rem",
               lineHeight: 1.6,
-              color: "#A7A9BC",
+              color: colors.textMuted,
             }}
           >
-            {t("noscriptText")}
+            {t("noscriptText", { brand })}
           </p>
         </div>
       </div>

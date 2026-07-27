@@ -1,21 +1,23 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getEnv } from "@/lib/env";
+import { getSitemapContext } from "@/lib/services/sitemap-context";
 import {
   buildSitemap,
   parseBuildTimestamp,
   parseSitemapLocale,
   renderSitemapXml,
+  SITEMAP_TENANT_PATHS,
 } from "@/lib/sitemap";
 
 /**
- * /sitemaps/<locale>.xml – Sprach-Sitemap (vom Index /sitemap.xml verlinkt):
- * statische Seiten + veröffentlichte Shop-Kurse + Creator-Storefronts in
- * dieser Sprache, jeder Eintrag mit der kompletten hreflang-Gruppe.
- * Kurse ohne Shop-Listung bleiben bewusst draußen.
+ * /sitemaps/<locale>.xml – Sprach-Sitemap (vom Index /sitemap.xml verlinkt).
+ * Hauptdomain: statische Seiten + Shop-Kurse + Creator-Storefronts.
+ * Whitelabel-Mandant: nur die öffentlichen Rechtsseiten des Betreibers auf
+ * dessen eigener Domain – das Portal selbst ist privat (noindex/Login-Gate).
  */
 
-export const revalidate = 3600;
+// Host-abhängig → nicht statisch cachen.
+export const dynamic = "force-dynamic";
 
 export async function GET(
   _request: Request,
@@ -25,6 +27,28 @@ export async function GET(
   const locale = parseSitemapLocale(file);
   if (!locale) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  const { baseUrl, workspace } = await getSitemapContext();
+  const staticLastModified = parseBuildTimestamp(
+    process.env.NEXT_PUBLIC_BUILD_TIMESTAMP
+  );
+
+  // Mandanten-Portal: keine (fremden) Kurse/Creator, nur Rechtsseiten.
+  if (workspace) {
+    const xml = renderSitemapXml(
+      buildSitemap({
+        baseUrl,
+        locale,
+        courses: [],
+        creators: [],
+        staticPaths: SITEMAP_TENANT_PATHS,
+        staticLastModified,
+      })
+    );
+    return new NextResponse(xml, {
+      headers: { "Content-Type": "application/xml; charset=utf-8" },
+    });
   }
 
   const [courses, creators] = await Promise.all([
@@ -45,15 +69,11 @@ export async function GET(
 
   const xml = renderSitemapXml(
     buildSitemap({
-      baseUrl: getEnv().NEXT_PUBLIC_APP_URL,
+      baseUrl,
       locale,
       courses,
-      creators: creators.flatMap((c) =>
-        c.handle ? [{ handle: c.handle }] : []
-      ),
-      staticLastModified: parseBuildTimestamp(
-        process.env.NEXT_PUBLIC_BUILD_TIMESTAMP
-      ),
+      creators: creators.flatMap((c) => (c.handle ? [{ handle: c.handle }] : [])),
+      staticLastModified,
     })
   );
 

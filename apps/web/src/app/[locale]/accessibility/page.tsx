@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { LegalArticle } from "@/components/marketing/LegalArticle";
 import { AccessibilityFeedbackForm } from "@/components/marketing/AccessibilityFeedbackForm";
+import { getRequestWorkspace } from "@/lib/services/workspace-service";
+import { TenantAccessibility } from "@/components/legal/TenantLegal";
 
 export async function generateMetadata({
   params,
@@ -19,6 +21,19 @@ export default async function AccessibilityPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+
+  // Whitelabel-Mandant: Barrierefreiheits-Erklärung mit der Marke des Portals
+  // (kein LearnSphere) und passender Anrede (du/Sie).
+  const workspace = await getRequestWorkspace();
+  if (workspace) {
+    return (
+      <TenantAccessibility
+        brandName={workspace.brandName}
+        formal={workspace.addressForm === "FORMAL"}
+        locale={locale}
+      />
+    );
+  }
 
   if (locale === "en") {
     return (

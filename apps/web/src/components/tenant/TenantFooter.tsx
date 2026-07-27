@@ -33,6 +33,20 @@ const Inner = styled.div`
   }
 `;
 
+const Copy = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+
+  img {
+    height: 22px;
+    width: auto;
+    max-width: 130px;
+    object-fit: contain;
+    opacity: 0.85;
+  }
+`;
+
 const Links = styled.nav`
   display: flex;
   flex-wrap: wrap;
@@ -51,17 +65,30 @@ const Links = styled.nav`
   }
 `;
 
-export function TenantFooter({ brandName }: { brandName: string }) {
+export function TenantFooter({
+  brandName,
+  logo,
+}: {
+  brandName: string;
+  logo: string | null;
+}) {
   const t = useTranslations("footer");
   return (
     <Wrap>
       <Inner>
-        <span>
-          © {new Date().getFullYear()} {brandName}
-        </span>
+        <Copy>
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- Data-URL-Logo
+            <img src={logo} alt={brandName} />
+          ) : null}
+          <span>
+            © {new Date().getFullYear()} {brandName}
+          </span>
+        </Copy>
         <Links aria-label={brandName}>
           <Link href="/imprint">{t("imprint")}</Link>
           <Link href="/privacy">{t("privacy")}</Link>
+          <Link href="/accessibility">{t("accessibility")}</Link>
           <button
             type="button"
             onClick={() =>

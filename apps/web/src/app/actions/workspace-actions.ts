@@ -11,6 +11,7 @@ import {
   workspaceLegalSchema,
   workspaceSchema,
 } from "@elearning/core/validation";
+import { isAllowedAvatar } from "@elearning/core/avatar";
 import type { ActionResult } from "./auth-actions";
 
 /** Owner muss Business freigeschaltet haben (businessJoinedAt). */
@@ -90,6 +91,54 @@ export async function saveWorkspaceLegal(input: unknown): Promise<ActionResult> 
   revalidatePath("/[locale]/business/portal", "page");
   revalidatePath("/[locale]/imprint", "page");
   revalidatePath("/[locale]/privacy", "page");
+  return { ok: true };
+}
+
+/**
+ * Portal-Logo speichern. Der Client verkleinert das Bild vorab und schickt es
+ * als kompaktes PNG; hier wird es als Data-URL am Workspace abgelegt (Header,
+ * Footer, später Zertifikat). Gleiche Datei-/Format-Grenzen wie beim Avatar.
+ */
+export async function updateWorkspaceLogo(
+  formData: FormData
+): Promise<ActionResult> {
+  const ownerId = await requireBusinessOwner();
+  if (!ownerId) return { ok: false, error: "unauthorized" };
+
+  const file = formData.get("logo");
+  if (!(file instanceof File) || !isAllowedAvatar(file.type, file.size)) {
+    return { ok: false, error: "logo_invalid" };
+  }
+
+  const workspace = await db.businessWorkspace.findUnique({
+    where: { ownerId },
+    select: { id: true },
+  });
+  if (!workspace) return { ok: false, error: "no_workspace" };
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const dataUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
+
+  await db.businessWorkspace.update({
+    where: { ownerId },
+    data: { logo: dataUrl },
+  });
+
+  revalidatePath("/[locale]/business/portal", "page");
+  return { ok: true };
+}
+
+/** Portal-Logo entfernen (Header/Footer fallen auf den Markennamen zurück). */
+export async function removeWorkspaceLogo(): Promise<ActionResult> {
+  const ownerId = await requireBusinessOwner();
+  if (!ownerId) return { ok: false, error: "unauthorized" };
+
+  await db.businessWorkspace.update({
+    where: { ownerId },
+    data: { logo: null },
+  });
+
+  revalidatePath("/[locale]/business/portal", "page");
   return { ok: true };
 }
 

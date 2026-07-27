@@ -22,6 +22,18 @@ export const SITEMAP_STATIC_PATHS = [
   "/accessibility",
 ] as const;
 
+/**
+ * Whitelabel-Mandanten-Hosts: das Portal ist privat (noindex, Login-Gate) –
+ * öffentlich sind nur die Rechtsseiten des Betreibers. Keine (fremden) Kurse
+ * oder Creator-Storefronts, kein LearnSphere-Marketing.
+ */
+export const SITEMAP_TENANT_PATHS = [
+  "/imprint",
+  "/privacy",
+  "/terms",
+  "/accessibility",
+] as const;
+
 type Locale = (typeof routing.locales)[number];
 
 /**
@@ -97,9 +109,11 @@ export function buildSitemap(input: {
   locale?: Locale;
   /** <lastmod> für statische Seiten (Build-/Deploy-Zeitpunkt) */
   staticLastModified?: Date;
+  /** Welche statischen Seiten aufgenommen werden (Default: alle öffentlichen). */
+  staticPaths?: readonly string[];
 }): SitemapEntry[] {
   return [
-    ...SITEMAP_STATIC_PATHS.flatMap((path) =>
+    ...(input.staticPaths ?? SITEMAP_STATIC_PATHS).flatMap((path) =>
       entriesFor(
         input.baseUrl,
         path,

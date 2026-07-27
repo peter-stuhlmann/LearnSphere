@@ -1,22 +1,77 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import {
+  useRef,
+  useState,
+  useTransition,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import { useTranslations } from "next-intl";
-import styled, { ThemeProvider, useTheme } from "styled-components";
+import styled, { ThemeProvider, keyframes, useTheme } from "styled-components";
 import { useRouter } from "@/i18n/navigation";
 import {
   removeWorkspaceDomain,
+  removeWorkspaceLogo,
   saveWorkspace,
   saveWorkspaceLegal,
   setWorkspaceDomain,
+  updateWorkspaceLogo,
   verifyWorkspaceDomain,
 } from "@/app/actions/workspace-actions";
 import type { WorkspaceData } from "@/lib/services/workspace-service";
+import { MAX_AVATAR_BYTES } from "@elearning/core/avatar";
 import {
   hasTenantPalette,
   tenantColorOverride,
   withAlpha,
 } from "@/lib/tenant-theme";
+
+/** Portal-Logo vor dem Upload einpassen (max. 600×200, PNG mit Transparenz). */
+const LOGO_MAX_W = 600;
+const LOGO_MAX_H = 200;
+
+async function downscaleLogo(file: File): Promise<Blob | null> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = url;
+    });
+    // nie hochskalieren; Seitenverhältnis bewahren
+    const scale = Math.min(
+      1,
+      LOGO_MAX_W / img.naturalWidth,
+      LOGO_MAX_H / img.naturalHeight
+    );
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, w, h);
+    return await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png")
+    );
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 import {
   Badge,
   GhostButton,
@@ -44,6 +99,55 @@ const Controls = styled.div`
   flex-direction: column;
   gap: 1.25rem;
   min-width: 0;
+`;
+
+/* Tabs im Editor – das Studio wird künftig umfangreicher, daher schon jetzt
+   gruppiert (Marke inkl. Domain / Farben / Rechtliches). */
+const StudioTabs = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+const StudioTab = styled.button<{ $active: boolean }>`
+  position: relative;
+  padding: 0.7rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: ${({ $active }) => ($active ? 600 : 400)};
+  color: ${({ theme, $active }) =>
+    $active ? theme.colors.text : theme.colors.textMuted};
+  background: transparent;
+  white-space: nowrap;
+
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0.6rem;
+    right: 0.6rem;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: ${({ theme, $active }) =>
+      $active ? theme.colors.accent : "transparent"};
+  }
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.text};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+    border-radius: ${({ theme }) => theme.radii.sm};
+  }
+`;
+
+const TabPanel = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
 `;
 
 const PreviewCol = styled.div`
@@ -81,6 +185,81 @@ const Stack = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
+`;
+
+/* ------------------------------------------------------------------- Logo */
+
+const spin = keyframes`
+  to { transform: rotate(360deg); }
+`;
+
+const LogoRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+`;
+
+const LogoPreview = styled.div`
+  position: relative;
+  width: 168px;
+  height: 68px;
+  flex-shrink: 0;
+  border-radius: ${({ theme }) => theme.radii.md};
+  border: 1px dashed ${({ theme }) => theme.colors.borderStrong};
+  background: ${({ theme }) => theme.colors.bgDeep};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  img {
+    max-width: 86%;
+    max-height: 76%;
+    object-fit: contain;
+  }
+`;
+
+const LogoEmpty = styled.span`
+  color: ${({ theme }) => theme.colors.textFaint};
+  font-size: 0.72rem;
+  text-align: center;
+  padding: 0 0.5rem;
+`;
+
+const LogoSpinner = styled.span`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+
+  &::after {
+    content: "";
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid ${({ theme }) => theme.colors.accentSoft};
+    border-top-color: ${({ theme }) => theme.colors.accent};
+    animation: ${spin} 0.7s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      animation: none;
+    }
+  }
+`;
+
+const LogoButtons = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+`;
+
+const HiddenFileInput = styled.input`
+  display: none;
 `;
 
 /* ------------------------------------------------------------- Farb-Presets */
@@ -411,6 +590,12 @@ const PHeader = styled.div`
     font-size: 1.15rem;
     color: ${({ theme }) => theme.colors.accent};
   }
+  img.brandLogo {
+    height: 26px;
+    width: auto;
+    max-width: 160px;
+    object-fit: contain;
+  }
   .nav {
     display: flex;
     align-items: center;
@@ -604,6 +789,9 @@ const PRESETS: Preset[] = [
 
 const PRESET_MODES = ["dark", "light"] as const;
 
+type StudioTabId = "brand" | "colors" | "legal";
+const STUDIO_TABS: StudioTabId[] = ["brand", "colors", "legal"];
+
 const KNOWN_ERRORS = [
   "slug_invalid",
   "slug_reserved",
@@ -623,6 +811,8 @@ const KNOWN_ERRORS = [
   "legal_country_required",
   "legal_representative_required",
   "email_invalid",
+  "logo_invalid",
+  "logo_too_large",
 ];
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -718,6 +908,19 @@ export function PortalStudio({
   const [secondary, setSecondary] = useState(workspace?.colorSecondary ?? "");
   const [domainInput, setDomainInput] = useState("");
 
+  // Tabs (Marke inkl. Domain / Farben / Rechtliches)
+  const [activeTab, setActiveTab] = useState<StudioTabId>("brand");
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // Logo-Upload (Data-URL, optimistische Vorschau)
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoOverride, setLogoOverride] = useState<string | null | undefined>(
+    undefined
+  );
+  const currentLogo =
+    logoOverride !== undefined ? logoOverride : workspace?.logo ?? null;
+
   // Rechtsangaben (Impressum + DSGVO-Verantwortlicher)
   const wl = workspace?.legal ?? null;
   const [legalOperator, setLegalOperator] = useState(wl?.operator ?? "");
@@ -782,6 +985,59 @@ export function PortalStudio({
     run(() => setWorkspaceDomain({ customDomain: domainInput }), "domainAdded");
   }
 
+  async function onLogoChange() {
+    const file = fileRef.current?.files?.[0];
+    // gleiche Datei erneut wählbar machen
+    if (fileRef.current) fileRef.current.value = "";
+    if (!file) return;
+    if (file.size > MAX_AVATAR_BYTES) {
+      setNotice(null);
+      setError("logo_too_large");
+      return;
+    }
+    setNotice(null);
+    setError(null);
+    setLogoBusy(true);
+    try {
+      const small = await downscaleLogo(file);
+      const blob: Blob = small ?? file;
+      const formData = new FormData();
+      formData.set(
+        "logo",
+        new File([blob], "logo.png", {
+          type: small ? "image/png" : file.type,
+        })
+      );
+      const result = await updateWorkspaceLogo(formData);
+      if (!result.ok) {
+        setError(result.error ?? "generic");
+        return;
+      }
+      setLogoOverride(await blobToDataUrl(blob)); // sofortige Vorschau
+      setNotice(t("logoSaved"));
+      router.refresh();
+    } finally {
+      setLogoBusy(false);
+    }
+  }
+
+  function onLogoRemove() {
+    setNotice(null);
+    setError(null);
+    setLogoBusy(true);
+    void removeWorkspaceLogo()
+      .then((result) => {
+        if (!result.ok) {
+          setError(result.error ?? "generic");
+          return;
+        }
+        setLogoOverride(null);
+        setNotice(t("logoRemoved"));
+        router.refresh();
+      })
+      .finally(() => setLogoBusy(false));
+  }
+
   function onSaveLegal(event: FormEvent) {
     event.preventDefault();
     run(
@@ -840,6 +1096,31 @@ export function PortalStudio({
   const swatchOf = (p: Preset, key: keyof Preset, fallback: string) =>
     (p[key] as string) || fallback;
 
+  const tabLabel: Record<StudioTabId, string> = {
+    brand: ts("tabBrand"),
+    colors: ts("tabColors"),
+    legal: ts("tabLegal"),
+  };
+
+  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    const idx = STUDIO_TABS.indexOf(activeTab);
+    let next = idx;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      next = (idx + 1) % STUDIO_TABS.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      next = (idx - 1 + STUDIO_TABS.length) % STUDIO_TABS.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = STUDIO_TABS.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    setActiveTab(STUDIO_TABS[next]);
+    tabRefs.current[next]?.focus();
+  }
+
   return (
     <>
       {notice ? (
@@ -855,7 +1136,35 @@ export function PortalStudio({
 
       <Studio>
         <Controls>
-          {/* --- Marke --- */}
+          <StudioTabs role="tablist" aria-label={ts("tabsLabel")}>
+            {STUDIO_TABS.map((id, index) => (
+              <StudioTab
+                key={id}
+                ref={(el) => {
+                  tabRefs.current[index] = el;
+                }}
+                type="button"
+                role="tab"
+                id={`pstab-${id}`}
+                aria-selected={activeTab === id}
+                aria-controls={`pspanel-${id}`}
+                tabIndex={activeTab === id ? 0 : -1}
+                $active={activeTab === id}
+                onClick={() => setActiveTab(id)}
+                onKeyDown={onTabKeyDown}
+              >
+                {tabLabel[id]}
+              </StudioTab>
+            ))}
+          </StudioTabs>
+
+          <TabPanel
+            role="tabpanel"
+            id={`pspanel-${activeTab}`}
+            aria-labelledby={`pstab-${activeTab}`}
+          >
+          {/* --- Marke (inkl. eigene Domain) --- */}
+          {activeTab === "brand" ? (
           <Group as="form" onSubmit={onSave}>
             <GroupHead>
               <h2>{ts("brandGroup")}</h2>
@@ -892,6 +1201,47 @@ export function PortalStudio({
                 minLength={2}
                 maxLength={80}
               />
+              <div>
+                <FieldLabel as="label">{ts("logoLabel")}</FieldLabel>
+                <LogoRow>
+                  <LogoPreview>
+                    {currentLogo ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- Data-URL-Logo
+                      <img src={currentLogo} alt={ts("logoAlt")} />
+                    ) : (
+                      <LogoEmpty>{ts("logoEmpty")}</LogoEmpty>
+                    )}
+                    {logoBusy ? <LogoSpinner aria-hidden /> : null}
+                  </LogoPreview>
+                  <LogoButtons>
+                    <GhostButton
+                      type="button"
+                      disabled={logoBusy}
+                      onClick={() => fileRef.current?.click()}
+                    >
+                      {currentLogo ? ts("logoChange") : ts("logoUpload")}
+                    </GhostButton>
+                    {currentLogo ? (
+                      <GhostButton
+                        type="button"
+                        disabled={logoBusy}
+                        onClick={onLogoRemove}
+                      >
+                        {ts("logoRemove")}
+                      </GhostButton>
+                    ) : null}
+                    <HiddenFileInput
+                      ref={fileRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={onLogoChange}
+                    />
+                  </LogoButtons>
+                </LogoRow>
+                <Muted style={{ fontSize: "0.8rem", marginTop: "0.4rem" }}>
+                  {ts("logoHint")}
+                </Muted>
+              </div>
               <Field
                 label={t("emailFromName")}
                 hint={t("emailFromNameHint")}
@@ -923,10 +1273,16 @@ export function PortalStudio({
                   {t("addressFormHint")}
                 </Muted>
               </div>
+              <PrimaryButton type="submit" disabled={pending}>
+                {tc("save")}
+              </PrimaryButton>
             </Stack>
           </Group>
+          ) : null}
 
           {/* --- Farben --- */}
+          {activeTab === "colors" ? (
+          <>
           <Group>
             <GroupHead>
               <h2>{ts("colorGroup")}</h2>
@@ -1027,8 +1383,11 @@ export function PortalStudio({
               <Muted style={{ fontSize: "0.82rem" }}>{ts("liveHint")}</Muted>
             ) : null}
           </SaveBar>
+          </>
+          ) : null}
 
           {/* --- Rechtliches (Impressum + Datenschutz) --- */}
+          {activeTab === "legal" ? (
           <Group as="form" onSubmit={onSaveLegal}>
             <GroupHead>
               <h2>{ts("legalGroup")}</h2>
@@ -1127,9 +1486,10 @@ export function PortalStudio({
               </PrimaryButton>
             </Stack>
           </Group>
+          ) : null}
 
-          {/* --- Eigene Domain --- */}
-          {workspace ? (
+          {/* --- Eigene Domain (im Marke-Tab) --- */}
+          {activeTab === "brand" && workspace ? (
             <Group>
               <GroupHead>
                 <h2>{t("domainTitle")}</h2>
@@ -1231,6 +1591,7 @@ export function PortalStudio({
               </Muted>
             </Group>
           ) : null}
+          </TabPanel>
         </Controls>
 
         {/* --- Live-Vorschau --- */}
@@ -1247,7 +1608,12 @@ export function PortalStudio({
             <ThemeProvider theme={previewTheme}>
               <PortalStage aria-label={ts("previewLabel")}>
                 <PHeader>
-                  <span className="brand">{previewBrand}</span>
+                  {currentLogo ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- Data-URL-Logo
+                    <img className="brandLogo" src={currentLogo} alt={previewBrand} />
+                  ) : (
+                    <span className="brand">{previewBrand}</span>
+                  )}
                   <span className="nav">
                     <span>{ts("previewNav")}</span>
                     <span className="av" aria-hidden="true" />
