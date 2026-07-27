@@ -4,6 +4,7 @@ import {
   lookupWorkspaceByHost,
   subdomainSlug,
   tenantBaseDomain,
+  tenantUrlParts,
 } from "./tenant";
 
 // DB dynamisch importiert → per Mock ersetzen (vi.hoisted, damit die Stubs
@@ -48,6 +49,27 @@ describe("tenantBaseDomain / appHostname", () => {
   it("nutzt localhost, wenn keine App-URL gesetzt ist", () => {
     delete process.env.NEXT_PUBLIC_APP_URL;
     expect(appHostname()).toBe("localhost");
+  });
+});
+
+describe("tenantUrlParts", () => {
+  it("liest Protokoll und Port aus der App-URL (Produktion: https ohne Port)", () => {
+    expect(tenantUrlParts()).toEqual({ protocol: "https:", port: "" });
+  });
+
+  it("liefert lokal http + Dev-Port", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3002";
+    expect(tenantUrlParts()).toEqual({ protocol: "http:", port: "3002" });
+  });
+
+  it("fällt ohne App-URL auf http + 3000 zurück", () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    expect(tenantUrlParts()).toEqual({ protocol: "http:", port: "3000" });
+  });
+
+  it("fängt ungültige App-URLs ab", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "://kaputt";
+    expect(tenantUrlParts()).toEqual({ protocol: "http:", port: "3000" });
   });
 });
 
