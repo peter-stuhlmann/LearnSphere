@@ -24,6 +24,7 @@ import {
   searchBusinessCourses,
   startBusinessCheckout,
 } from "@/app/actions/business-actions";
+import { useRouter } from "@/i18n/navigation";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type {
   BusinessCourseOption,
@@ -137,10 +138,12 @@ const RowButton = styled.button`
 const AddRow = styled.form`
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 0.9rem;
 
-  input {
+  /* nur das E-Mail-Feld dehnen – NICHT die verschachtelte Checkbox */
+  > input {
     flex: 1;
     min-width: 220px;
   }
@@ -403,6 +406,7 @@ interface BusinessViewProps {
 export function BusinessView({ licenses, initialCourse }: BusinessViewProps) {
   const t = useTranslations("business");
   const locale = useLocale();
+  const router = useRouter();
 
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -500,6 +504,8 @@ export function BusinessView({ licenses, initialCourse }: BusinessViewProps) {
       return;
     }
     if (input) input.value = "";
+    // Liste sofort mit dem neuen Mitglied aktualisieren (Server-Daten frisch)
+    router.refresh();
   }
 
   async function onCancelLicense() {
@@ -508,7 +514,11 @@ export function BusinessView({ licenses, initialCourse }: BusinessViewProps) {
     setCancelTarget(null);
     setError(null);
     const result = await cancelBusinessLicense({ licenseId });
-    if (!result.ok) setError(result.error ?? "generic");
+    if (!result.ok) {
+      setError(result.error ?? "generic");
+      return;
+    }
+    router.refresh();
   }
 
   const errorText = (code: string) => {
@@ -682,11 +692,13 @@ export function BusinessView({ licenses, initialCourse }: BusinessViewProps) {
                             onClick={() =>
                               void removeBusinessMember({
                                 memberId: member.id,
-                              }).then(
-                                (result) =>
-                                  !result.ok &&
-                                  setError(result.error ?? "generic")
-                              )
+                              }).then((result) => {
+                                if (!result.ok) {
+                                  setError(result.error ?? "generic");
+                                  return;
+                                }
+                                router.refresh();
+                              })
                             }
                           >
                             {t("removeMember")}
