@@ -76,6 +76,54 @@ Repository → **Settings** → **Secrets and variables** → **Actions** →
 `DEPLOY_KNOWN_HOSTS` ist technisch optional – fehlt es, übernimmt der
 Workflow den Host-Key beim ersten Kontakt ungeprüft. Setzen ist besser.
 
+### 3b. Server → GitHub (privates Repo)
+
+Die Schritte 1–3 regeln nur, wie **GitHub Actions auf den Server** kommt. Der
+Server muss aber auch **selbst `main` von GitHub ziehen** (`git fetch` im
+Deploy-Skript). Bei einem **privaten** Repo geht das nicht anonym – ein
+`https://`-Remote fragt dann nach einem Login und bricht im automatischen
+Deploy ab:
+
+```
+fatal: could not read Username for 'https://github.com'
+```
+
+Fix: einen **read-only Deploy-Key des Servers** einrichten und das Remote auf
+SSH umstellen.
+
+**Auf dem Server:**
+
+```bash
+# eigenen Schlüssel NUR für den GitHub-Repo-Zugriff (nicht der CI-Key!)
+ssh-keygen -t ed25519 -f ~/.ssh/github_repo -N "" -C "learnsphere-server"
+cat ~/.ssh/github_repo.pub          # diesen öffentlichen Key kopieren
+
+# SSH soll für github.com genau diesen Key nehmen
+cat >> ~/.ssh/config <<'EOF'
+Host github.com
+  IdentityFile ~/.ssh/github_repo
+  IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config
+
+# GitHubs Host-Key einmalig vertrauen
+ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+# Remote von https auf ssh umstellen
+cd /opt/learnsphere
+git remote set-url origin git@github.com:<owner>/<repo>.git
+
+git fetch origin main               # Test – muss ohne Login durchlaufen
+```
+
+**In GitHub:** Repository → **Settings** → **Deploy keys** → **Add deploy key**
+→ den öffentlichen Key (`github_repo.pub`) einfügen, **ohne** Schreibzugriff
+(read-only genügt fürs Ausrollen).
+
+> Alternativ (ohne SSH): ein Fine-grained-Token mit Lesezugriff und
+> `git remote set-url origin https://<TOKEN>@github.com/<owner>/<repo>.git`.
+> Der SSH-Deploy-Key ist sauberer, weil kein Token im Klartext-Remote landet.
+
 ### 4. Ausprobieren
 
 Am saubersten mit einer belanglosen Änderung:

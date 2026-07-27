@@ -53,7 +53,20 @@ echo "▸ Stand vor dem Deploy: $(git rev-parse --short HEAD)"
 # Exakt auf den Remote-Stand ziehen. Lokale Änderungen am eingecheckten Code
 # werden dabei verworfen – der Server soll main 1:1 spiegeln.
 # Die .env-Dateien sind gitignored und bleiben unangetastet.
-git fetch --prune origin "$BRANCH"
+if ! git fetch --prune origin "$BRANCH"; then
+  echo "" >&2
+  echo "✗ Konnte '$BRANCH' nicht von GitHub holen." >&2
+  echo "  Der Server erreicht das (private) Repository nicht ohne Zugangsdaten." >&2
+  echo "  Aktuelles Remote:" >&2
+  git remote -v >&2 || true
+  echo "" >&2
+  echo "  Ein https://-Remote fragt im automatischen Deploy nach einem Login" >&2
+  echo "  und bricht ab. Einmalig auf SSH-Deploy-Key umstellen:" >&2
+  echo "    git -C \"$APP_DIR\" remote set-url origin git@github.com:<owner>/<repo>.git" >&2
+  echo "  und einen read-only Deploy-Key des Servers in GitHub hinterlegen –" >&2
+  echo "  siehe docs/DEPLOY-CI-CD.md, Abschnitt „Server → GitHub (privates Repo)\"." >&2
+  exit 1
+fi
 git reset --hard "origin/$BRANCH"
 
 echo "▸ Neuer Stand: $(git rev-parse --short HEAD) – $(git log -1 --pretty=%s)"
