@@ -34,11 +34,14 @@ export default async function MyLearningPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const session = await auth();
+  // unabhängig → parallel laden
+  const [session, workspace] = await Promise.all([
+    auth(),
+    getRequestWorkspace(),
+  ]);
   if (!session?.user?.id) {
     redirect({ href: "/login", locale });
   }
-  const workspace = await getRequestWorkspace();
 
   // Offene Business-Einladungen dieser Adresse einlösen (Team-Lizenzen):
   // muss VOR dem Laden der Einschreibungen laufen

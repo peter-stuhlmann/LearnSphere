@@ -32,9 +32,7 @@ import {
 import { withViewTransition } from "@/components/navigation/view-transition";
 import { BlockRenderer, type RenderableBlock } from "./BlockRenderer";
 import { ReadAloud } from "./ReadAloud";
-import { AssistantDock } from "./AssistantDock";
-import { LessonCommunity, type CommunityViewer } from "./LessonCommunity";
-import { RatingWidget } from "./RatingWidget";
+import type { CommunityViewer } from "./LessonCommunity";
 import { SelfTest } from "./SelfTest";
 import { LessonNotes } from "./LessonNotes";
 import { BookingCard } from "./BookingCard";
@@ -682,6 +680,22 @@ const JourneyPath3D = dynamic(
   { ssr: false, loading: () => <JourneyReserve aria-hidden /> }
 );
 
+/* Sekundäre, interaktive Lernbereich-UI erst clientseitig nachladen – hält das
+   ohnehin große Learn-Bundle klein. Community/Bewertung entfallen auf
+   Whitelabel-Portalen ganz und werden dort nie geladen. */
+const AssistantDock = dynamic(
+  () => import("./AssistantDock").then((m) => m.AssistantDock),
+  { ssr: false }
+);
+const LessonCommunity = dynamic(
+  () => import("./LessonCommunity").then((m) => m.LessonCommunity),
+  { ssr: false }
+);
+const RatingWidget = dynamic(
+  () => import("./RatingWidget").then((m) => m.RatingWidget),
+  { ssr: false, loading: () => null }
+);
+
 const PROGRESS_SAVE_INTERVAL_MS = 10_000;
 
 /** localStorage ändert sich hier nie von außen – kein Abo nötig. */
@@ -845,6 +859,8 @@ export function LearnView({
     if (!whitelabel || previewMode) return;
     let cancelled = false;
     const check = async () => {
+      // Im Hintergrund-Tab nicht pollen – spart Server-Calls.
+      if (document.hidden) return;
       try {
         const res = await checkCourseAccess({ courseId });
         if (!cancelled && !res.ok) {
@@ -858,9 +874,15 @@ export function LearnView({
       }
     };
     const id = window.setInterval(check, 15000);
+    // Beim Zurückkehren zum Tab sofort prüfen (falls in der Zeit entzogen).
+    const onVisible = () => {
+      if (!document.hidden) void check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [whitelabel, previewMode, courseId, router]);
 

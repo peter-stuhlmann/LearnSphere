@@ -25,8 +25,11 @@ export default async function LearnPage({
 }) {
   const { locale, slug } = await params;
   const preview = (await searchParams)?.preview === "1";
-  const workspace = await getRequestWorkspace();
-  const session = await auth();
+  // unabhängig → parallel laden
+  const [workspace, session] = await Promise.all([
+    getRequestWorkspace(),
+    auth(),
+  ]);
   if (!session?.user?.id) {
     redirect({ href: "/login", locale });
   }
