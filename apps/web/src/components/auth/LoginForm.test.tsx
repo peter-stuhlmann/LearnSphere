@@ -86,15 +86,15 @@ describe("LoginForm", () => {
     const password = screen.getByLabelText("password");
     expect(password).toHaveAttribute("type", "password");
 
-    // Toggle-Label kommt aus pwd-validator-react (de-Locale)
-    const toggle = screen.getByRole("button", { name: "Passwort anzeigen" });
+    // Toggle-Label kommt jetzt aus dem auth-Namespace (PasswordField)
+    const toggle = screen.getByRole("button", { name: "showPassword" });
     fireEvent.click(toggle);
     expect(password).toHaveAttribute("type", "text");
     expect(
-      screen.getByRole("button", { name: "Passwort verbergen" })
+      screen.getByRole("button", { name: "hidePassword" })
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Passwort verbergen" }));
+    fireEvent.click(screen.getByRole("button", { name: "hidePassword" }));
     expect(password).toHaveAttribute("type", "password");
   });
 

@@ -5,7 +5,10 @@ import styled from "styled-components";
 import { motion } from "motion/react";
 
 const Wrap = styled.main`
-  min-height: calc(100dvh - 140px);
+  /* Füllt als Flex-Child des Seiten-Faders den Raum zwischen Header und Footer
+     – so bleibt der Footer am unteren Rand, ohne unnötiges Scrollen; erst wenn
+     der Inhalt höher als der Viewport ist, entsteht Scroll. */
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -21,6 +24,9 @@ const Card = styled(motion.div)`
   padding: 2rem 1.5rem;
   backdrop-filter: blur(16px);
   box-shadow: ${({ theme }) => theme.shadows.card};
+  /* Gemeinsamer Name → die Box morpht beim Wechsel Anmelden ↔ Registrieren
+     (statt hart neu aufzubauen). Skeleton trägt denselben Namen. */
+  view-transition-name: auth-card;
 
   @media (min-width: ${({ theme }) => theme.breakpoints.sm}) {
     padding: 2.5rem 2.25rem;

@@ -30,6 +30,8 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   hint?: string;
   error?: string | null;
+  /** Rahmen rot markieren ohne Fehlermeldung darunter (z. B. Passwortstärke). */
+  invalid?: boolean;
   trailing?: ReactNode;
 }
 
@@ -52,7 +54,14 @@ const Trailing = styled.div`
   align-items: center;
 `;
 
-export function Field({ label, hint, error, trailing, ...rest }: FieldProps) {
+export function Field({
+  label,
+  hint,
+  error,
+  invalid,
+  trailing,
+  ...rest
+}: FieldProps) {
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
@@ -63,8 +72,8 @@ export function Field({ label, hint, error, trailing, ...rest }: FieldProps) {
       <InputRow $hasTrailing={Boolean(trailing)}>
         <Input
           id={id}
-          $invalid={Boolean(error)}
-          aria-invalid={error ? true : undefined}
+          $invalid={Boolean(error) || Boolean(invalid)}
+          aria-invalid={error || invalid ? true : undefined}
           aria-describedby={
             error ? errorId : hint ? hintId : undefined
           }

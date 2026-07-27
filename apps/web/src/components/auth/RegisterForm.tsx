@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import styled from "styled-components";
 import {
-  PasswordInput,
   StrengthBar,
   ValidationMessages,
   createRule,
@@ -17,6 +16,7 @@ import {
 import { de as pvrDe } from "pwd-validator-react/locales";
 import "pwd-validator-react/styles.css";
 import { Link, useRouter } from "@/i18n/navigation";
+import { TransitionLink } from "@/components/navigation/TransitionLink";
 import {
   checkTenantInvite,
   registerUser,
@@ -24,6 +24,7 @@ import {
 } from "@/app/actions/auth-actions";
 import { useThrottledValue } from "@/lib/useThrottledValue";
 import { Field } from "@/components/ui/Field";
+import { PasswordField } from "@/components/auth/PasswordField";
 import { PrimaryButton } from "@/components/ui/primitives";
 import { AuthShell, FormAlert, FormFooter, FormStack } from "./AuthShell";
 import { OAuthButtons } from "./OAuthButtons";
@@ -386,6 +387,7 @@ export function RegisterForm({ viaApex = false }: { viaApex?: boolean }) {
           required
           value={email}
           onChange={(e) => onEmailChange(e.target.value)}
+          style={{ viewTransitionName: "auth-email" }}
         />
 
         {inviteStatus === "not_invited" ? (
@@ -422,23 +424,21 @@ export function RegisterForm({ viaApex = false }: { viaApex?: boolean }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
+              <PasswordField
+                label={t("password")}
+                name="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                aria-describedby="pvr-rules"
+                invalid={password.length > 0 && ruleErrors.length > 0}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
+                style={{ viewTransitionName: "auth-password" }}
+              />
               <PvrTheme>
-                <PasswordInput
-                  variant="classic"
-                  locale={pvrLocale}
-                  label={t("password")}
-                  name="password"
-                  autoComplete="new-password"
-                  required
-                  minLength={8}
-                  showToggle
-                  aria-describedby="pvr-rules"
-                  error={password.length > 0 && ruleErrors.length > 0}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => setPasswordFocused(false)}
-                />
                 <Reveal $open={checksVisible}>
                   <div inert={!checksVisible}>
                     <ChecksStack>
@@ -469,22 +469,19 @@ export function RegisterForm({ viaApex = false }: { viaApex?: boolean }) {
                     {pwnedCount.toLocaleString(locale)}×)
                   </PwnedWarning>
                 ) : null}
-                <PasswordInput
-                  variant="classic"
-                  locale={pvrLocale}
-                  label={t("confirmPassword")}
-                  name="confirmPassword"
-                  autoComplete="new-password"
-                  required
-                  minLength={8}
-                  showToggle
-                  error={
-                    confirmPassword.length > 0 && confirmPassword !== password
-                  }
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
               </PvrTheme>
+              <PasswordField
+                label={t("confirmPassword")}
+                name="confirmPassword"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                invalid={
+                  confirmPassword.length > 0 && confirmPassword !== password
+                }
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
 
               <TermsRow>
                 <input
@@ -534,7 +531,8 @@ export function RegisterForm({ viaApex = false }: { viaApex?: boolean }) {
       </FormStack>
 
       <FormFooter>
-        {t("hasAccount")} <Link href="/login">{t("loginNow")}</Link>
+        {t("hasAccount")}{" "}
+        <TransitionLink href="/login">{t("loginNow")}</TransitionLink>
       </FormFooter>
     </AuthShell>
   );
